@@ -1,0 +1,32 @@
+# Render.com deployment configuration
+# https://render.com/docs/render-yaml-spec
+#
+# One-click deploy:
+#   1. Fork / push this repo to GitHub
+#   2. Go to https://dashboard.render.com → New → Blueprint
+#   3. Connect the repo — Render reads this file automatically
+#   4. Add your AI API keys as environment variables in the Render dashboard
+
+services:
+  - type: web
+    name: airing
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/models
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        generateValue: false
+        value: 10000         # Render's default internal port
+      # Add your real API keys in the Render dashboard (not here)
+      # - key: OPENAI_API_KEY
+      #   sync: false
+      # - key: ANTHROPIC_API_KEY
+      #   sync: false
+      # - key: GOOGLE_API_KEY
+      #   sync: false
+      # - key: MISTRAL_API_KEY
+      #   sync: false
