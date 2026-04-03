@@ -6,7 +6,9 @@
 
 ## Live demo
 
-Deploy in one click — the app works in **demo mode** (simulated responses) with no API keys, and switches to real AI responses when keys are provided.
+🌐 **[https://allMostCoin.github.io/AiRing/](https://allMostCoin.github.io/AiRing/)** — hosted on GitHub Pages, no backend required.
+
+The app works fully in your browser in **demo mode** (simulated responses). It switches to live AI responses when connected to the self-hosted backend with API keys configured.
 
 ### Deploy to Render (free, recommended)
 

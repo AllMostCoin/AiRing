@@ -7,6 +7,102 @@
 const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Client-side demo engine (mirrors server.js — used when no backend is present)
+// ─────────────────────────────────────────────────────────────────────────────
+const AI_MODELS_DATA = [
+  { id: 'gpt4',    name: 'GPT-4',   color: '#10A37F', emoji: '🤖', strengths: ['reasoning', 'coding', 'analysis', 'general'] },
+  { id: 'claude',  name: 'Claude',  color: '#D97706', emoji: '🧠', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
+  { id: 'gemini',  name: 'Gemini',  color: '#4285F4', emoji: '💎', strengths: ['multimodal', 'search', 'factual', 'math'] },
+  { id: 'mistral', name: 'Mistral', color: '#7C3AED', emoji: '🌀', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
+];
+
+const DEMO_TEMPLATES = {
+  gpt4: [
+    "Based on my analysis, {topic}. I approach this systematically: first considering the context, then evaluating the evidence, and finally synthesizing a reasoned conclusion. The key insight here is that we need to balance multiple perspectives while maintaining analytical rigor.",
+    "Excellent question about {topic}. Let me break this down step by step. The core challenge involves understanding the underlying principles, identifying the constraints, and then constructing an optimal solution pathway.",
+    "Regarding {topic}, I've processed this carefully. From a reasoning standpoint, the most important factors are: (1) the immediate context, (2) the broader implications, and (3) the practical applications. My recommendation is grounded in logical analysis.",
+  ],
+  claude: [
+    "I find {topic} genuinely fascinating. What strikes me most is the nuanced interplay between different elements here. There's an important ethical dimension worth considering — we should think about not just what's possible, but what's thoughtful and responsible.",
+    "When thinking about {topic}, I want to be careful to acknowledge the complexity here. There are multiple valid perspectives, and I think the most honest answer involves recognizing the tension between competing values and priorities.",
+    "Thinking through {topic} carefully, I believe the most important thing is to be genuinely helpful while being honest about uncertainty. My analysis suggests a thoughtful, balanced approach that considers all stakeholders.",
+  ],
+  gemini: [
+    "According to the latest information about {topic}, the data shows compelling patterns. Google's research indicates several key factors at play. When I synthesize the available knowledge, multimodal analysis reveals important connections between different data sources.",
+    "On the subject of {topic}, current knowledge base entries confirm several interesting findings. The mathematical relationships here are particularly noteworthy, and cross-referencing multiple sources gives us a clearer picture.",
+    "Analyzing {topic} from a comprehensive perspective: the factual foundation is solid, the mathematical models support the conclusion, and real-world data corroborates the theoretical framework. Here's the evidence-based answer.",
+  ],
+  mistral: [
+    "For {topic}, I can provide an efficient and precise response. The key algorithmic insight is that we can optimize this by focusing on: speed of execution, accuracy of output, and minimal computational overhead. Here's the optimized approach.",
+    "Tackling {topic} with technical precision: the most efficient solution leverages modern techniques. From a code perspective, this translates to clean, readable, and performant implementation that handles edge cases gracefully.",
+    "Addressing {topic} directly and efficiently: multilingual knowledge base activated. The cross-domain synthesis here is particularly effective for delivering a concise yet comprehensive answer.",
+  ],
+};
+
+function generateDemoResponse(modelId, prompt) {
+  const templates = DEMO_TEMPLATES[modelId];
+  const template = templates[Math.floor(Math.random() * templates.length)];
+  const topic = prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt;
+  return template.replace(/{topic}/g, `"${topic}"`);
+}
+
+const SCORE_KEYWORD_MATCH  = 2;
+const SCORE_LENGTH_CAP     = 30;
+const SCORE_LENGTH_DIVISOR = 20;
+const SCORE_NEWLINE_BONUS  = 5;
+const SCORE_LIST_BONUS     = 5;
+const SCORE_COLON_BONUS    = 3;
+const SCORE_STRENGTH_BONUS = 10;
+
+function scoreResponse(prompt, response, model) {
+  let score = 0;
+  const promptWords = new Set(
+    prompt.toLowerCase().split(/\W+/).filter((w) => w.length > 3),
+  );
+  const responseWords = response.toLowerCase().split(/\W+/);
+  for (const word of responseWords) {
+    if (promptWords.has(word)) score += SCORE_KEYWORD_MATCH;
+  }
+  score += Math.min(response.length / SCORE_LENGTH_DIVISOR, SCORE_LENGTH_CAP);
+  if (response.includes('\n')) score += SCORE_NEWLINE_BONUS;
+  if (/\d+\)|\d+\./.test(response)) score += SCORE_LIST_BONUS;
+  if (response.includes(':')) score += SCORE_COLON_BONUS;
+  const promptLower = prompt.toLowerCase();
+  for (const strength of model.strengths) {
+    if (promptLower.includes(strength)) score += SCORE_STRENGTH_BONUS;
+  }
+  return Math.round(score);
+}
+
+function runLocalCompetition(prompt) {
+  const results = AI_MODELS_DATA.map((model) => {
+    const text = generateDemoResponse(model.id, prompt);
+    // Simulate variable latency so each model feels distinct
+    const latencyMs = 200 + Math.floor(Math.random() * 900);
+    const score = scoreResponse(prompt, text, model);
+    return { model, response: text, latencyMs, score };
+  });
+  results.sort((a, b) => b.score - a.score);
+  const winner = results[0];
+  return {
+    prompt,
+    results: results.map((r) => ({
+      modelId:   r.model.id,
+      name:      r.model.name,
+      color:     r.model.color,
+      emoji:     r.model.emoji,
+      response:  r.response,
+      score:     r.score,
+      latencyMs: r.latencyMs,
+      isDemo:    true,
+      isWinner:  r.model.id === winner.model.id,
+    })),
+    winnerId:   winner.model.id,
+    winnerName: winner.model.name,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DOM references
 // ─────────────────────────────────────────────────────────────────────────────
 const promptInput     = document.getElementById('prompt-input');
@@ -82,13 +178,17 @@ requestAnimationFrame(() => { drawFloor(); });
 // ─────────────────────────────────────────────────────────────────────────────
 // Check server / demo mode
 // ─────────────────────────────────────────────────────────────────────────────
+let backendAvailable = false;
+
 async function checkServerMode() {
   try {
     const res = await fetch(`${API_BASE}/api/models`);
-    if (!res.ok) return;
+    if (!res.ok) { demoBadge.classList.remove('hidden'); return; }
     const data = await res.json();
+    backendAvailable = true;
     if (data.demoMode) demoBadge.classList.remove('hidden');
   } catch (_) {
+    // No backend (static hosting / GitHub Pages) — run fully client-side
     demoBadge.classList.remove('hidden');
   }
 }
@@ -350,18 +450,24 @@ submitBtn.addEventListener('click', async () => {
   startThinkingBubbles();
 
   try {
-    const res = await fetch(`${API_BASE}/api/compete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
+    let data;
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(err.error || `HTTP ${res.status}`);
+    if (backendAvailable) {
+      const res = await fetch(`${API_BASE}/api/compete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      data = await res.json();
+    } else {
+      // Static / GitHub Pages mode — run competition entirely in the browser
+      await delay(800 + Math.floor(Math.random() * 800));
+      data = runLocalCompetition(prompt);
     }
-
-    const data = await res.json();
 
     stopThinkingBubbles();
     thinkingOverlay.classList.remove('visible');
