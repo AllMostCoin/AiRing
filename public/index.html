@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Ring — 2D AI Competition Room</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ────────────────────────────────────── Header ── -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-icon">🥊</span>
+          <span class="logo-text">AI Ring</span>
+          <span class="logo-sub">Where AI Models Compete &amp; Collaborate</span>
+        </div>
+        <div id="demo-badge" class="demo-badge hidden">DEMO MODE</div>
+      </div>
+    </header>
+
+    <!-- ────────────────────────────────────── Main ── -->
+    <main class="layout">
+      <!-- 2D Room ──────────────────────────────────── -->
+      <section class="room-section">
+        <div class="room-container">
+          <div class="room-label">THE RING</div>
+
+          <!-- Room floor / arena -->
+          <div class="room" id="room">
+            <!-- Arena center glow -->
+            <div class="arena-glow" id="arena-glow"></div>
+
+            <!-- Floor grid lines -->
+            <canvas class="room-floor" id="room-floor"></canvas>
+
+            <!-- AI Agents -->
+            <div class="agent-wrapper" id="agent-gpt4" data-model="gpt4"
+                 style="left: 15%; top: 20%;">
+              <div class="agent" style="--color: #10A37F; --glow: #10A37F55;">
+                <div class="agent-avatar">🤖</div>
+                <div class="agent-ring"></div>
+                <div class="agent-pulse"></div>
+              </div>
+              <div class="agent-label">GPT-4</div>
+              <div class="agent-score" id="score-gpt4">—</div>
+              <div class="agent-bubble" id="bubble-gpt4"></div>
+            </div>
+
+            <div class="agent-wrapper" id="agent-claude" data-model="claude"
+                 style="right: 15%; top: 20%;">
+              <div class="agent" style="--color: #D97706; --glow: #D9770655;">
+                <div class="agent-avatar">🧠</div>
+                <div class="agent-ring"></div>
+                <div class="agent-pulse"></div>
+              </div>
+              <div class="agent-label">Claude</div>
+              <div class="agent-score" id="score-claude">—</div>
+              <div class="agent-bubble" id="bubble-claude"></div>
+            </div>
+
+            <div class="agent-wrapper" id="agent-gemini" data-model="gemini"
+                 style="left: 15%; bottom: 20%;">
+              <div class="agent" style="--color: #4285F4; --glow: #4285F455;">
+                <div class="agent-avatar">💎</div>
+                <div class="agent-ring"></div>
+                <div class="agent-pulse"></div>
+              </div>
+              <div class="agent-label">Gemini</div>
+              <div class="agent-score" id="score-gemini">—</div>
+              <div class="agent-bubble" id="bubble-gemini"></div>
+            </div>
+
+            <div class="agent-wrapper" id="agent-mistral" data-model="mistral"
+                 style="right: 15%; bottom: 20%;">
+              <div class="agent" style="--color: #7C3AED; --glow: #7C3AED55;">
+                <div class="agent-avatar">🌀</div>
+                <div class="agent-ring"></div>
+                <div class="agent-pulse"></div>
+              </div>
+              <div class="agent-label">Mistral</div>
+              <div class="agent-score" id="score-mistral">—</div>
+              <div class="agent-bubble" id="bubble-mistral"></div>
+            </div>
+
+            <!-- Status overlay shown while thinking -->
+            <div class="thinking-overlay" id="thinking-overlay">
+              <div class="thinking-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <p>AI models are competing…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Score board -->
+        <div class="scoreboard" id="scoreboard">
+          <h3 class="scoreboard-title">📊 Round Scores</h3>
+          <div class="score-rows" id="score-rows">
+            <p class="score-placeholder">Ask a question to start the competition</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Chat panel ───────────────────────────────── -->
+      <section class="chat-section">
+        <!-- Input -->
+        <div class="input-panel">
+          <h2 class="input-title">Ask the Ring</h2>
+          <p class="input-hint">Type a question or task — all AI models will compete to answer it best.</p>
+          <div class="input-row">
+            <textarea
+              id="prompt-input"
+              class="prompt-textarea"
+              placeholder="e.g. Explain quantum entanglement in simple terms…"
+              rows="3"
+              maxlength="2000"
+            ></textarea>
+          </div>
+          <div class="input-actions">
+            <span class="char-count" id="char-count">0 / 2000</span>
+            <button id="submit-btn" class="submit-btn" disabled>
+              <span class="btn-icon">⚔️</span> Start Competition
+            </button>
+          </div>
+        </div>
+
+        <!-- Winner response -->
+        <div class="winner-panel hidden" id="winner-panel">
+          <div class="winner-header">
+            <span class="winner-crown">👑</span>
+            <span class="winner-label">Best Response from</span>
+            <span class="winner-name" id="winner-name"></span>
+          </div>
+          <div class="winner-response" id="winner-response"></div>
+        </div>
+
+        <!-- All responses accordion -->
+        <div class="all-responses hidden" id="all-responses">
+          <button class="accordion-toggle" id="accordion-toggle">
+            Show all responses ▼
+          </button>
+          <div class="accordion-content hidden" id="accordion-content">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- History -->
+        <div class="history-panel" id="history-panel">
+          <h3 class="history-title">🕓 History</h3>
+          <div id="history-list" class="history-list">
+            <p class="history-empty">No rounds played yet.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>AI Ring &mdash; Demo mode uses simulated responses. Add API keys in <code>.env</code> for live AI responses.</p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
