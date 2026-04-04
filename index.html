@@ -155,6 +155,15 @@
     }
     .key-hint a { color: #f9d423; text-decoration: none; }
     .key-hint a:hover { text-decoration: underline; }
+    .key-warn {
+      font-size: .78rem;
+      color: #c0392b;
+      background: #1a0a0a;
+      border: 1px solid #5a1a1a;
+      border-radius: .5rem;
+      padding: .45rem .75rem;
+      margin-top: .5rem;
+    }
   </style>
 </head>
 <body>
@@ -173,7 +182,10 @@
       <input type="password" id="apiKey" placeholder="AIza…" autocomplete="off" />
       <p class="key-hint" style="margin-top:.5rem">
         Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.
-        Your key is never sent anywhere except Google.
+      </p>
+      <p class="key-warn">
+        ⚠️ Your key is sent directly to Google from your browser and is visible in DevTools network traffic.
+        Use a key with <a href="https://cloud.google.com/docs/authentication/api-keys#securing_an_api_key" target="_blank" rel="noopener" style="color:#f9d423">API restrictions</a> set, and never share this page with your key pre-filled.
       </p>
     </div>
 
@@ -209,7 +221,6 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'airing_api_key';
     const STORAGE_MODEL = 'airing_model';
 
     const apiKeyInput  = document.getElementById('apiKey');
@@ -220,15 +231,10 @@
     const answerBody   = document.getElementById('answerBody');
     const answerIcon   = document.getElementById('answerIcon');
 
-    // Restore saved values
-    const savedKey   = localStorage.getItem(STORAGE_KEY);
+    // Restore saved model preference (non-sensitive)
     const savedModel = localStorage.getItem(STORAGE_MODEL);
-    if (savedKey)   apiKeyInput.value = savedKey;
     if (savedModel) modelSelect.value = savedModel;
 
-    apiKeyInput.addEventListener('change', () =>
-      localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim())
-    );
     modelSelect.addEventListener('change', () =>
       localStorage.setItem(STORAGE_MODEL, modelSelect.value)
     );
@@ -247,8 +253,7 @@
         return;
       }
 
-      // Persist key
-      localStorage.setItem(STORAGE_KEY, apiKey);
+      // Persist model preference only
       localStorage.setItem(STORAGE_MODEL, model);
 
       setLoading(true);
