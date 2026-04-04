@@ -695,14 +695,17 @@ html, body {
 .agent-wrapper[data-depth="far"] {
   transform: scale(.72);
   transform-origin: bottom center;
+  z-index: 8;
 }
 .agent-wrapper[data-depth="mid"] {
   transform: scale(.86);
   transform-origin: bottom center;
+  z-index: 9;
 }
 .agent-wrapper[data-depth="near"] {
   transform: scale(1);
   transform-origin: bottom center;
+  z-index: 11;
 }
 
 /* Right-side characters face left (mirror sprite) — assigned dynamically via .facing-left */

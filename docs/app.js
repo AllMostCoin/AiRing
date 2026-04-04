@@ -273,25 +273,27 @@ const AGENT_POSITIONS = {};
 const agentSide = {};
 
 // Floor slots for the 2-member side (left or right)
+// Formation: far char pushed toward center (high left%), near char at outer edge
 const SLOTS_2 = [
-  { left: '16%', right: '',     top: '55%', bottom: '',     depth: 'far'  },
-  { left: '8%',  right: '',     top: '',    bottom: '12%',  depth: 'near' },
+  { left: '20%', right: '',     top: '57%', bottom: '',    depth: 'far'  },
+  { left: '3%',  right: '',     top: '',    bottom: '4%',  depth: 'near' },
 ];
 const SLOTS_2_R = [
-  { left: '',    right: '16%',  top: '55%', bottom: '',     depth: 'far'  },
-  { left: '',    right: '8%',   top: '',    bottom: '12%',  depth: 'near' },
+  { left: '',    right: '20%',  top: '57%', bottom: '',    depth: 'far'  },
+  { left: '',    right: '3%',   top: '',    bottom: '4%',  depth: 'near' },
 ];
 
 // Floor slots for the 3-member side (left or right)
+// Staggered V: far → center-back, mid → outer-mid, near → front-center
 const SLOTS_3 = [
-  { left: '16%', right: '',     top: '55%', bottom: '',     depth: 'far'  },
-  { left: '6%',  right: '',     top: '',    bottom: '28%',  depth: 'mid'  },
-  { left: '15%', right: '',     top: '',    bottom: '10%',  depth: 'near' },
+  { left: '26%', right: '',     top: '57%', bottom: '',    depth: 'far'  },
+  { left: '3%',  right: '',     top: '',    bottom: '22%', depth: 'mid'  },
+  { left: '15%', right: '',     top: '',    bottom: '2%',  depth: 'near' },
 ];
 const SLOTS_3_R = [
-  { left: '',    right: '16%',  top: '55%', bottom: '',     depth: 'far'  },
-  { left: '',    right: '6%',   top: '',    bottom: '28%',  depth: 'mid'  },
-  { left: '',    right: '15%',  top: '',    bottom: '10%',  depth: 'near' },
+  { left: '',    right: '26%',  top: '57%', bottom: '',    depth: 'far'  },
+  { left: '',    right: '3%',   top: '',    bottom: '22%', depth: 'mid'  },
+  { left: '',    right: '15%',  top: '',    bottom: '2%',  depth: 'near' },
 ];
 
 // Assign characters to random 2 vs 3 floor slots and update their DOM state
