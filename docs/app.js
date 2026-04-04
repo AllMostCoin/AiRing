@@ -24,10 +24,10 @@ function clearLocalGeminiKey() {
 }
 
 async function callGeminiDirect(prompt, key) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
   });
   const data = await res.json();
@@ -152,8 +152,14 @@ async function runHybridCompetition(prompt) {
           text = await callGeminiDirect(prompt, geminiKey);
           isDemo = false;
         }
-      } catch (_err) {
+      } catch (err) {
         text = null;
+        // Surface the error to the user via the settings status element
+        if (settingsStatus) {
+          settingsStatus.textContent = `✗ Gemini live call failed: ${err.message}`;
+          settingsStatus.className = 'settings-status err';
+          settingsPanel.classList.remove('hidden');
+        }
       }
       if (text === null) {
         text = generateDemoResponse(model.id, prompt);
