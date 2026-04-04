@@ -6,7 +6,7 @@
     <title>AI Ring — Midgar Battle Arena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=5" />
+    <link rel="stylesheet" href="style.css?v=6" />
   </head>
   <body>
     <!-- ─── Header ─────────────────────────────────────────────────── -->
@@ -203,6 +203,54 @@
               <div class="agent-bubble" id="bubble-mistral"></div>
             </div>
 
+            <!-- ── Cid · Copilot ─── front-center ── -->
+            <div class="agent-wrapper" id="agent-copilot" data-model="copilot" data-depth="near"
+                 style="left:41%;bottom:12%;--color:#7c5de8;--glow:#7c5de844;">
+              <div class="agent">
+                <div class="agent-sprite">
+                  <!-- Cid Highwind 32-bit pixel sprite (12×16) — GitHub Copilot -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
+                    <!-- Venus Gospel spear (left side, full height) -->
+                    <rect x="0" y="0" width="1" height="16" fill="#b8ccd8"/>
+                    <rect x="0" y="0" width="2" height="3"  fill="#ddf0f8"/>
+                    <!-- Blond messy hair -->
+                    <rect x="2" y="0" width="8" height="2"  fill="#d4a030"/>
+                    <rect x="1" y="1" width="2" height="3"  fill="#d4a030"/>
+                    <!-- Pilot goggles strap (dark) -->
+                    <rect x="1" y="1" width="10" height="2" fill="#1e2244"/>
+                    <!-- Goggle lenses (blue) -->
+                    <rect x="2" y="1" width="3" height="2"  fill="#5588ee"/>
+                    <rect x="7" y="1" width="3" height="2"  fill="#5588ee"/>
+                    <!-- Face (skin) -->
+                    <rect x="2" y="3" width="8" height="4"  fill="#e8c49a"/>
+                    <!-- Brown eyes -->
+                    <rect x="3" y="5" width="2" height="1"  fill="#885522"/>
+                    <rect x="7" y="5" width="2" height="1"  fill="#885522"/>
+                    <!-- Cigarette (Cid's signature detail) -->
+                    <rect x="9" y="6" width="2" height="1"  fill="#eeeecc"/>
+                    <rect x="11" y="5" width="1" height="1" fill="#ff8800"/>
+                    <!-- Blue AVALANCHE-style jacket -->
+                    <rect x="1" y="7" width="10" height="5" fill="#1e4488"/>
+                    <!-- Jacket chest zipper / placket -->
+                    <rect x="5" y="7" width="2" height="5"  fill="#162e66"/>
+                    <!-- Shoulder patches (light) -->
+                    <rect x="1" y="7" width="2" height="2"  fill="#8899bb"/>
+                    <rect x="9" y="7" width="2" height="2"  fill="#8899bb"/>
+                    <!-- Khaki/tan pants -->
+                    <rect x="2" y="12" width="8" height="2" fill="#b89050"/>
+                    <!-- Brown boots -->
+                    <rect x="2" y="14" width="3" height="2" fill="#553322"/>
+                    <rect x="7" y="14" width="3" height="2" fill="#553322"/>
+                  </svg>
+                </div>
+                <div class="agent-ring"></div>
+                <div class="agent-pulse"></div>
+              </div>
+              <div class="agent-label">CID · COPILOT</div>
+              <div class="agent-score" id="score-copilot">—</div>
+              <div class="agent-bubble" id="bubble-copilot"></div>
+            </div>
+
             <!-- Thinking overlay (ATB-style) -->
             <div class="thinking-overlay" id="thinking-overlay">
               <div class="thinking-dots">
@@ -279,6 +327,6 @@
       <p>AI Ring &mdash; Midgar Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
     </footer>
 
-    <script src="app.js?v=5"></script>
+    <script src="app.js?v=6"></script>
   </body>
 </html>

@@ -54,6 +54,15 @@ const AI_MODELS = [
     emoji: '🌙',
     strengths: ['coding', 'efficiency', 'multilingual', 'speed'],
   },
+  {
+    id: 'copilot',
+    name: 'Copilot',
+    character: 'Cid',
+    provider: 'github',
+    color: '#7c5de8',
+    emoji: '🚀',
+    strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'],
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -129,6 +138,24 @@ async function callMistral(prompt) {
   return data.choices[0].message.content.trim();
 }
 
+async function callCopilot(prompt) {
+  // GitHub Models inference endpoint — requires a GitHub token with model permissions
+  const key = process.env.GITHUB_TOKEN;
+  if (!key) return null;
+  const res = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 512,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`GitHub Copilot HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  return data.choices[0].message.content.trim();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Demo mode responses (used when no API keys are set)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -153,6 +180,11 @@ const DEMO_TEMPLATES = {
     "For {topic}, I can provide an efficient and precise response. The key algorithmic insight is that we can optimize this by focusing on: speed of execution, accuracy of output, and minimal computational overhead. Here's the optimized approach.",
     "Tackling {topic} with technical precision: the most efficient solution leverages modern techniques. From a code perspective, this translates to clean, readable, and performant implementation that handles edge cases gracefully.",
     "Addressing {topic} directly and efficiently: multilingual knowledge base activated. The cross-domain synthesis here is particularly effective for delivering a concise yet comprehensive answer.",
+  ],
+  copilot: [
+    "// Autocomplete engaged for {topic}\nBased on patterns across millions of repos, here's the optimal implementation. I've inlined comments, handled edge cases, and added error boundaries. Would you like me to also generate unit tests?",
+    "I've analyzed your codebase context for {topic}. Suggestions: 1) Refactor for type safety, 2) Extract reusable helpers, 3) Add guard clauses. My training on GitHub repositories shows this pattern reduces bugs by ~40%. Accepting suggestion…",
+    "Scanning open-source patterns for {topic}. Top result: a clean, well-documented solution with zero security vulnerabilities detected. I can also suggest a Copilot Workspace task to automate this across your entire project.",
   ],
 };
 
@@ -232,10 +264,11 @@ const competeLimiter = rateLimit({
 // ─────────────────────────────────────────────────────────────────────────────
 app.get('/api/models', (_req, res) => {
   const configured = {
-    gpt4: !!process.env.OPENAI_API_KEY,
-    claude: !!process.env.ANTHROPIC_API_KEY,
-    gemini: !!process.env.GOOGLE_API_KEY,
+    gpt4:    !!process.env.OPENAI_API_KEY,
+    claude:  !!process.env.ANTHROPIC_API_KEY,
+    gemini:  !!process.env.GOOGLE_API_KEY,
     mistral: !!process.env.MISTRAL_API_KEY,
+    copilot: !!process.env.GITHUB_TOKEN,
   };
   res.json({ models: AI_MODELS, configured, demoMode: Object.values(configured).every((v) => !v) });
 });
@@ -253,7 +286,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
   }
   const trimmed = prompt.trim();
 
-  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral };
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot };
 
   // Call all models in parallel
   const results = await Promise.all(

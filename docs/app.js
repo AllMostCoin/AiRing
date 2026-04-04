@@ -14,6 +14,7 @@ const AI_MODELS_DATA = [
   { id: 'claude',  name: 'Claude',  character: 'Aerith',    color: '#e06080', emoji: '🌸', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
   { id: 'gemini',  name: 'Gemini',  character: 'Tifa',      color: '#cc4422', emoji: '👊', strengths: ['multimodal', 'search', 'factual', 'math'] },
   { id: 'mistral', name: 'Mistral', character: 'Sephiroth', color: '#c8c8ff', emoji: '🌙', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
+  { id: 'copilot', name: 'Copilot', character: 'Cid',      color: '#7c5de8', emoji: '🚀', strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
 ];
 
 const DEMO_TEMPLATES = {
@@ -36,6 +37,11 @@ const DEMO_TEMPLATES = {
     "For {topic}, I can provide an efficient and precise response. The key algorithmic insight is that we can optimize this by focusing on: speed of execution, accuracy of output, and minimal computational overhead. Here's the optimized approach.",
     "Tackling {topic} with technical precision: the most efficient solution leverages modern techniques. From a code perspective, this translates to clean, readable, and performant implementation that handles edge cases gracefully.",
     "Addressing {topic} directly and efficiently: multilingual knowledge base activated. The cross-domain synthesis here is particularly effective for delivering a concise yet comprehensive answer.",
+  ],
+  copilot: [
+    "// Autocomplete engaged for {topic}\nBased on patterns across millions of repos, here's the optimal implementation. I've inlined comments, handled edge cases, and added error boundaries. Would you like me to also generate unit tests?",
+    "I've analyzed your codebase context for {topic}. Suggestions: 1) Refactor for type safety, 2) Extract reusable helpers, 3) Add guard clauses. My training on GitHub repositories shows this pattern reduces bugs by ~40%. Accepting suggestion…",
+    "Scanning open-source patterns for {topic}. Top result: a clean, well-documented solution with zero security vulnerabilities detected. I can also suggest a Copilot Workspace task to automate this across your entire project.",
   ],
 };
 
@@ -122,17 +128,15 @@ const historyList     = document.getElementById('history-list');
 const roomFloor       = document.getElementById('room-floor');
 const room            = document.getElementById('room');
 
-const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral'];
+const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot'];
 
-// Characters whose home position is on the LEFT side of the arena
-const LEFT_SIDE = new Set(['gpt4', 'gemini']);
-
-// Home positions — 4-corner layout; far/near depth handled by CSS scale
+// Home positions — 5-character layout; far/near depth handled by CSS scale
 const AGENT_POSITIONS = {
   gpt4:    { left: '10%',  right: '',     top: '12%',    bottom: '' },
   claude:  { left: '',     right: '10%',  top: '12%',    bottom: '' },
   gemini:  { left: '8%',   right: '',     top: '',       bottom: '10%' },
   mistral: { left: '',     right: '8%',   top: '',       bottom: '10%' },
+  copilot: { left: '41%',  right: '',     top: '',       bottom: '10%' },
 };
 
 // Battle positions — converged on floor; far pair higher (near horizon), near pair lower
@@ -141,6 +145,7 @@ const CENTER_POSITIONS = {
   claude:  { left: '',     right: '28%',  top: '34%',    bottom: '' },
   gemini:  { left: '28%',  right: '',     top: '',       bottom: '22%' },
   mistral: { left: '',     right: '28%',  top: '',       bottom: '22%' },
+  copilot: { left: '41%',  right: '',     top: '',       bottom: '22%' },
 };
 
 // Approximate pixel-center of each character when converged (% of room)
@@ -150,6 +155,7 @@ const BATTLE_POS = {
   claude:  { x: 66, y: 40 },
   gemini:  { x: 34, y: 66 },
   mistral: { x: 66, y: 66 },
+  copilot: { x: 50, y: 70 },
 };
 
 // FF7-style damage number pool
@@ -449,7 +455,7 @@ async function fireBattleRound() {
     spawnMateriaShot(attPos.x, attPos.y, defPos.x, defPos.y, model.color);
     await delay(310);
   } else {
-    const dir = LEFT_SIDE.has(attackerId) ? 'lunging-right' : 'lunging-left';
+    const dir = attPos.x <= defPos.x ? 'lunging-right' : 'lunging-left';
     attackerEl.classList.add(dir);
     await delay(210);
     attackerEl.classList.remove(dir);
@@ -462,7 +468,7 @@ async function fireBattleRound() {
   if (Math.random() < 0.35) spawnScreenFlash();
 
   // 4. Defender flinches (pushed away from attacker)
-  const flinchDir = LEFT_SIDE.has(attackerId) ? 'flinching-right' : 'flinching-left';
+  const flinchDir = attPos.x <= defPos.x ? 'flinching-right' : 'flinching-left';
   defenderEl.classList.add(flinchDir);
   await delay(340);
   defenderEl.classList.remove(flinchDir);
@@ -536,6 +542,7 @@ const INTRO_GREETINGS = {
   claude:  '♡ Hi everyone!',
   gemini:  'Time to battle!',
   mistral: '…Hmph.',
+  copilot: '// Ready to suggest.',
 };
 
 async function playIntroAnimation() {

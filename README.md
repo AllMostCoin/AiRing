@@ -1,6 +1,6 @@
 # 🥊 AI Ring
 
-> A 2D room where AI models (GPT-4, Claude, Gemini, Mistral) compete and collaborate on your questions. The highest-scoring AI becomes the representative voice.
+> A 2D room where AI models (GPT-4, Claude, Gemini, Mistral, Copilot) compete and collaborate on your questions. The highest-scoring AI becomes the representative voice.
 
 ---
 
@@ -23,6 +23,7 @@ The app works fully in your browser in **demo mode** (simulated responses). It s
    | `ANTHROPIC_API_KEY` | https://console.anthropic.com/keys |
    | `GOOGLE_API_KEY` | https://aistudio.google.com/app/apikey |
    | `MISTRAL_API_KEY` | https://console.mistral.ai/api-keys |
+   | `GITHUB_TOKEN` | https://github.com/settings/tokens (Models permission) |
 
 ### Deploy with Docker
 
@@ -41,6 +42,7 @@ docker run -p 3000:3000 \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -e GOOGLE_API_KEY=AIza... \
   -e MISTRAL_API_KEY=... \
+  -e GITHUB_TOKEN=ghp_... \
   airing
 ```
 
@@ -67,7 +69,7 @@ npm start              # http://localhost:3000
 ## How it works
 
 1. You type a question or task into the ring
-2. All four AI models are called **simultaneously**
+2. All five AI models are called **simultaneously**
 3. Each response is scored by keyword overlap, length, structure, and model-strength bonuses
 4. The highest-scoring AI is crowned **winner** and its response is displayed
 5. All responses are available in the "Show all responses" accordion
@@ -81,5 +83,6 @@ npm start              # http://localhost:3000
 | `ANTHROPIC_API_KEY` | Anthropic (Claude 3.5 Sonnet) | — |
 | `GOOGLE_API_KEY` | Google (Gemini 1.5 Flash) | — |
 | `MISTRAL_API_KEY` | Mistral (mistral-large) | — |
+| `GITHUB_TOKEN` | GitHub Copilot (GitHub Models) | — |
 
 No API keys → demo mode with realistic simulated responses.
