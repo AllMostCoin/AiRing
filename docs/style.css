@@ -163,109 +163,237 @@ html, body {
   white-space: nowrap;
 }
 
-/* ── The 2D Room ────────────────────────────────────────────── */
+/* ── The 2D Room — Midgar slums under the plate ─────────────── */
 .room {
   position: relative;
   width: 100%;
   aspect-ratio: 4/3;
+  /* Dirty undercity atmosphere: charcoal top → amber-brown pollution mid → dark ground */
   background:
-    radial-gradient(ellipse at 50% 110%, rgba(0,229,160,.18) 0%, transparent 50%),
-    linear-gradient(180deg, #0d0b30 0%, #090920 40%, #050510 100%);
+    radial-gradient(ellipse at 22% 82%, rgba(190,80,8,.32) 0%, transparent 38%),
+    radial-gradient(ellipse at 78% 78%, rgba(190,80,8,.26) 0%, transparent 36%),
+    radial-gradient(ellipse at 50% 58%, rgba(0,229,160,.05) 0%, transparent 52%),
+    linear-gradient(180deg,
+      #07060c 0%,
+      #0e0a08 22%,
+      #1c1008 50%,
+      #160e06 76%,
+      #0d0904 100%
+    );
   overflow: hidden;
 }
 
-/* ── Midgar cityscape background ────────────────────────────── */
+/* ── Midgar Plate — overhead ceiling (underside of the plate) ── */
+.plate-ceiling {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 34%;
+  z-index: 1;
+  pointer-events: none;
+  /* Steel panel grid */
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0px, transparent 59px,
+      rgba(16,16,20,.9) 59px, rgba(16,16,20,.9) 61px
+    ),
+    repeating-linear-gradient(0deg,
+      transparent 0px, transparent 19px,
+      rgba(16,16,20,.65) 19px, rgba(16,16,20,.65) 20px
+    ),
+    linear-gradient(180deg, #1e1e26 0%, #171720 50%, #0e0e14 85%, #0a0a10 100%);
+  /* Jagged industrial bottom edge */
+  clip-path: polygon(
+    0% 0%, 100% 0%, 100% 68%,
+    96% 76%, 91% 66%, 86% 78%,
+    80% 68%, 74% 80%, 68% 71%,
+    62% 80%, 56% 69%, 50% 80%,
+    44% 70%, 38% 80%, 32% 70%,
+    26% 78%, 20% 67%, 14% 76%,
+    8% 66%, 4% 74%, 0% 66%
+  );
+}
+/* Heat / pollution glow trapped at the plate bottom */
+.plate-ceiling::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0; height: 45%;
+  background: linear-gradient(to bottom, transparent, rgba(100,48,5,.22));
+  pointer-events: none;
+}
+/* Maintenance bolt-row near the bottom edge */
+.plate-ceiling::after {
+  content: '';
+  position: absolute;
+  bottom: 22%; left: 4%; right: 4%; height: 2px;
+  background: repeating-linear-gradient(90deg,
+    rgba(55,55,68,.9) 0px, rgba(55,55,68,.9) 9px,
+    transparent 9px, transparent 20px
+  );
+  pointer-events: none;
+}
+
+/* ── Support Pillars — three columns from plate to ground ─────── */
+.plate-pillars {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* Three pillars via stacked transparent gradient layers */
+  background:
+    linear-gradient(90deg,
+      transparent 9%, rgba(11,11,15,.92) 9%, rgba(20,20,27,.96) 10.6%, rgba(11,11,15,.92) 12.2%, transparent 12.2%
+    ),
+    linear-gradient(90deg,
+      transparent 47.5%, rgba(11,11,15,.88) 47.5%, rgba(18,18,25,.92) 49%, rgba(11,11,15,.88) 50.5%, transparent 50.5%
+    ),
+    linear-gradient(90deg,
+      transparent 87.8%, rgba(11,11,15,.92) 87.8%, rgba(20,20,27,.96) 89.4%, rgba(11,11,15,.92) 91%, transparent 91%
+    );
+  /* Pillars start from plate bottom downward */
+  clip-path: polygon(0% 26%, 100% 26%, 100% 100%, 0% 100%);
+}
+/* Edge highlights on left + right pillars */
+.plate-pillars::before {
+  content: '';
+  position: absolute;
+  top: 26%; bottom: 0; left: 9%; width: 3.2%;
+  box-shadow: inset 1px 0 0 rgba(55,55,75,.7), inset -1px 0 0 rgba(55,55,75,.7);
+  pointer-events: none;
+}
+.plate-pillars::after {
+  content: '';
+  position: absolute;
+  top: 26%; bottom: 0; right: 9%; width: 3.2%;
+  box-shadow: inset 1px 0 0 rgba(55,55,75,.7), inset -1px 0 0 rgba(55,55,75,.7);
+  pointer-events: none;
+}
+
+/* ── Pollution haze — amber smog under the plate ─────────────── */
+.slum-haze {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 58%, rgba(210,100,10,.20) 0%, transparent 55%),
+    radial-gradient(ellipse at 18% 78%, rgba(230,110,8,.24) 0%, transparent 40%),
+    radial-gradient(ellipse at 82% 74%, rgba(230,110,8,.20) 0%, transparent 38%),
+    radial-gradient(ellipse at 50% 90%, rgba(170,80,5,.28) 0%, transparent 46%);
+}
+
+/* ── Midgar Slum buildings — short, ramshackle ───────────────── */
 .midgar-bg {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
 }
-
-/* Left building cluster */
+/* Left cluster — irregular roofline, warm-tinted silhouettes */
 .midgar-bg::before {
   content: '';
   position: absolute;
   bottom: 0; left: 0;
-  width: 28%; height: 65%;
+  width: 32%; height: 42%;
   clip-path: polygon(
-    0% 100%, 0% 30%,
-    10% 30%, 10% 45%,
-    18% 45%, 18% 15%,
-    28% 15%, 28% 35%,
-    38% 35%, 38% 22%,
-    50% 22%, 50% 40%,
-    62% 40%, 62% 28%,
-    75% 28%, 75% 50%,
-    88% 50%, 88% 38%,
-    100% 38%, 100% 100%
+    0% 100%, 0% 60%,
+    6%  60%, 6%  48%,
+    13% 48%, 13% 58%,
+    19% 58%, 19% 40%,
+    25% 40%, 25% 52%,
+    32% 52%, 32% 42%,
+    39% 42%, 39% 54%,
+    47% 54%, 47% 45%,
+    55% 45%, 55% 56%,
+    64% 56%, 64% 46%,
+    74% 46%, 74% 58%,
+    84% 58%, 84% 50%,
+    93% 50%, 93% 62%,
+    100% 62%, 100% 100%
   );
-  background: #0a0a18;
-  opacity: .9;
+  background:
+    repeating-linear-gradient(0deg,
+      transparent 0px, transparent 6px,
+      rgba(200,120,18,.12) 6px, rgba(200,120,18,.12) 7px
+    ),
+    repeating-linear-gradient(90deg,
+      transparent 0px, transparent 8px,
+      rgba(200,120,18,.08) 8px, rgba(200,120,18,.08) 9px
+    ),
+    linear-gradient(180deg, #221308 0%, #160e05 55%, #0e0904 100%);
+  opacity: .97;
 }
-
-/* Right building cluster */
+/* Right cluster */
 .midgar-bg::after {
   content: '';
   position: absolute;
   bottom: 0; right: 0;
-  width: 28%; height: 65%;
+  width: 32%; height: 42%;
   clip-path: polygon(
-    0% 38%, 0% 100%, 100% 100%, 100% 30%,
-    90% 30%, 90% 45%,
-    80% 45%, 80% 20%,
-    70% 20%, 70% 38%,
-    58% 38%, 58% 25%,
-    46% 25%, 46% 42%,
-    34% 42%, 34% 30%,
-    22% 30%, 22% 50%,
-    10% 50%, 10% 36%,
-    0% 36%
+    0%   62%, 0%   100%, 100% 100%, 100% 60%,
+    94%  60%, 94%  50%,
+    87%  50%, 87%  58%,
+    80%  58%, 80%  44%,
+    72%  44%, 72%  54%,
+    64%  54%, 64%  43%,
+    57%  43%, 57%  53%,
+    49%  53%, 49%  42%,
+    42%  42%, 42%  52%,
+    35%  52%, 35%  41%,
+    27%  41%, 27%  55%,
+    20%  55%, 20%  46%,
+    13%  46%, 13%  58%,
+    6%   58%, 6%   50%,
+    0%   50%
   );
-  background: #0a0a18;
-  opacity: .9;
+  background:
+    repeating-linear-gradient(0deg,
+      transparent 0px, transparent 6px,
+      rgba(200,120,18,.12) 6px, rgba(200,120,18,.12) 7px
+    ),
+    repeating-linear-gradient(90deg,
+      transparent 0px, transparent 8px,
+      rgba(200,120,18,.08) 8px, rgba(200,120,18,.08) 9px
+    ),
+    linear-gradient(180deg, #221308 0%, #160e05 55%, #0e0904 100%);
+  opacity: .97;
 }
 
-/* Mako reactor beam from center-bottom */
+/* ── Mako Reactor — distant ground-level glow ────────────────── */
 .mako-beam {
   position: absolute;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 80px;
+  width: 140px;
   z-index: 2;
   pointer-events: none;
 }
 .mako-beam::before {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 50%;
+  bottom: 0; left: 50%;
   transform: translateX(-50%);
-  width: 6px;
-  height: 100px;
-  background: linear-gradient(to top, rgba(0,229,160,.6), transparent);
-  border-radius: 3px;
+  width: 4px; height: 115px;
+  background: linear-gradient(to top, rgba(0,229,160,.55), transparent);
+  border-radius: 2px;
   filter: blur(2px);
   animation: mako-flicker 3s ease-in-out infinite;
 }
 .mako-beam::after {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 50%;
+  bottom: 0; left: 50%;
   transform: translateX(-50%);
-  width: 30px;
-  height: 80px;
-  background: linear-gradient(to top, rgba(0,229,160,.15), transparent);
-  filter: blur(8px);
-  animation: mako-flicker 3s ease-in-out infinite .5s;
+  width: 90px; height: 110px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(0,229,160,.20) 0%, transparent 70%);
+  filter: blur(10px);
+  animation: mako-flicker 4s ease-in-out infinite 1s;
 }
 @keyframes mako-flicker {
   0%, 100% { opacity: 1; }
-  45% { opacity: .6; }
-  55% { opacity: .9; }
-  75% { opacity: .5; }
+  45%       { opacity: .55; }
+  55%       { opacity: .85; }
+  75%       { opacity: .45; }
 }
 
 /* ── Scan-line CRT overlay ──────────────────────────────────── */
@@ -330,6 +458,21 @@ html, body {
   cursor: default;
   z-index: 10;
 }
+/* Cast shadow on the arena floor — grounds the character in the scene */
+.agent-wrapper::after {
+  content: '';
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 54px; height: 7px;
+  background: radial-gradient(ellipse, rgba(0,0,0,.6) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  transition: transform .3s, opacity .3s;
+}
+.agent-wrapper.winner::after { transform: translateX(-50%) scaleX(1.3); }
+.agent-wrapper.loser::after  { opacity: .3; }
 
 .agent {
   position: relative;
@@ -338,10 +481,12 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(5,5,20,.7);
-  border: 1px solid var(--color);
+  /* Transparent by default — sprite floats naturally in the scene */
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius);
-  box-shadow: 0 0 10px var(--glow), inset 0 0 8px rgba(0,0,0,.5);
+  box-shadow: none;
+  transition: background .3s, border-color .3s, box-shadow .3s;
 }
 
 /* Pixel sprite container — 32-bit scale (12×16 grid @ 4px/pixel) */
@@ -394,13 +539,15 @@ html, body {
   animation: ripple-square 1.1s ease-out infinite;
 }
 .agent-wrapper.thinking .agent {
-  background: rgba(0,229,160,.06);
+  background: rgba(0,0,0,.35);
+  border-color: var(--color);
+  box-shadow: 0 0 10px var(--glow), inset 0 0 8px rgba(0,0,0,.5);
 }
 
-/* Winner state — LIMIT BREAK! */
+/* Winner state — cheerful victory jump */
 .agent-wrapper.winner .pixel-sprite {
-  animation: limit-break .5s ease-in-out;
-  filter: drop-shadow(0 0 8px var(--color)) drop-shadow(0 0 16px var(--color));
+  animation: victory-jump .65s cubic-bezier(.17,.67,.35,1.4) infinite;
+  filter: drop-shadow(0 0 10px var(--color)) drop-shadow(0 0 20px var(--color));
 }
 .agent-wrapper.winner .agent-ring {
   border-width: 2px;
@@ -416,12 +563,13 @@ html, body {
   box-shadow: 0 0 20px rgba(255,102,0,.4);
 }
 
-/* Loser state */
+/* Loser state — defeated slump */
 .agent-wrapper.loser .pixel-sprite {
-  filter: grayscale(.9) brightness(.5);
+  animation: defeat-fall .55s ease-in forwards;
+  filter: grayscale(.9) brightness(.38);
 }
-.agent-wrapper.loser .agent-ring { opacity: .15; }
-.agent-wrapper.loser .agent { opacity: .55; }
+.agent-wrapper.loser .agent-ring { opacity: .12; }
+.agent-wrapper.loser .agent      { opacity: .5; }
 
 @keyframes bob {
   from { transform: translateY(0) scale(1); }
@@ -435,15 +583,29 @@ html, body {
   0%   { transform: scale(1);   opacity: .8; }
   100% { transform: scale(2.2); opacity: 0;  }
 }
-@keyframes limit-break {
-  0%   { transform: scale(1)   rotate(0deg);   }
-  30%  { transform: scale(1.5) rotate(-8deg);  }
-  60%  { transform: scale(1.3) rotate(6deg);   }
-  100% { transform: scale(1.2) rotate(0deg);   }
+
+/* ── Victory jump — cheerful squash-and-stretch bounce ──────── */
+@keyframes victory-jump {
+  0%   { transform: translateY(0)     scaleX(1)    scaleY(1);    }
+  18%  { transform: translateY(-3px)  scaleX(.97)  scaleY(1.03); }
+  38%  { transform: translateY(-32px) scaleX(.93)  scaleY(1.10); }
+  52%  { transform: translateY(-36px) scaleX(.91)  scaleY(1.14); }
+  66%  { transform: translateY(-6px)  scaleX(.97)  scaleY(.96);  }
+  76%  { transform: translateY(4px)   scaleX(1.10) scaleY(.86);  }
+  88%  { transform: translateY(-14px) scaleX(.97)  scaleY(1.05); }
+  100% { transform: translateY(0)     scaleX(1)    scaleY(1);    }
+}
+
+/* ── Defeat — fall-forward KO ───────────────────────────────── */
+@keyframes defeat-fall {
+  0%   { transform: translateY(0)    rotate(0deg)  scaleX(1);   }
+  22%  { transform: translateY(-7px) rotate(14deg) scaleX(.94); }
+  50%  { transform: translateY(9px)  rotate(24deg) scaleX(.88); }
+  75%  { transform: translateY(11px) rotate(28deg) scaleX(.84); }
+  100% { transform: translateY(13px) rotate(30deg) scaleX(.82); }
 }
 
 /* ── 32-bit walk animation ──────────────────────────────────── */
-/* Frame-stepped walk cycle for retro pixel feel */
 @keyframes walk-bob {
   0%   { transform: translateY(0px)  rotate(-1.5deg); }
   25%  { transform: translateY(-5px) rotate(0deg);    }
@@ -451,7 +613,6 @@ html, body {
   75%  { transform: translateY(-5px) rotate(0deg);    }
   100% { transform: translateY(0px)  rotate(-1.5deg); }
 }
-/* Flipped variant for characters walking left */
 @keyframes walk-bob-left {
   0%   { transform: scaleX(-1) translateY(0px)  rotate(1.5deg);  }
   25%  { transform: scaleX(-1) translateY(-5px) rotate(0deg);    }
@@ -459,17 +620,58 @@ html, body {
   75%  { transform: scaleX(-1) translateY(-5px) rotate(0deg);    }
   100% { transform: scaleX(-1) translateY(0px)  rotate(1.5deg);  }
 }
+.agent-wrapper.walking      .pixel-sprite { animation: walk-bob      0.38s steps(4, end) infinite; }
+.agent-wrapper.walking-left .pixel-sprite { animation: walk-bob-left 0.38s steps(4, end) infinite; }
 
-/* Walk right (toward center from left side) */
-.agent-wrapper.walking .pixel-sprite {
-  animation: walk-bob 0.38s steps(4, end) infinite;
+/* ── Battle states ──────────────────────────────────────────── */
+
+/* Charging — pre-attack power-up glow */
+.agent-wrapper.charging .pixel-sprite {
+  animation: charge-up .22s steps(2, end) infinite;
+  filter: drop-shadow(0 0 12px var(--color)) brightness(1.45);
 }
-/* Walk left (toward center from right side) */
-.agent-wrapper.walking-left .pixel-sprite {
-  animation: walk-bob-left 0.38s steps(4, end) infinite;
+.agent-wrapper.charging .agent {
+  background: rgba(0,0,0,.3);
+  border-color: var(--color);
+  box-shadow: 0 0 28px var(--glow), inset 0 0 14px var(--glow);
+}
+@keyframes charge-up {
+  0%   { transform: scaleX(1)    scaleY(1);    }
+  50%  { transform: scaleX(1.09) scaleY(.94);  }
+  100% { transform: scaleX(1)    scaleY(1);    }
 }
 
-/* Meeting burst — arena glow expands when characters arrive */
+/* Melee lunge — whole wrapper slides forward and snaps back */
+.agent-wrapper.lunging-right { animation: lunge-right .32s ease-in-out; }
+.agent-wrapper.lunging-left  { animation: lunge-left  .32s ease-in-out; }
+@keyframes lunge-right {
+  0%   { transform: translateX(0)     scaleX(1);    }
+  38%  { transform: translateX(52px)  scaleX(1.06); }
+  65%  { transform: translateX(52px)  scaleX(1.06); }
+  100% { transform: translateX(0)     scaleX(1);    }
+}
+@keyframes lunge-left {
+  0%   { transform: translateX(0)      scaleX(1);    }
+  38%  { transform: translateX(-52px)  scaleX(1.06); }
+  65%  { transform: translateX(-52px)  scaleX(1.06); }
+  100% { transform: translateX(0)      scaleX(1);    }
+}
+
+/* Hit reaction — flinch away from attacker */
+.agent-wrapper.flinching-right { animation: flinch-right .3s ease-out; }
+.agent-wrapper.flinching-left  { animation: flinch-left  .3s ease-out; }
+@keyframes flinch-right {
+  0%   { transform: translateX(0);                     }
+  38%  { transform: translateX(20px) rotate(7deg);     }
+  100% { transform: translateX(0)    rotate(0deg);     }
+}
+@keyframes flinch-left {
+  0%   { transform: translateX(0);                     }
+  38%  { transform: translateX(-20px) rotate(-7deg);   }
+  100% { transform: translateX(0)     rotate(0deg);    }
+}
+
+/* ── Meeting burst ──────────────────────────────────────────── */
 @keyframes meet-burst {
   0%   { transform: translate(-50%,-50%) scale(0.6); opacity: 0;   }
   30%  { transform: translate(-50%,-50%) scale(1.8); opacity: 1;   }
@@ -486,6 +688,91 @@ html, body {
     transparent 70%);
   border-color: var(--border-gold);
   box-shadow: 0 0 80px rgba(200,168,75,.3), 0 0 40px var(--mako-glow);
+}
+
+/* ── Impact flash — star burst at hit point ─────────────────── */
+.impact-flash {
+  position: absolute;
+  z-index: 25;
+  width: 58px; height: 58px;
+  margin-left: -29px; margin-top: -29px;
+  pointer-events: none;
+  clip-path: polygon(
+    50% 0%, 61% 35%, 98% 35%, 68% 57%,
+    79% 91%, 50% 70%, 21% 91%, 32% 57%,
+    2%  35%, 39% 35%
+  );
+  background: var(--color, #fff);
+  filter: drop-shadow(0 0 8px var(--color, #fff));
+  animation: impact-burst .38s ease-out forwards;
+}
+.impact-flash::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 2px solid var(--color, #fff);
+  animation: impact-ring .44s ease-out forwards;
+}
+@keyframes impact-burst {
+  0%   { transform: scale(.15) rotate(-12deg); opacity: 1;   }
+  40%  { transform: scale(1.45) rotate(14deg); opacity: 1;   }
+  100% { transform: scale(.45)  rotate(28deg); opacity: 0;   }
+}
+@keyframes impact-ring {
+  0%   { transform: scale(.35); opacity: .9; }
+  100% { transform: scale(3.2); opacity: 0;  }
+}
+
+/* ── Damage number — floating ATB damage text ───────────────── */
+.damage-number {
+  position: absolute;
+  z-index: 26;
+  font-family: var(--pixel-font);
+  font-size: 10px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  text-shadow:
+     1px  1px 0 #000,
+    -1px  1px 0 #000,
+     1px -1px 0 #000,
+    -1px -1px 0 #000;
+  white-space: nowrap;
+  animation: damage-float 1.15s ease-out forwards;
+}
+@keyframes damage-float {
+  0%   { transform: translate(-50%, -50%) scale(1.6);  opacity: 1; }
+  22%  { transform: translate(-50%, -72%) scale(1.25); opacity: 1; }
+  100% { transform: translate(-50%,-135%) scale(.85);  opacity: 0; }
+}
+
+/* ── Materia projectile ─────────────────────────────────────── */
+.materia-shot {
+  position: absolute;
+  z-index: 24;
+  width: 14px; height: 14px;
+  margin-left: -7px; margin-top: -7px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: materia-fly 350ms cubic-bezier(.35,.05,.65,.95) forwards;
+}
+@keyframes materia-fly {
+  0%   { transform: translate(0, 0)                         scale(1);   opacity: 1;  }
+  80%  { transform: translate(var(--tx,80px), var(--ty,0px)) scale(.7); opacity: 1;  }
+  100% { transform: translate(var(--tx,80px), var(--ty,0px)) scale(.1); opacity: 0;  }
+}
+
+/* ── Screen flash on big impact ─────────────────────────────── */
+.room-flash {
+  position: absolute;
+  inset: 0; z-index: 27;
+  background: #fff;
+  pointer-events: none;
+  animation: screen-flash .22s ease-out forwards;
+}
+@keyframes screen-flash {
+  0%   { opacity: .38; }
+  100% { opacity: 0;   }
 }
 
 .agent-label {

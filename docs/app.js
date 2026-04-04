@@ -120,8 +120,23 @@ const accordionContent= document.getElementById('accordion-content');
 const scoreRows       = document.getElementById('score-rows');
 const historyList     = document.getElementById('history-list');
 const roomFloor       = document.getElementById('room-floor');
+const room            = document.getElementById('room');
 
 const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral'];
+
+// Characters whose home position is on the LEFT side of the arena
+const LEFT_SIDE = new Set(['gpt4', 'gemini']);
+
+// Approximate pixel-center of each character when converged (% of room)
+const BATTLE_POS = {
+  gpt4:    { x: 34, y: 44 },
+  claude:  { x: 66, y: 44 },
+  gemini:  { x: 34, y: 63 },
+  mistral: { x: 66, y: 63 },
+};
+
+// FF7-style damage number pool
+const DAMAGE_POOL = [42, 64, 87, 99, 128, 175, 210, 256, 333, 512];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Floor grid (canvas)
@@ -233,7 +248,11 @@ function getScoreEl(id)  { return document.getElementById(`score-${id}`); }
 function resetAgents() {
   MODEL_IDS.forEach((id) => {
     const el = getAgentEl(id);
-    el.classList.remove('thinking', 'winner', 'loser');
+    el.classList.remove(
+      'thinking', 'winner', 'loser',
+      'charging', 'lunging-right', 'lunging-left',
+      'flinching-left', 'flinching-right',
+    );
     getScoreEl(id).textContent = '—';
     hideBubble(id);
   });
@@ -284,6 +303,125 @@ function startThinkingBubbles() {
 function stopThinkingBubbles() {
   if (staggerInterval) { clearInterval(staggerInterval); staggerInterval = null; }
   MODEL_IDS.forEach((id) => hideBubble(id));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Battle system — FF7-style fight choreography
+// ─────────────────────────────────────────────────────────────────────────────
+
+function spawnImpactFlash(pctX, pctY, color) {
+  const el = document.createElement('div');
+  el.className = 'impact-flash';
+  el.style.cssText = `left:${pctX}%;top:${pctY}%;--color:${color}`;
+  room.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+}
+
+function spawnDamageNumber(pctX, pctY, amount, color) {
+  const el = document.createElement('div');
+  el.className = 'damage-number';
+  el.style.cssText = `left:${pctX}%;top:${pctY}%;color:${color}`;
+  el.textContent = amount;
+  room.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+}
+
+function spawnMateriaShot(fromX, fromY, toX, toY, color) {
+  const el = document.createElement('div');
+  el.className = 'materia-shot';
+  // Compute pixel delta for the CSS translate (% in translate() is relative to
+  // the element itself, not the container, so we convert to px via room size)
+  const roomW = room.clientWidth;
+  const roomH = room.clientHeight;
+  const tx = Math.round((toX - fromX) / 100 * roomW);
+  const ty = Math.round((toY - fromY) / 100 * roomH);
+  const dist = Math.hypot(tx, ty);
+  const dur  = Math.max(220, Math.round(dist * 1.1));
+  el.style.cssText =
+    `left:${fromX}%;top:${fromY}%;background:${color};` +
+    `box-shadow:0 0 10px ${color},0 0 22px ${color};` +
+    `--tx:${tx}px;--ty:${ty}px`;
+  el.style.animationDuration = `${dur}ms`;
+  room.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+}
+
+function spawnScreenFlash() {
+  const el = document.createElement('div');
+  el.className = 'room-flash';
+  room.appendChild(el);
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+}
+
+let battleActive    = false;
+let battleLoopId    = null;
+
+async function fireBattleRound() {
+  // Pick a random attacker and a different random defender
+  const order     = [...MODEL_IDS].sort(() => Math.random() - 0.5);
+  const attackerId = order[0];
+  const defenderId = order[1];
+  const attackerEl = getAgentEl(attackerId);
+  const defenderEl = getAgentEl(defenderId);
+  const model      = AI_MODELS_DATA.find((m) => m.id === attackerId);
+  const useSpell   = Math.random() < 0.28;   // ~28 % chance of materia cast
+
+  const attPos = BATTLE_POS[attackerId];
+  const defPos = BATTLE_POS[defenderId];
+  // Impact lands between attacker and defender, biased toward defender
+  const impactX = defPos.x * 0.58 + attPos.x * 0.42;
+  const impactY = defPos.y * 0.58 + attPos.y * 0.42;
+
+  // 1. Charge
+  attackerEl.classList.add('charging');
+  await delay(230);
+  attackerEl.classList.remove('charging');
+
+  // 2. Attack
+  if (useSpell) {
+    spawnMateriaShot(attPos.x, attPos.y, defPos.x, defPos.y, model.color);
+    await delay(310);
+  } else {
+    const dir = LEFT_SIDE.has(attackerId) ? 'lunging-right' : 'lunging-left';
+    attackerEl.classList.add(dir);
+    await delay(210);
+    attackerEl.classList.remove(dir);
+  }
+
+  // 3. Impact
+  const dmg = DAMAGE_POOL[Math.floor(Math.random() * DAMAGE_POOL.length)];
+  spawnImpactFlash(impactX, impactY, model.color);
+  spawnDamageNumber(defPos.x, defPos.y - 9, dmg, model.color);
+  if (Math.random() < 0.35) spawnScreenFlash();
+
+  // 4. Defender flinches (pushed away from attacker)
+  const flinchDir = LEFT_SIDE.has(attackerId) ? 'flinching-right' : 'flinching-left';
+  defenderEl.classList.add(flinchDir);
+  await delay(340);
+  defenderEl.classList.remove(flinchDir);
+}
+
+function startBattleSequence() {
+  battleActive = true;
+  const loop = async () => {
+    if (!battleActive) return;
+    await fireBattleRound();
+    if (battleActive) {
+      battleLoopId = setTimeout(loop, 280 + Math.floor(Math.random() * 360));
+    }
+  };
+  loop();
+}
+
+function stopBattleSequence() {
+  battleActive = false;
+  if (battleLoopId) { clearTimeout(battleLoopId); battleLoopId = null; }
+  MODEL_IDS.forEach((id) =>
+    getAgentEl(id).classList.remove(
+      'charging', 'lunging-right', 'lunging-left',
+      'flinching-left', 'flinching-right',
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -380,15 +518,14 @@ function renderResults(data) {
   const { results, winnerId, winnerName: wName } = data;
   const maxScore = Math.max(...results.map((r) => r.score), 1);
 
-  // Update agent states
+  // Score display (agent classes already set by the battle flow;
+  // re-applying them here is harmless and supports history replays)
   results.forEach((r) => {
     const el = getAgentEl(r.modelId);
     el.classList.remove('thinking');
     getScoreEl(r.modelId).textContent = r.score;
-
     if (r.isWinner) {
       el.classList.add('winner');
-      showBubble(r.modelId, '★ LIMIT BREAK!');
     } else {
       el.classList.add('loser');
     }
@@ -498,7 +635,6 @@ submitBtn.addEventListener('click', async () => {
   submitBtn.disabled = true;
   submitBtn.classList.add('loading');
   submitBtn.querySelector('.btn-icon').textContent = '⌛';
-  thinkingOverlay.classList.add('visible');
   winnerPanel.classList.add('hidden');
   allResponses.classList.add('hidden');
 
@@ -506,6 +642,10 @@ submitBtn.addEventListener('click', async () => {
   convergeAgents();
   setThinking();
   startThinkingBubbles();
+
+  // Wait for characters to march in, then let the battle begin
+  await delay(900);
+  startBattleSequence();
 
   try {
     let data;
@@ -522,23 +662,40 @@ submitBtn.addEventListener('click', async () => {
       }
       data = await res.json();
     } else {
-      // Static / GitHub Pages mode — run competition entirely in the browser
-      await delay(800 + Math.floor(Math.random() * 800));
+      // Static / GitHub Pages mode — give enough time for a few battle rounds
+      await delay(2200 + Math.floor(Math.random() * 800));
       data = runLocalCompetition(prompt);
     }
 
+    // Battle concludes
+    stopBattleSequence();
     stopThinkingBubbles();
-    thinkingOverlay.classList.remove('visible');
-    disperseAgents();
 
-    // Small delay so agents settle before results render
-    await delay(400);
+    // Apply winner / loser states and trigger their pose animations
+    data.results.forEach((r) => {
+      const el = getAgentEl(r.modelId);
+      el.classList.remove('thinking');
+      getScoreEl(r.modelId).textContent = r.score;
+      if (r.isWinner) {
+        el.classList.add('winner');
+        showBubble(r.modelId, '★ LIMIT BREAK!');
+      } else {
+        el.classList.add('loser');
+      }
+    });
+
+    // Let victory pose + defeat play out
+    await delay(2200);
+
+    // Characters walk back to their corners
+    disperseAgents();
+    await delay(950);
 
     renderResults(data);
     addToHistory(data);
   } catch (err) {
+    stopBattleSequence();
     stopThinkingBubbles();
-    thinkingOverlay.classList.remove('visible');
     disperseAgents();
     resetAgents();
     alert(`Error: ${err.message}`);
