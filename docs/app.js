@@ -488,6 +488,14 @@ async function checkServerMode() {
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(localConfigured);
+    // Auto-open settings panel once per session when no Gemini key is present
+    // so users know exactly how to activate live mode.
+    if (!geminiKey && !sessionStorage.getItem('airing_settings_shown')) {
+      sessionStorage.setItem('airing_settings_shown', '1');
+      settingsPanel.classList.remove('hidden');
+      settingsStatus.textContent = '⚡ Paste your Gemini key here and hit SAVE to go LIVE!';
+      settingsStatus.className = 'settings-status ok';
+    }
   }
 
   try {

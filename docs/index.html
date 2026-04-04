@@ -27,8 +27,8 @@
       <div class="settings-inner">
         <div class="settings-title">◆ API KEY CONFIG ◆</div>
         <p class="settings-note">
-          When running the Node.js server, add <code>GOOGLE_API_KEY=your-key</code> to your <code>.env</code> file — Gemini goes LIVE automatically and no key entry here is needed.
-          For static / GitHub Pages hosting, enter your key below to enable live Gemini responses directly in the browser (stored in local storage only, never sent anywhere except Google's API).
+          <strong>GitHub Pages / static hosting:</strong> paste your Gemini API key below and hit SAVE — Gemini goes LIVE instantly (key stored in browser local storage only, never sent anywhere except Google's API).<br />
+          <strong>Node.js server:</strong> add <code>GOOGLE_API_KEY=your-key</code> to your <code>.env</code> file instead — no key entry here needed.<br />
           Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.
         </p>
         <div class="settings-row">
@@ -382,6 +382,6 @@
     <!-- window.AIRING_GEMINI_KEY. It is absent in local dev — that is fine.  -->
     <script>window.AIRING_GEMINI_KEY = window.AIRING_GEMINI_KEY || '';</script>
     <script src="config.js" onerror="void 0"></script>
-    <script src="app.js?v=10"></script>
+    <script src="app.js?v=11"></script>
   </body>
 </html>
