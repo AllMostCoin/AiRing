@@ -1,9 +1,9 @@
 'use strict';
 
-require('dotenv').config();
-// Fallback: load .env.example for any keys not already set by .env
-// This lets users fill in API keys directly in .env.example without creating a separate .env file.
-require('dotenv').config({ path: '.env.example', override: false });
+// Load .env.example first as defaults, then override with .env if present.
+// This lets users fill in API keys directly in .env.example without needing a separate .env file.
+require('dotenv').config({ path: '.env.example' });
+require('dotenv').config({ override: true });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
