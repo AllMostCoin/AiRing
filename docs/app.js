@@ -10,10 +10,10 @@ const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 // Client-side demo engine (mirrors server.js — used when no backend is present)
 // ─────────────────────────────────────────────────────────────────────────────
 const AI_MODELS_DATA = [
-  { id: 'gpt4',    name: 'GPT-4',   color: '#10A37F', emoji: '🤖', strengths: ['reasoning', 'coding', 'analysis', 'general'] },
-  { id: 'claude',  name: 'Claude',  color: '#D97706', emoji: '🧠', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
-  { id: 'gemini',  name: 'Gemini',  color: '#4285F4', emoji: '💎', strengths: ['multimodal', 'search', 'factual', 'math'] },
-  { id: 'mistral', name: 'Mistral', color: '#7C3AED', emoji: '🌀', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
+  { id: 'gpt4',    name: 'GPT-4',   character: 'Cloud',     color: '#7eb8d4', emoji: '⚔️', strengths: ['reasoning', 'coding', 'analysis', 'general'] },
+  { id: 'claude',  name: 'Claude',  character: 'Aerith',    color: '#e06080', emoji: '🌸', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
+  { id: 'gemini',  name: 'Gemini',  character: 'Tifa',      color: '#cc4422', emoji: '👊', strengths: ['multimodal', 'search', 'factual', 'math'] },
+  { id: 'mistral', name: 'Mistral', character: 'Sephiroth', color: '#c8c8ff', emoji: '🌙', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
 ];
 
 const DEMO_TEMPLATES = {
@@ -136,10 +136,10 @@ function drawFloor() {
   ctx.clearRect(0, 0, w, h);
 
   const step = 40;
-  // Floor grid — canvas element uses CSS opacity: 0.25 so full white here is correct
-  const GRID_COLOR = 'rgba(255,255,255,1)';
-  const RING_COLOR_INNER = 'rgba(108,99,255,0.4)';
-  const RING_COLOR_OUTER = 'rgba(108,99,255,0.15)';
+  // Mako-green grid lines (FF7 style)
+  const GRID_COLOR = 'rgba(0,229,160,1)';
+  const RING_COLOR_INNER = 'rgba(0,229,160,0.5)';
+  const RING_COLOR_OUTER = 'rgba(0,229,160,0.18)';
 
   ctx.strokeStyle = GRID_COLOR;
   ctx.lineWidth = 1;
@@ -260,12 +260,12 @@ function hideBubble(id) {
 let staggerInterval = null;
 
 const THINKING_MSGS = [
-  'Analyzing…',
-  'Processing…',
-  'Reasoning…',
-  'Calculating…',
-  'Evaluating…',
-  'Synthesizing…',
+  'Casting materia…',
+  'ATB charging…',
+  'Drawing from draw point…',
+  'Limit break loading…',
+  'Analyzing enemy…',
+  'Summoning Bahamut…',
 ];
 
 function startThinkingBubbles() {
@@ -332,7 +332,7 @@ function renderResults(data) {
 
     if (r.isWinner) {
       el.classList.add('winner');
-      showBubble(r.modelId, '🏆 Winner!');
+      showBubble(r.modelId, '★ LIMIT BREAK!');
     } else {
       el.classList.add('loser');
     }
@@ -376,11 +376,13 @@ function renderResults(data) {
     // Build header via innerHTML — only trusted server data (emoji, color, name, score) used
     const header = document.createElement('div');
     header.className = 'response-card-header';
+    const liveBadge = (!r.isDemo) ? '<span class="live-badge">LIVE</span>' : '';
     header.innerHTML = `
       <span class="response-card-emoji">${r.emoji}</span>
       <span class="response-card-name" style="color:${r.color}">${r.name}</span>
-      ${r.isWinner ? '<span class="response-card-badge">WINNER</span>' : ''}
-      <span class="response-card-score">Score: ${r.score} · ${r.latencyMs}ms${r.isDemo ? ' · demo' : ''}</span>
+      ${r.isWinner ? '<span class="response-card-badge">LIMIT BREAK</span>' : ''}
+      ${liveBadge}
+      <span class="response-card-score">Score: ${r.score} · ${r.latencyMs}ms${r.isDemo ? ' · training' : ''}</span>
     `;
 
     // Use textContent for the response body to prevent XSS from AI-generated content
@@ -395,7 +397,7 @@ function renderResults(data) {
   allResponses.classList.remove('hidden');
   // Reset accordion state
   accordionContent.classList.add('hidden');
-  accordionToggle.textContent = 'Show all responses ▼';
+  accordionToggle.textContent = 'Battle Log ▼';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -439,7 +441,7 @@ submitBtn.addEventListener('click', async () => {
   // UI: loading
   submitBtn.disabled = true;
   submitBtn.classList.add('loading');
-  submitBtn.querySelector('.btn-icon').textContent = '⏳';
+  submitBtn.querySelector('.btn-icon').textContent = '⌛';
   thinkingOverlay.classList.add('visible');
   winnerPanel.classList.add('hidden');
   allResponses.classList.add('hidden');
@@ -487,7 +489,7 @@ submitBtn.addEventListener('click', async () => {
   } finally {
     submitBtn.disabled = false;
     submitBtn.classList.remove('loading');
-    submitBtn.querySelector('.btn-icon').textContent = '⚔️';
+    submitBtn.querySelector('.btn-icon').textContent = '⚔';
     submitBtn.disabled = promptInput.value.trim().length === 0;
   }
 });

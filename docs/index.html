@@ -3,116 +3,205 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Ring — 2D AI Competition Room</title>
+    <title>AI Ring — Midgar Battle Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- ────────────────────────────────────── Header ── -->
+    <!-- ─── Header ─────────────────────────────────────────────────── -->
     <header class="site-header">
       <div class="header-inner">
         <div class="logo">
-          <span class="logo-icon">🥊</span>
-          <span class="logo-text">AI Ring</span>
-          <span class="logo-sub">Where AI Models Compete &amp; Collaborate</span>
+          <span class="logo-icon">⚔</span>
+          <span class="logo-text">AI RING</span>
+          <span class="logo-sub">MIDGAR BATTLE ARENA</span>
         </div>
-        <div id="demo-badge" class="demo-badge hidden">DEMO MODE</div>
+        <div id="demo-badge" class="demo-badge hidden">TRAINING MODE</div>
       </div>
     </header>
 
-    <!-- ────────────────────────────────────── Main ── -->
+    <!-- ─── Main ───────────────────────────────────────────────────── -->
     <main class="layout">
-      <!-- 2D Room ──────────────────────────────────── -->
+
+      <!-- 2D Battle Room ─────────────────────────────────────────── -->
       <section class="room-section">
         <div class="room-container">
-          <div class="room-label">THE RING</div>
+          <div class="room-label">◆ MIDGAR COLOSSEUM ◆</div>
 
-          <!-- Room floor / arena -->
           <div class="room" id="room">
-            <!-- Arena center glow -->
-            <div class="arena-glow" id="arena-glow"></div>
+            <!-- Midgar cityscape background layers -->
+            <div class="midgar-bg"></div>
+            <div class="mako-beam"></div>
+            <!-- Scan-line CRT overlay -->
+            <div class="scan-lines"></div>
 
-            <!-- Floor grid lines -->
+            <!-- Arena glow / ATB ring -->
+            <div class="arena-glow" id="arena-glow"></div>
+            <!-- Floor grid canvas -->
             <canvas class="room-floor" id="room-floor"></canvas>
 
-            <!-- AI Agents -->
+            <!-- ── Cloud · GPT-4 ───── top-left ── -->
             <div class="agent-wrapper" id="agent-gpt4" data-model="gpt4"
-                 style="left: 15%; top: 20%;">
-              <div class="agent" style="--color: #10A37F; --glow: #10A37F55;">
-                <div class="agent-avatar">🤖</div>
+                 style="left:12%;top:15%;">
+              <div class="agent" style="--color:#7eb8d4;--glow:#7eb8d455;">
+                <div class="agent-sprite">
+                  <!-- Cloud Strife pixel sprite (8×9) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 9" class="pixel-sprite">
+                    <!-- spiky blond hair -->
+                    <rect x="2" y="0" width="1" height="3" fill="#f5e020"/>
+                    <rect x="4" y="0" width="2" height="2" fill="#f5e020"/>
+                    <rect x="1" y="1" width="6" height="2" fill="#f5e020"/>
+                    <rect x="0" y="2" width="8" height="1" fill="#f5e020"/>
+                    <!-- face / skin -->
+                    <rect x="2" y="3" width="4" height="2" fill="#e8c49a"/>
+                    <!-- blue eyes -->
+                    <rect x="2" y="4" width="1" height="1" fill="#5599ff"/>
+                    <rect x="5" y="4" width="1" height="1" fill="#5599ff"/>
+                    <!-- SOLDIER dark-blue armor -->
+                    <rect x="1" y="5" width="6" height="4" fill="#1a4070"/>
+                    <!-- grey pauldrons -->
+                    <rect x="0" y="5" width="2" height="2" fill="#607090"/>
+                    <rect x="6" y="5" width="2" height="2" fill="#607090"/>
+                    <!-- buster sword hint (diagonal) -->
+                    <rect x="7" y="3" width="1" height="5" fill="#c0c8d8"/>
+                  </svg>
+                </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">GPT-4</div>
+              <div class="agent-label">CLOUD · GPT-4</div>
               <div class="agent-score" id="score-gpt4">—</div>
               <div class="agent-bubble" id="bubble-gpt4"></div>
             </div>
 
+            <!-- ── Aerith · Claude ─── top-right ── -->
             <div class="agent-wrapper" id="agent-claude" data-model="claude"
-                 style="right: 15%; top: 20%;">
-              <div class="agent" style="--color: #D97706; --glow: #D9770655;">
-                <div class="agent-avatar">🧠</div>
+                 style="right:12%;top:15%;">
+              <div class="agent" style="--color:#e06080;--glow:#e0608055;">
+                <div class="agent-sprite">
+                  <!-- Aerith Gainsborough pixel sprite (8×9) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 9" class="pixel-sprite">
+                    <!-- brown hair (top + sides) -->
+                    <rect x="1" y="0" width="6" height="2" fill="#7b3811"/>
+                    <rect x="0" y="1" width="2" height="6" fill="#7b3811"/>
+                    <rect x="6" y="1" width="2" height="6" fill="#7b3811"/>
+                    <!-- face -->
+                    <rect x="2" y="1" width="4" height="4" fill="#e8c49a"/>
+                    <!-- green eyes -->
+                    <rect x="2" y="3" width="1" height="1" fill="#22aa44"/>
+                    <rect x="5" y="3" width="1" height="1" fill="#22aa44"/>
+                    <!-- red hair ribbon -->
+                    <rect x="3" y="0" width="2" height="1" fill="#ff6680"/>
+                    <!-- pink dress -->
+                    <rect x="1" y="5" width="6" height="4" fill="#d45070"/>
+                    <!-- dress trim -->
+                    <rect x="1" y="5" width="6" height="1" fill="#f07090"/>
+                  </svg>
+                </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">Claude</div>
+              <div class="agent-label">AERITH · CLAUDE</div>
               <div class="agent-score" id="score-claude">—</div>
               <div class="agent-bubble" id="bubble-claude"></div>
             </div>
 
+            <!-- ── Tifa · Gemini ───── bottom-left ── -->
             <div class="agent-wrapper" id="agent-gemini" data-model="gemini"
-                 style="left: 15%; bottom: 20%;">
-              <div class="agent" style="--color: #4285F4; --glow: #4285F455;">
-                <div class="agent-avatar">💎</div>
+                 style="left:12%;bottom:15%;">
+              <div class="agent" style="--color:#cc4422;--glow:#cc442255;">
+                <div class="agent-sprite">
+                  <!-- Tifa Lockhart pixel sprite (8×9) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 9" class="pixel-sprite">
+                    <!-- black hair (short bob) -->
+                    <rect x="1" y="0" width="6" height="3" fill="#1a1a1a"/>
+                    <!-- face -->
+                    <rect x="2" y="2" width="4" height="3" fill="#e8c49a"/>
+                    <!-- red headband -->
+                    <rect x="1" y="2" width="6" height="1" fill="#cc2200"/>
+                    <!-- dark red eyes -->
+                    <rect x="2" y="3" width="1" height="1" fill="#aa2222"/>
+                    <rect x="5" y="3" width="1" height="1" fill="#aa2222"/>
+                    <!-- white crop top -->
+                    <rect x="1" y="5" width="6" height="1" fill="#f0f0f0"/>
+                    <!-- red shorts -->
+                    <rect x="0" y="6" width="8" height="3" fill="#cc2200"/>
+                    <!-- suspenders -->
+                    <rect x="2" y="5" width="1" height="4" fill="#222222"/>
+                    <rect x="5" y="5" width="1" height="4" fill="#222222"/>
+                  </svg>
+                </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">Gemini</div>
+              <div class="agent-label">TIFA · GEMINI</div>
               <div class="agent-score" id="score-gemini">—</div>
               <div class="agent-bubble" id="bubble-gemini"></div>
             </div>
 
+            <!-- ── Sephiroth · Mistral ─── bottom-right ── -->
             <div class="agent-wrapper" id="agent-mistral" data-model="mistral"
-                 style="right: 15%; bottom: 20%;">
-              <div class="agent" style="--color: #7C3AED; --glow: #7C3AED55;">
-                <div class="agent-avatar">🌀</div>
+                 style="right:12%;bottom:15%;">
+              <div class="agent" style="--color:#c8c8ff;--glow:#c8c8ff44;">
+                <div class="agent-sprite">
+                  <!-- Sephiroth pixel sprite (8×9) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 9" class="pixel-sprite">
+                    <!-- long silver hair (sides flow down) -->
+                    <rect x="0" y="0" width="8" height="2" fill="#c8c8ff"/>
+                    <rect x="0" y="2" width="2" height="7" fill="#c8c8ff"/>
+                    <rect x="6" y="2" width="2" height="7" fill="#c8c8ff"/>
+                    <!-- pale face -->
+                    <rect x="2" y="1" width="4" height="4" fill="#d8d8f0"/>
+                    <!-- green cat-slit eyes -->
+                    <rect x="2" y="3" width="2" height="1" fill="#00cc44"/>
+                    <rect x="4" y="3" width="2" height="1" fill="#00cc44"/>
+                    <!-- black coat -->
+                    <rect x="2" y="5" width="4" height="4" fill="#111122"/>
+                    <rect x="0" y="5" width="2" height="4" fill="#1a1a33"/>
+                    <rect x="6" y="5" width="2" height="4" fill="#1a1a33"/>
+                    <!-- coat highlight -->
+                    <rect x="3" y="5" width="2" height="4" fill="#1d1d3a"/>
+                  </svg>
+                </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">Mistral</div>
+              <div class="agent-label">SEPH · MISTRAL</div>
               <div class="agent-score" id="score-mistral">—</div>
               <div class="agent-bubble" id="bubble-mistral"></div>
             </div>
 
-            <!-- Status overlay shown while thinking -->
+            <!-- Thinking overlay (ATB-style) -->
             <div class="thinking-overlay" id="thinking-overlay">
               <div class="thinking-dots">
                 <span></span><span></span><span></span>
               </div>
-              <p>AI models are competing…</p>
+              <p>▶ CASTING MATERIA…</p>
             </div>
           </div>
         </div>
 
-        <!-- Score board -->
+        <!-- ATB Score Board -->
         <div class="scoreboard" id="scoreboard">
-          <h3 class="scoreboard-title">📊 Round Scores</h3>
+          <h3 class="scoreboard-title">◆ BATTLE RESULTS</h3>
           <div class="score-rows" id="score-rows">
-            <p class="score-placeholder">Ask a question to start the competition</p>
+            <p class="score-placeholder">Cast a spell to begin the battle</p>
           </div>
         </div>
       </section>
 
-      <!-- Chat panel ───────────────────────────────── -->
+      <!-- Command Menu ────────────────────────────────────────────── -->
       <section class="chat-section">
         <!-- Input -->
         <div class="input-panel">
-          <h2 class="input-title">Ask the Ring</h2>
-          <p class="input-hint">Type a question or task — all AI models will compete to answer it best.</p>
+          <h2 class="input-title">▶ MATERIA COMMAND</h2>
+          <p class="input-hint">Enter your command — all party members will cast their best spell.</p>
           <div class="input-row">
             <textarea
               id="prompt-input"
               class="prompt-textarea"
-              placeholder="e.g. Explain quantum entanglement in simple terms…"
+              placeholder="e.g. Explain the Lifestream to a Wutai soldier…"
               rows="3"
               maxlength="2000"
             ></textarea>
@@ -120,43 +209,43 @@
           <div class="input-actions">
             <span class="char-count" id="char-count">0 / 2000</span>
             <button id="submit-btn" class="submit-btn" disabled>
-              <span class="btn-icon">⚔️</span> Start Competition
+              <span class="btn-icon">⚔</span> ATTACK
             </button>
           </div>
         </div>
 
-        <!-- Winner response -->
+        <!-- Limit Break / winner response -->
         <div class="winner-panel hidden" id="winner-panel">
           <div class="winner-header">
-            <span class="winner-crown">👑</span>
-            <span class="winner-label">Best Response from</span>
+            <span class="winner-crown">★</span>
+            <span class="winner-label">LIMIT BREAK! Winner:</span>
             <span class="winner-name" id="winner-name"></span>
           </div>
           <div class="winner-response" id="winner-response"></div>
         </div>
 
-        <!-- All responses accordion -->
+        <!-- Battle Log accordion -->
         <div class="all-responses hidden" id="all-responses">
           <button class="accordion-toggle" id="accordion-toggle">
-            Show all responses ▼
+            Battle Log ▼
           </button>
           <div class="accordion-content hidden" id="accordion-content">
             <!-- Populated by JS -->
           </div>
         </div>
 
-        <!-- History -->
+        <!-- Quest Log / history -->
         <div class="history-panel" id="history-panel">
-          <h3 class="history-title">🕓 History</h3>
+          <h3 class="history-title">◆ QUEST LOG</h3>
           <div id="history-list" class="history-list">
-            <p class="history-empty">No rounds played yet.</p>
+            <p class="history-empty">No battles fought yet.</p>
           </div>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">
-      <p>AI Ring &mdash; Runs fully in your browser. Add API keys via a self-hosted backend (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--text-muted)">README</a>) for live AI responses.</p>
+      <p>AI Ring &mdash; Midgar Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
     </footer>
 
     <script src="app.js"></script>
