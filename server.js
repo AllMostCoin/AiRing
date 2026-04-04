@@ -113,7 +113,7 @@ async function callAnthropic(prompt) {
 async function callGoogle(prompt) {
   const key = process.env.GOOGLE_API_KEY;
   if (!key) return null;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${key}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
