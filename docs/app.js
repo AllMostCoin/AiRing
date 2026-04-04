@@ -220,6 +220,13 @@ const geminiKeyInput  = document.getElementById('gemini-key-input');
 const settingsSaveBtn = document.getElementById('settings-save-btn');
 const settingsClearBtn= document.getElementById('settings-clear-btn');
 const settingsStatus  = document.getElementById('settings-status');
+const roundIndicator  = document.getElementById('round-indicator');
+const roundLabel      = document.getElementById('round-label');
+const roundPips       = [
+  document.getElementById('pip-1'),
+  document.getElementById('pip-2'),
+  document.getElementById('pip-3'),
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Settings panel handlers
@@ -755,7 +762,7 @@ async function playIntroAnimation() {
 // Render results
 // ─────────────────────────────────────────────────────────────────────────────
 function renderResults(data) {
-  const { results, winnerId, winnerName: wName } = data;
+  const { results, winnerId, winnerName: wName, totalRounds } = data;
   const maxScore = Math.max(...results.map((r) => r.score), 1);
 
   // Score display (agent classes already set by the battle flow;
@@ -776,6 +783,8 @@ function renderResults(data) {
   const sorted = [...results].sort((a, b) => b.score - a.score);
   sorted.forEach((r) => {
     const pct = Math.round((r.score / maxScore) * 100);
+    const winsLabel = totalRounds && r.roundWins !== undefined
+      ? ` · ${r.roundWins}W` : '';
     const row = document.createElement('div');
     row.className = `score-row${r.isWinner ? ' winner-row' : ''}`;
     row.innerHTML = `
@@ -784,7 +793,7 @@ function renderResults(data) {
       <div class="score-row-bar-wrap">
         <div class="score-row-bar" style="width:0; background:${r.color};" data-pct="${pct}"></div>
       </div>
-      <span class="score-row-pts">${r.score}</span>
+      <span class="score-row-pts">${r.score}${winsLabel}</span>
     `;
     scoreRows.appendChild(row);
     // Animate bar
@@ -796,8 +805,11 @@ function renderResults(data) {
   });
 
   // Winner panel
-  winnerName.textContent = `${results.find((r) => r.isWinner)?.emoji || ''} ${wName}`;
-  winnerResponse.textContent = results.find((r) => r.isWinner)?.response || '';
+  const winnerResult = results.find((r) => r.isWinner);
+  const winsStr = (totalRounds && winnerResult?.roundWins !== undefined)
+    ? ` (${winnerResult.roundWins}/${totalRounds} rounds)` : '';
+  winnerName.textContent = `${winnerResult?.emoji || ''} ${wName}${winsStr}`;
+  winnerResponse.textContent = winnerResult?.response || '';
   winnerPanel.classList.remove('hidden');
 
   // All-responses accordion
@@ -810,12 +822,14 @@ function renderResults(data) {
     const header = document.createElement('div');
     header.className = 'response-card-header';
     const liveBadge = (!r.isDemo) ? '<span class="live-badge">LIVE</span>' : '';
+    const winsInfo = (totalRounds && r.roundWins !== undefined)
+      ? ` · ${r.roundWins}/${totalRounds} rounds` : '';
     header.innerHTML = `
       <span class="response-card-emoji">${r.emoji}</span>
       <span class="response-card-name" style="color:${r.color}">${r.name}</span>
-      ${r.isWinner ? '<span class="response-card-badge">ULTIMATE</span>' : ''}
+      ${r.isWinner ? '<span class="response-card-badge">MATCH WIN</span>' : ''}
       ${liveBadge}
-      <span class="response-card-score">Score: ${r.score} · ${r.latencyMs}ms${r.isDemo ? ' · training' : ''}</span>
+      <span class="response-card-score">Score: ${r.score}${winsInfo} · ${r.latencyMs}ms${r.isDemo ? ' · training' : ''}</span>
     `;
 
     // Use textContent for the response body to prevent XSS from AI-generated content
@@ -865,7 +879,52 @@ function renderHistory() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main: run competition
+// Round system helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const TOTAL_ROUNDS = 3;
+
+function showRoundBanner(roundNum) {
+  roundLabel.textContent = `ROUND ${roundNum}`;
+  roundIndicator.classList.remove('hidden', 'stamp');
+  // Trigger reflow to restart animation
+  void roundIndicator.offsetWidth;
+  roundIndicator.classList.add('stamp');
+}
+
+function updateRoundPips(completedRounds) {
+  roundPips.forEach((pip, i) => {
+    pip.classList.remove('done', 'current');
+    if (i < completedRounds) pip.classList.add('done');
+    else if (i === completedRounds) pip.classList.add('current');
+  });
+}
+
+function resetRoundPips() {
+  roundPips.forEach((pip) => pip.classList.remove('done', 'current'));
+}
+
+// Fetch one round of competition results
+async function fetchOneRound(prompt) {
+  if (backendAvailable) {
+    const res = await fetch(`${API_BASE}/api/compete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+  // Static / GitHub Pages mode
+  const hasKey = !!getLocalGeminiKey();
+  await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
+  return runHybridCompetition(prompt);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main: run 3-round competition
 // ─────────────────────────────────────────────────────────────────────────────
 submitBtn.addEventListener('click', async () => {
   const prompt = promptInput.value.trim();
@@ -879,66 +938,147 @@ submitBtn.addEventListener('click', async () => {
   allResponses.classList.add('hidden');
 
   resetAgents();
-  convergeAgents();
-  setThinking();
-  startThinkingBubbles();
+  resetRoundPips();
 
-  // Wait for characters to march in, then let the battle begin
-  await delay(900);
-  startBattleSequence();
+  // Accumulate wins and last-round data for each model
+  const wins = {};  // modelId → number of round wins
+  MODEL_IDS.forEach((id) => { wins[id] = 0; });
+  const roundResults = [];  // one entry per round
+  let lastData = null;
 
   try {
-    let data;
+    for (let round = 1; round <= TOTAL_ROUNDS; round++) {
+      // Show round banner
+      showRoundBanner(round);
+      updateRoundPips(round - 1);
 
-    if (backendAvailable) {
-      const res = await fetch(`${API_BASE}/api/compete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+      // Walk to center
+      convergeAgents();
+      setThinking();
+      startThinkingBubbles();
+
+      // Wait for march-in, then let battle begin
+      await delay(900);
+      startBattleSequence();
+
+      // Fetch results for this round
+      const data = await fetchOneRound(prompt);
+
+      // Battle concludes
+      stopBattleSequence();
+      stopThinkingBubbles();
+      lastData = data;
+      roundResults.push(data);
+
+      // Credit win to round winner
+      wins[data.winnerId] = (wins[data.winnerId] || 0) + 1;
+
+      // Show round result on characters
+      const roundWinnerBubble = `ROUND ${round} WIN!`;
+      data.results.forEach((r) => {
+        const el = getAgentEl(r.modelId);
+        el.classList.remove('thinking');
+        getScoreEl(r.modelId).textContent = r.score;
+        if (r.isWinner) {
+          el.classList.add('winner');
+          showBubble(r.modelId, round < TOTAL_ROUNDS ? roundWinnerBubble : '★ ULTIMATE!');
+        } else {
+          el.classList.add('loser');
+        }
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+
+      // Let victory / defeat pose play for a moment
+      await delay(round < TOTAL_ROUNDS ? 1400 : 2200);
+
+      // Mark pip as done
+      updateRoundPips(round);
+
+      if (round < TOTAL_ROUNDS) {
+        // Reset agents for next round — disperse, then clear states
+        disperseAgents();
+        await delay(800);
+        MODEL_IDS.forEach((id) => {
+          const el = getAgentEl(id);
+          el.classList.remove('winner', 'loser', 'thinking');
+        });
+        await delay(300);
       }
-      data = await res.json();
-    } else {
-      // Static / GitHub Pages mode — use direct Gemini if key is available
-      const hasKey = !!getLocalGeminiKey();
-      await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
-      data = await runHybridCompetition(prompt);
     }
 
-    // Battle concludes
-    stopBattleSequence();
-    stopThinkingBubbles();
+    // Determine match winner (most round wins; score tiebreak on last round)
+    const maxWins = Math.max(...MODEL_IDS.map((id) => wins[id]));
+    let matchWinnerIds = MODEL_IDS.filter((id) => wins[id] === maxWins);
+    if (matchWinnerIds.length > 1 && lastData) {
+      // Tiebreak by score in the final round
+      const lastRoundScores = {};
+      lastData.results.forEach((r) => { lastRoundScores[r.modelId] = r.score; });
+      matchWinnerIds.sort((a, b) => (lastRoundScores[b] || 0) - (lastRoundScores[a] || 0));
+    }
+    const matchWinnerId = matchWinnerIds[0];
+    const matchWinnerModel = AI_MODELS_DATA.find((m) => m.id === matchWinnerId);
 
-    // Apply winner / loser states and trigger their pose animations
-    data.results.forEach((r) => {
-      const el = getAgentEl(r.modelId);
-      el.classList.remove('thinking');
-      getScoreEl(r.modelId).textContent = r.score;
-      if (r.isWinner) {
+    // Compose aggregated results for renderResults
+    const aggregated = AI_MODELS_DATA.map((model) => {
+      // Sum scores across all rounds for this model
+      const totalScore = roundResults.reduce((sum, rd) => {
+        const r = rd.results.find((x) => x.modelId === model.id);
+        return sum + (r ? r.score : 0);
+      }, 0);
+      // Use response from the winning round (or last round)
+      const bestRound = roundResults.reduce((best, rd) => {
+        const r = rd.results.find((x) => x.modelId === model.id);
+        if (!best || (r && r.isWinner)) return r;
+        return best;
+      }, null) || lastData.results.find((x) => x.modelId === model.id);
+      return {
+        modelId:   model.id,
+        name:      model.name,
+        color:     model.color,
+        emoji:     model.emoji,
+        response:  bestRound ? bestRound.response : '',
+        score:     totalScore,
+        latencyMs: bestRound ? bestRound.latencyMs : 0,
+        isDemo:    bestRound ? bestRound.isDemo : true,
+        roundWins: wins[model.id],
+        isWinner:  model.id === matchWinnerId,
+      };
+    });
+    aggregated.sort((a, b) => b.score - a.score);
+
+    const matchData = {
+      prompt,
+      results:    aggregated,
+      winnerId:   matchWinnerId,
+      winnerName: matchWinnerModel ? matchWinnerModel.name : matchWinnerId,
+      totalRounds: TOTAL_ROUNDS,
+    };
+
+    // Highlight the overall match winner / losers
+    MODEL_IDS.forEach((id) => {
+      const el = getAgentEl(id);
+      el.classList.remove('winner', 'loser');
+      if (id === matchWinnerId) {
         el.classList.add('winner');
-        showBubble(r.modelId, '★ ULTIMATE!');
+        showBubble(id, `★ MATCH WIN! (${wins[id]}-${TOTAL_ROUNDS - wins[id]})`);
       } else {
         el.classList.add('loser');
       }
     });
 
-    // Let victory pose + defeat play out
     await delay(2200);
 
     // Characters walk back to their corners
     disperseAgents();
     await delay(950);
 
-    renderResults(data);
-    addToHistory(data);
+    renderResults(matchData);
+    addToHistory(matchData);
   } catch (err) {
     stopBattleSequence();
     stopThinkingBubbles();
     disperseAgents();
     resetAgents();
+    resetRoundPips();
     alert(`Error: ${err.message}`);
   } finally {
     submitBtn.disabled = false;

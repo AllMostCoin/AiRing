@@ -802,6 +802,58 @@ html, body {
   50%       { transform: translateY(-10px) scale(1.3); opacity: 1; }
 }
 
+/* ── Round indicator — full-room flash banner ───────────────── */
+.round-indicator {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 35;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.round-indicator.visible { opacity: 1; }
+.round-label {
+  font-family: var(--pixel-font);
+  font-size: 14px;
+  color: var(--gold);
+  text-shadow:
+    2px 2px 0 #000,
+    0 0 20px var(--gold),
+    0 0 40px var(--gold);
+  letter-spacing: 4px;
+  white-space: nowrap;
+}
+@keyframes round-stamp {
+  0%   { transform: translate(-50%,-50%) scale(2.4); opacity: 0; }
+  30%  { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+  70%  { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(.9);  opacity: 0; }
+}
+.round-indicator.stamp { animation: round-stamp .9s ease-out forwards; }
+
+/* ── Round pips — above scoreboard ─────────────────────────── */
+.round-pips {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.round-pip {
+  width: 18px; height: 18px;
+  border: 3px solid var(--border-gold);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  background: transparent;
+  transition: background .3s, box-shadow .3s;
+}
+.round-pip.done    { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+.round-pip.current { background: var(--border-gold); box-shadow: 0 0 14px var(--border-gold); animation: pip-pulse .7s ease-in-out infinite alternate; }
+@keyframes pip-pulse {
+  from { opacity: .6; }
+  to   { opacity: 1; }
+}
+
 /* ── ATB Scoreboard ─────────────────────────────────────────── */
 .scoreboard {
   background: var(--surface);
