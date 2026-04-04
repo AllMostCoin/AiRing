@@ -974,14 +974,14 @@ submitBtn.addEventListener('click', async () => {
       wins[data.winnerId] = (wins[data.winnerId] || 0) + 1;
 
       // Show round result on characters
-      const roundWinnerBubble = `ROUND ${round} WIN!`;
+      const roundWinMsg = `ROUND ${round} WIN!`;
       data.results.forEach((r) => {
         const el = getAgentEl(r.modelId);
         el.classList.remove('thinking');
         getScoreEl(r.modelId).textContent = r.score;
         if (r.isWinner) {
           el.classList.add('winner');
-          showBubble(r.modelId, round < TOTAL_ROUNDS ? roundWinnerBubble : '★ ULTIMATE!');
+          showBubble(r.modelId, round < TOTAL_ROUNDS ? roundWinMsg : '★ ULTIMATE!');
         } else {
           el.classList.add('loser');
         }
@@ -1059,7 +1059,7 @@ submitBtn.addEventListener('click', async () => {
       el.classList.remove('winner', 'loser');
       if (id === matchWinnerId) {
         el.classList.add('winner');
-        showBubble(id, `★ MATCH WIN! (${wins[id]}-${TOTAL_ROUNDS - wins[id]})`);
+        showBubble(id, `★ MATCH WIN! (${wins[id]}W-${TOTAL_ROUNDS - wins[id]}L)`);
       } else {
         el.classList.add('loser');
       }
