@@ -138,6 +138,9 @@ const BATTLE_POS = {
 // FF7-style damage number pool
 const DAMAGE_POOL = [42, 64, 87, 99, 128, 175, 210, 256, 333, 512];
 
+// Probability that an attack is a materia spell cast rather than a melee lunge
+const MATERIA_CAST_CHANCE = 0.28;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Floor grid (canvas)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -364,7 +367,7 @@ async function fireBattleRound() {
   const attackerEl = getAgentEl(attackerId);
   const defenderEl = getAgentEl(defenderId);
   const model      = AI_MODELS_DATA.find((m) => m.id === attackerId);
-  const useSpell   = Math.random() < 0.28;   // ~28 % chance of materia cast
+  const useSpell   = Math.random() < MATERIA_CAST_CHANCE;
 
   const attPos = BATTLE_POS[attackerId];
   const defPos = BATTLE_POS[defenderId];
