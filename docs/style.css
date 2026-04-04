@@ -255,43 +255,15 @@ html, body {
   position: relative;
   width: 100%;
   aspect-ratio: 4/3;
-  background: linear-gradient(180deg,
-    #000010 0%,      /* deep space top */
-    #000848 18%,     /* midnight blue */
-    #0010a0 38%,     /* bold cobalt    */
-    #0020d8 48%,     /* vivid sky blue */
-    #0028ff 52%,     /* bright horizon */
-    #000c30 53%,     /* ground edge    */
-    #000820 100%     /* ground base    */
-  );
+  background-image: url('https://github.com/user-attachments/assets/359fdd51-903c-4795-9cae-4ee4ab5d1cbf');
+  background-size: cover;
+  background-position: center top;
   overflow: hidden;
 }
 
-/* ── Pixel star field (top 52% of arena) ─────────────────────── */
+/* ── Pixel star field — hidden when photo background is used ──── */
 .stars-bg {
-  position: absolute;
-  inset: 0;
-  height: 52%;
-  z-index: 1;
-  pointer-events: none;
-  background-image:
-    radial-gradient(1px 1px at  14px  8px, #fff 100%, transparent),
-    radial-gradient(1px 1px at  47px 18px, #c0d8ff 100%, transparent),
-    radial-gradient(1px 1px at  83px  5px, #fff 100%, transparent),
-    radial-gradient(1px 1px at 122px 29px, #fff 100%, transparent),
-    radial-gradient(1px 1px at 156px 11px, #c8e0ff 100%, transparent),
-    radial-gradient(1px 1px at 178px 38px, #fff 100%, transparent),
-    radial-gradient(1px 1px at  28px 42px, #a0c4ff 100%, transparent),
-    radial-gradient(1px 1px at  65px 55px, #fff 100%, transparent),
-    radial-gradient(1px 1px at 100px 48px, #d8ecff 100%, transparent),
-    radial-gradient(1px 1px at 138px 62px, #fff 100%, transparent),
-    radial-gradient(1px 1px at 168px 74px, #b8d4ff 100%, transparent),
-    radial-gradient(1px 1px at  10px 78px, #fff 100%, transparent),
-    radial-gradient(1px 1px at  52px 88px, #e0f0ff 100%, transparent),
-    radial-gradient(1px 1px at  90px 94px, #fff 100%, transparent),
-    radial-gradient(1px 1px at 148px 82px, #fff 100%, transparent),
-    radial-gradient(1px 1px at 185px 92px, #c0d8ff 100%, transparent);
-  background-size: 200px 100px;
+  display: none;
 }
 
 /* ── Scanlines overlay (CRT effect) ─────────────────────────── */
@@ -326,7 +298,7 @@ html, body {
   width: 100%;
   height: 100%;
   z-index: 4;
-  opacity: 1;
+  opacity: 0.18;
 }
 
 /* ── Arena ATB glow ─────────────────────────────────────────── */
