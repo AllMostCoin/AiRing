@@ -254,8 +254,8 @@ function drawFloor() {
 }
 
 window.addEventListener('resize', drawFloor);
-// Defer until layout is ready, then kick off intro animation
-requestAnimationFrame(() => {
+// Wait for full page load so the room element is laid out with its final dimensions
+window.addEventListener('load', () => {
   drawFloor();
   playIntroAnimation();
 });

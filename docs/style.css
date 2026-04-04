@@ -917,9 +917,6 @@ html, body {
   transform: scale(.72);
   transform-origin: bottom center;
 }
-.agent-wrapper[data-depth="far"].winner {
-  transform: scale(.72);   /* base; victory-jump adds on top via pixel-sprite */
-}
 .agent-wrapper[data-depth="near"] {
   transform: scale(1);
   transform-origin: bottom center;
