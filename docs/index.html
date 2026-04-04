@@ -6,7 +6,7 @@
     <title>AI Ring — Floating Continent Arena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=7" />
+    <link rel="stylesheet" href="style.css?v=8" />
   </head>
   <body>
     <!-- ─── Header ─────────────────────────────────────────────────── -->
@@ -30,16 +30,12 @@
           <div class="room-label">◆ FLOATING CONTINENT ◆</div>
 
           <div class="room" id="room">
-            <!-- FF6 Airship Deck background layers (back → front) -->
-            <div class="sky-bg"></div>
-            <div class="cloud-layer-1"></div>
-            <div class="cloud-layer-2"></div>
-            <div class="airship-upper-deck"></div>
-            <div class="gear-upper-left"></div>
-            <div class="gear-upper-right"></div>
-            <div class="deck-mid-rail"></div>
-            <div class="gear-lower-left"></div>
-            <div class="gear-lower-right"></div>
+            <!-- SUPER 256 battle scene layers (back → front) -->
+            <div class="stars-bg"></div>
+            <div class="horizon-bar"></div>
+
+            <!-- Scanlines overlay (CRT) -->
+            <div class="scanlines"></div>
 
             <!-- Arena glow / ATB ring -->
             <div class="arena-glow" id="arena-glow"></div>
@@ -332,6 +328,6 @@
       <p>AI Ring &mdash; Floating Continent Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
     </footer>
 
-    <script src="app.js?v=7"></script>
+    <script src="app.js?v=8"></script>
   </body>
 </html>
