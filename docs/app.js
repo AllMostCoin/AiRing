@@ -134,9 +134,9 @@ const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot'];
 const AGENT_POSITIONS = {
   gpt4:    { left: '10%',  right: '',     top: '12%',    bottom: '' },
   claude:  { left: '',     right: '10%',  top: '12%',    bottom: '' },
-  gemini:  { left: '8%',   right: '',     top: '',       bottom: '10%' },
-  mistral: { left: '',     right: '8%',   top: '',       bottom: '10%' },
-  copilot: { left: '41%',  right: '',     top: '',       bottom: '10%' },
+  gemini:  { left: '8%',   right: '',     top: '',       bottom: '12%' },
+  mistral: { left: '',     right: '8%',   top: '',       bottom: '12%' },
+  copilot: { left: '41%',  right: '',     top: '',       bottom: '12%' },
 };
 
 // Battle positions — converged on floor; far pair higher (near horizon), near pair lower
