@@ -696,17 +696,17 @@ function applyPosition(id, pos) {
   el.style.bottom = pos.bottom || '';
 }
 
-function convergeAgents() {
-  // Walk direction based on which side each character starts on
-  MODEL_IDS.forEach((id) => {
+async function convergeAgents() {
+  // Walk each character to the centre one at a time, 350 ms apart
+  for (const id of MODEL_IDS) {
     if (agentSide[id] === 'left') getAgentEl(id).classList.add('walking');
     else getAgentEl(id).classList.add('walking-left');
-  });
-  MODEL_IDS.forEach((id) => applyPosition(id, CENTER_POSITIONS[id]));
-  // Remove walk cycle once they arrive (~700 ms transition)
-  setTimeout(() => {
-    MODEL_IDS.forEach((id) => getAgentEl(id).classList.remove('walking', 'walking-left'));
-  }, 850);
+    applyPosition(id, CENTER_POSITIONS[id]);
+    await delay(350);
+  }
+  // Wait for the last character's transition to finish (~700 ms)
+  await delay(750);
+  MODEL_IDS.forEach((id) => getAgentEl(id).classList.remove('walking', 'walking-left'));
 }
 
 function disperseAgents() {
@@ -735,10 +735,8 @@ const INTRO_GREETINGS = {
 async function playIntroAnimation() {
   await delay(700);
 
-  // Walk to center
-  convergeAgents();
-
-  await delay(1100);
+  // Walk to center, one character at a time
+  await convergeAgents();
 
   // Meeting! — burst the arena glow
   arenaGlow.classList.add('active', 'meeting');
@@ -952,13 +950,10 @@ submitBtn.addEventListener('click', async () => {
       showRoundBanner(round);
       updateRoundPips(round - 1);
 
-      // Walk to center
-      convergeAgents();
+      // Walk to center, one character at a time
       setThinking();
       startThinkingBubbles();
-
-      // Wait for march-in, then let battle begin
-      await delay(900);
+      await convergeAgents();
       startBattleSequence();
 
       // Fetch results for this round
