@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - copilot/create-2d-room-for-ai-collaboration
   workflow_dispatch:
 
 permissions:
