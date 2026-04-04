@@ -3,235 +3,558 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Ring — AI Fights Your Question</title>
+  <title>AI Ring</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --surface2: #1c1c1c;
+      --border: #272727;
+      --text: #f0f0f0;
+      --muted: #777;
+      --accent: #f9d423;
+      --danger: #ff4e50;
+      --user-bg: #1a2540;
+      --user-border: #1e3060;
+      --ai-bg: #1a1a1a;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
     body {
-      min-height: 100vh;
-      background: #0d0d0d;
-      color: #f0f0f0;
+      background: var(--bg);
+      color: var(--text);
       font-family: 'Segoe UI', system-ui, sans-serif;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 2rem 1rem 4rem;
+      height: 100vh;
+      overflow: hidden;
     }
 
     /* ── Header ── */
     header {
-      text-align: center;
-      margin-bottom: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .6rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+      gap: .5rem;
     }
-    .ring-emoji { font-size: 3.5rem; display: block; margin-bottom: .4rem; }
-    h1 {
-      font-size: 2.8rem;
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      font-size: 1.5rem;
       font-weight: 900;
-      letter-spacing: .05em;
       background: linear-gradient(135deg, #ff4e50, #f9d423);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-    }
-    .tagline {
-      margin-top: .4rem;
-      color: #aaa;
-      font-size: .95rem;
-      letter-spacing: .08em;
-      text-transform: uppercase;
+      white-space: nowrap;
     }
 
-    /* ── Card ── */
-    .card {
-      width: 100%;
-      max-width: 680px;
-      background: #1a1a1a;
-      border: 1px solid #2e2e2e;
-      border-radius: 1.2rem;
-      padding: 2rem;
+    .header-actions {
       display: flex;
-      flex-direction: column;
-      gap: 1.4rem;
+      gap: .45rem;
+      flex-shrink: 0;
     }
+
+    /* ── Settings panel ── */
+    .settings-panel {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      max-height: 400px;
+      transition: max-height .3s ease, padding .3s ease;
+      flex-shrink: 0;
+    }
+
+    .settings-panel.collapsed {
+      max-height: 0;
+    }
+
+    .settings-inner {
+      padding: .9rem 1.1rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .7rem;
+    }
+
+    .settings-inner .full { grid-column: 1 / -1; }
 
     label {
       display: block;
-      font-size: .8rem;
+      font-size: .7rem;
       font-weight: 700;
       letter-spacing: .1em;
       text-transform: uppercase;
-      color: #888;
-      margin-bottom: .45rem;
+      color: var(--muted);
+      margin-bottom: .28rem;
     }
 
-    input[type="password"],
-    input[type="text"],
-    textarea,
-    select {
+    input[type="password"], select {
       width: 100%;
-      background: #111;
-      border: 1px solid #333;
-      border-radius: .6rem;
-      color: #f0f0f0;
-      font-size: 1rem;
-      padding: .7rem 1rem;
+      background: #0e0e0e;
+      border: 1px solid #2e2e2e;
+      border-radius: .5rem;
+      color: var(--text);
+      font-size: .9rem;
+      font-family: inherit;
+      padding: .5rem .8rem;
       outline: none;
       transition: border-color .2s;
     }
-    input[type="password"]:focus,
-    input[type="text"]:focus,
-    textarea:focus,
-    select:focus { border-color: #f9d423; }
 
-    textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
-
+    input[type="password"]:focus, select:focus { border-color: var(--accent); }
     select option { background: #1a1a1a; }
 
-    /* ── Model row ── */
-    .row { display: flex; gap: 1rem; }
-    .row > * { flex: 1; }
-
-    /* ── Submit button ── */
-    .btn {
-      padding: .85rem 1.5rem;
-      border: none;
-      border-radius: .7rem;
-      font-size: 1.05rem;
-      font-weight: 800;
-      cursor: pointer;
-      letter-spacing: .05em;
-      text-transform: uppercase;
-      transition: opacity .2s, transform .1s;
+    .key-hint {
+      font-size: .71rem;
+      color: #555;
+      margin-top: .25rem;
     }
-    .btn:active { transform: scale(.97); }
-    .btn-fight {
-      background: linear-gradient(135deg, #ff4e50, #f9d423);
-      color: #000;
+
+    .key-hint a { color: var(--accent); text-decoration: none; }
+    .key-hint a:hover { text-decoration: underline; }
+
+    .key-warn {
+      font-size: .71rem;
+      color: #b03a2e;
+      background: #170808;
+      border: 1px solid #4a1212;
+      border-radius: .4rem;
+      padding: .4rem .65rem;
+      line-height: 1.45;
+    }
+
+    .key-warn a { color: var(--accent); text-decoration: none; }
+
+    /* ── Chat area ── */
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.1rem 1.1rem .5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .9rem;
+      scroll-behavior: smooth;
+    }
+
+    .chat-area::-webkit-scrollbar { width: 4px; }
+    .chat-area::-webkit-scrollbar-track { background: transparent; }
+    .chat-area::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 2px; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .6rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem;
+      pointer-events: none;
+    }
+
+    .empty-state .e-icon { font-size: 2.8rem; }
+    .empty-state h2 { font-size: 1.05rem; color: #aaa; font-weight: 700; }
+    .empty-state p { font-size: .85rem; max-width: 300px; line-height: 1.55; }
+
+    /* ── Message bubbles ── */
+    .msg {
+      display: flex;
+      gap: .55rem;
+      align-items: flex-start;
+      max-width: 820px;
       width: 100%;
+      margin: 0 auto;
+      animation: fadeUp .22s ease;
     }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
 
-    /* ── Answer box ── */
-    .answer-wrap { display: none; }
-    .answer-wrap.visible { display: block; }
-    .answer-header {
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user { flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 1.85rem;
+      height: 1.85rem;
+      border-radius: 50%;
       display: flex;
       align-items: center;
-      gap: .5rem;
-      font-size: .8rem;
-      font-weight: 700;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: #f9d423;
-      margin-bottom: .6rem;
+      justify-content: center;
+      font-size: .9rem;
+      flex-shrink: 0;
+      margin-top: .15rem;
     }
-    .answer-body {
-      background: #111;
-      border: 1px solid #2e2e2e;
-      border-radius: .7rem;
-      padding: 1.1rem 1.3rem;
-      line-height: 1.7;
-      white-space: pre-wrap;
+
+    .msg.user .msg-avatar {
+      background: linear-gradient(135deg, #ff4e50, #f9d423);
+    }
+
+    .msg.ai .msg-avatar {
+      background: #222;
+      border: 1px solid var(--border);
+    }
+
+    .msg-content {
+      display: flex;
+      flex-direction: column;
+      gap: .25rem;
+      max-width: min(78%, 620px);
+    }
+
+    .msg.user .msg-content { align-items: flex-end; }
+
+    .msg-bubble {
+      padding: .65rem .95rem;
+      border-radius: .75rem;
+      line-height: 1.65;
       word-break: break-word;
+      font-size: .93rem;
     }
-    .answer-body.error { border-color: #ff4e50; color: #ff7070; }
 
-    /* ── Spinner ── */
-    .spinner {
-      display: inline-block;
-      width: 1.1rem; height: 1.1rem;
-      border: 2px solid #444;
-      border-top-color: #f9d423;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
+    .msg.user .msg-bubble {
+      background: var(--user-bg);
+      border: 1px solid var(--user-border);
+      border-bottom-right-radius: .2rem;
+      white-space: pre-wrap;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Key hint ── */
-    .key-hint {
-      font-size: .78rem;
-      color: #555;
-      text-align: center;
+    .msg.ai .msg-bubble {
+      background: var(--ai-bg);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: .2rem;
     }
-    .key-hint a { color: #f9d423; text-decoration: none; }
-    .key-hint a:hover { text-decoration: underline; }
-    .key-warn {
-      font-size: .78rem;
-      color: #c0392b;
-      background: #1a0a0a;
-      border: 1px solid #5a1a1a;
+
+    .msg.ai .msg-bubble.error {
+      border-color: var(--danger);
+      color: #ff7070;
+    }
+
+    /* ── Markdown inside bubbles ── */
+    .msg-bubble h1, .msg-bubble h2, .msg-bubble h3,
+    .msg-bubble h4, .msg-bubble h5, .msg-bubble h6 {
+      margin: .55rem 0 .2rem;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .msg-bubble h1 { font-size: 1.2em; }
+    .msg-bubble h2 { font-size: 1.1em; }
+    .msg-bubble h3 { font-size: 1em; }
+
+    .msg-bubble p { margin: .3rem 0; }
+    .msg-bubble p:first-child { margin-top: 0; }
+    .msg-bubble p:last-child  { margin-bottom: 0; }
+
+    .msg-bubble ul, .msg-bubble ol {
+      padding-left: 1.35rem;
+      margin: .35rem 0;
+    }
+
+    .msg-bubble li { margin: .12rem 0; }
+
+    .msg-bubble code {
+      background: #0b0b0b;
+      border: 1px solid #2e2e2e;
+      border-radius: .3rem;
+      padding: .1em .35em;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: .85em;
+    }
+
+    .msg-bubble pre {
+      background: #0b0b0b;
+      border: 1px solid #2e2e2e;
       border-radius: .5rem;
-      padding: .45rem .75rem;
-      margin-top: .5rem;
+      padding: .75rem 1rem;
+      margin: .45rem 0;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .msg-bubble pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: .84em;
+      line-height: 1.5;
+    }
+
+    .msg-bubble strong { font-weight: 700; color: #fff; }
+    .msg-bubble em     { font-style: italic; color: #ddd; }
+
+    .msg-bubble hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: .55rem 0;
+    }
+
+    .msg-bubble blockquote {
+      border-left: 3px solid var(--accent);
+      padding-left: .7rem;
+      color: var(--muted);
+      margin: .35rem 0;
+    }
+
+    .msg-bubble a { color: var(--accent); text-decoration: none; }
+    .msg-bubble a:hover { text-decoration: underline; }
+
+    .pre-copy {
+      position: absolute;
+      top: .35rem;
+      right: .35rem;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: .3rem;
+      color: var(--muted);
+      font-size: .68rem;
+      padding: .12rem .38rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color .15s, background .15s;
+    }
+
+    .pre-copy:hover  { color: var(--text); background: #252525; }
+    .pre-copy.copied { color: #4ade80; }
+
+    /* ── Message meta (timestamp + copy) ── */
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-size: .68rem;
+      color: #444;
+    }
+
+    .msg.user .msg-meta { flex-direction: row-reverse; }
+
+    .copy-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #444;
+      font-size: .72rem;
+      padding: .1rem .28rem;
+      border-radius: .25rem;
+      font-family: inherit;
+      transition: color .15s, background .15s;
+      line-height: 1;
+    }
+
+    .copy-btn:hover  { color: var(--text); background: #222; }
+    .copy-btn.copied { color: #4ade80; }
+
+    /* ── Typing indicator ── */
+    .typing-indicator {
+      display: flex;
+      gap: .55rem;
+      align-items: center;
+      max-width: 820px;
+      width: 100%;
+      margin: 0 auto;
+      animation: fadeUp .2s ease;
+    }
+
+    .typing-dots {
+      background: var(--ai-bg);
+      border: 1px solid var(--border);
+      border-radius: .75rem;
+      border-bottom-left-radius: .2rem;
+      padding: .65rem .95rem;
+      display: flex;
+      gap: .28rem;
+      align-items: center;
+    }
+
+    .typing-dots span {
+      width: .4rem;
+      height: .4rem;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: tdBounce .85s ease infinite;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: .14s; }
+    .typing-dots span:nth-child(3) { animation-delay: .28s; }
+
+    @keyframes tdBounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%           { transform: translateY(-.35rem); }
+    }
+
+    /* ── Input area ── */
+    .input-area {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: .75rem 1.1rem;
+      display: flex;
+      gap: .6rem;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    .input-wrap { flex: 1; }
+
+    textarea {
+      width: 100%;
+      background: #0e0e0e;
+      border: 1px solid #2e2e2e;
+      border-radius: .65rem;
+      color: var(--text);
+      font-size: .93rem;
+      font-family: inherit;
+      padding: .6rem .9rem;
+      outline: none;
+      resize: none;
+      line-height: 1.5;
+      min-height: 2.6rem;
+      max-height: 9rem;
+      overflow-y: auto;
+      display: block;
+      transition: border-color .2s;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+
+    .input-hint {
+      font-size: .66rem;
+      color: #3a3a3a;
+      margin-top: .22rem;
+      text-align: right;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      border: none;
+      border-radius: .55rem;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 700;
+      transition: opacity .15s, transform .1s;
+    }
+
+    .btn:active:not(:disabled) { transform: scale(.94); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    .btn-send {
+      background: linear-gradient(135deg, #ff4e50, #f9d423);
+      color: #000;
+      width: 2.65rem;
+      height: 2.65rem;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .btn-sm {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: .3rem .7rem;
+      font-size: .75rem;
+      letter-spacing: .03em;
+    }
+
+    .btn-sm:hover:not(:disabled) { color: var(--text); border-color: #444; }
+    .btn-sm.active { color: var(--accent); border-color: var(--accent); }
+
+    @media (max-width: 560px) {
+      .settings-inner { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
   <header>
-    <span class="ring-emoji">🥊</span>
-    <h1>AI Ring</h1>
-    <p class="tagline">Where AI fights your question</p>
+    <div class="header-brand">🥊 AI Ring</div>
+    <div class="header-actions">
+      <button class="btn btn-sm active" id="settingsToggle" onclick="toggleSettings()">⚙️ Settings</button>
+      <button class="btn btn-sm" onclick="newChat()">＋ New Chat</button>
+    </div>
   </header>
 
-  <div class="card">
-
-    <!-- API Key -->
-    <div>
-      <label for="apiKey">Google AI API Key</label>
-      <input type="password" id="apiKey" placeholder="AIza…" autocomplete="off" />
-      <p class="key-hint" style="margin-top:.5rem">
-        Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.
-      </p>
-      <p class="key-warn">
-        ⚠️ Your key is sent directly to Google from your browser and is visible in DevTools network traffic.
-        Use a key with <a href="https://cloud.google.com/docs/authentication/api-keys#securing_an_api_key" target="_blank" rel="noopener" style="color:#f9d423">API restrictions</a> set, and never share this page with your key pre-filled.
-      </p>
-    </div>
-
-    <!-- Model selector -->
-    <div>
-      <label for="model">Model</label>
-      <select id="model">
-        <option value="gemini-2.0-flash">gemini-2.0-flash (fast)</option>
-        <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-        <option value="gemini-1.5-pro" selected>gemini-1.5-pro (smart)</option>
-        <option value="gemini-2.0-pro-exp">gemini-2.0-pro-exp (experimental)</option>
-      </select>
-    </div>
-
-    <!-- Question -->
-    <div>
-      <label for="question">Your Question</label>
-      <textarea id="question" placeholder="Ask anything — step into the ring…"></textarea>
-    </div>
-
-    <!-- Submit -->
-    <button class="btn btn-fight" id="fightBtn" onclick="fight()">⚔️ Fight!</button>
-
-    <!-- Answer -->
-    <div class="answer-wrap" id="answerWrap">
-      <div class="answer-header">
-        <span id="answerIcon">🤖</span>
-        <span>AI's Answer</span>
+  <!-- Settings panel -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-inner">
+      <div class="full">
+        <label for="apiKey">Google AI API Key</label>
+        <input type="password" id="apiKey" placeholder="AIza…" autocomplete="off" />
+        <p class="key-hint">
+          Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.
+        </p>
       </div>
-      <div class="answer-body" id="answerBody"></div>
+      <div>
+        <label for="model">Model</label>
+        <select id="model">
+          <option value="gemini-2.0-flash">gemini-2.0-flash (fast)</option>
+          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+          <option value="gemini-1.5-pro" selected>gemini-1.5-pro (smart)</option>
+          <option value="gemini-2.0-pro-exp">gemini-2.0-pro-exp (experimental)</option>
+        </select>
+      </div>
+      <p class="key-warn full">
+        ⚠️ Your key is sent directly to Google from your browser and visible in DevTools.
+        Use a key with <a href="https://cloud.google.com/docs/authentication/api-keys#securing_an_api_key" target="_blank" rel="noopener">API restrictions</a> set.
+      </p>
     </div>
+  </div>
 
+  <!-- Chat messages -->
+  <div class="chat-area" id="chatArea">
+    <div class="empty-state" id="emptyState">
+      <span class="e-icon">🥊</span>
+      <h2>Step into the ring</h2>
+      <p>Type a question below to start your conversation. AI remembers the whole thread.</p>
+    </div>
+  </div>
+
+  <!-- Input bar -->
+  <div class="input-area">
+    <div class="input-wrap">
+      <textarea id="question" placeholder="Ask anything… (Ctrl+Enter to send)" rows="1"></textarea>
+      <div class="input-hint" id="charCount"></div>
+    </div>
+    <button class="btn btn-send" id="sendBtn" title="Send (Ctrl+Enter)" onclick="fight()">⚔️</button>
   </div>
 
   <script>
-    const STORAGE_MODEL = 'airing_model';
+    // ── Constants ────────────────────────────────────────────────────────────
+    const STORAGE_MODEL   = 'airing_model';
+    const STORAGE_HISTORY = 'airing_history';
 
-    const apiKeyInput  = document.getElementById('apiKey');
-    const modelSelect  = document.getElementById('model');
-    const questionEl   = document.getElementById('question');
-    const fightBtn     = document.getElementById('fightBtn');
-    const answerWrap   = document.getElementById('answerWrap');
-    const answerBody   = document.getElementById('answerBody');
-    const answerIcon   = document.getElementById('answerIcon');
+    // ── State ────────────────────────────────────────────────────────────────
+    // Each entry: { role: 'user'|'model', text: string, ts: number }
+    let chatHistory  = [];
+    let isLoading    = false;
+    let settingsOpen = true;
 
-    // Restore saved model preference (non-sensitive)
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const apiKeyInput    = document.getElementById('apiKey');
+    const modelSelect    = document.getElementById('model');
+    const questionEl     = document.getElementById('question');
+    const sendBtn        = document.getElementById('sendBtn');
+    const chatArea       = document.getElementById('chatArea');
+    const emptyState     = document.getElementById('emptyState');
+    const settingsPanel  = document.getElementById('settingsPanel');
+    const settingsToggle = document.getElementById('settingsToggle');
+    const charCountEl    = document.getElementById('charCount');
+
+    // ── Restore saved state ──────────────────────────────────────────────────
     const savedModel = localStorage.getItem(STORAGE_MODEL);
     if (savedModel) modelSelect.value = savedModel;
 
@@ -239,78 +562,351 @@
       localStorage.setItem(STORAGE_MODEL, modelSelect.value)
     );
 
+    try {
+      const saved = localStorage.getItem(STORAGE_HISTORY);
+      if (saved) {
+        chatHistory = JSON.parse(saved);
+        chatHistory.forEach(m => renderMessage(m.role, m.text, m.ts, false));
+        if (chatHistory.length > 0) {
+          hideEmpty();
+          settingsOpen = false;
+          settingsPanel.classList.add('collapsed');
+          settingsToggle.classList.remove('active');
+        }
+      }
+    } catch (_) {
+      chatHistory = [];
+    }
+
+    // ── Settings toggle ──────────────────────────────────────────────────────
+    function toggleSettings() {
+      settingsOpen = !settingsOpen;
+      settingsPanel.classList.toggle('collapsed', !settingsOpen);
+      settingsToggle.classList.toggle('active', settingsOpen);
+    }
+
+    // ── New chat ─────────────────────────────────────────────────────────────
+    function newChat() {
+      if (chatHistory.length > 0 &&
+          !confirm('Start a new conversation? The current history will be cleared.')) return;
+      chatHistory = [];
+      localStorage.removeItem(STORAGE_HISTORY);
+      chatArea.querySelectorAll('.msg, .typing-indicator').forEach(el => el.remove());
+      showEmpty();
+    }
+
+    // ── Main send ─────────────────────────────────────────────────────────────
     async function fight() {
       const apiKey   = apiKeyInput.value.trim();
       const model    = modelSelect.value;
       const question = questionEl.value.trim();
 
       if (!apiKey) {
-        showAnswer('⚠️ Please enter your Google AI API key above.', true);
+        if (!settingsOpen) toggleSettings();
+        flashInput(apiKeyInput, 'Enter your API key here');
         return;
       }
-      if (!question) {
-        showAnswer('⚠️ Please type a question first!', true);
-        return;
-      }
+      if (!question || isLoading) return;
 
-      // Model preference is saved by the change event listener above
+      const ts = Date.now();
+      chatHistory.push({ role: 'user', text: question, ts });
+      renderMessage('user', question, ts, true);
+
+      questionEl.value = '';
+      autoResize();
+      charCountEl.textContent = '';
+      hideEmpty();
+
+      if (settingsOpen) toggleSettings();
 
       setLoading(true);
+      const typingEl = showTyping();
+
+      // Build Gemini multi-turn contents array
+      const contents = chatHistory.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      }));
 
       const url =
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-      const body = {
-        contents: [{ parts: [{ text: question }] }]
-      };
-
       try {
         const res  = await fetch(url, {
-          method: 'POST',
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+          body:    JSON.stringify({ contents })
         });
 
         const data = await res.json();
+        removeTyping(typingEl);
 
         if (!res.ok) {
           const msg = data?.error?.message || `HTTP ${res.status}`;
-          showAnswer(`❌ API error: ${msg}`, true);
+          renderError(`❌ API error: ${msg}`);
+          chatHistory.pop();
           return;
         }
 
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) {
-          showAnswer('❌ Gemini returned an empty response.', true);
+          renderError('❌ Gemini returned an empty response.');
+          chatHistory.pop();
           return;
         }
 
-        showAnswer(text, false);
+        const aiTs = Date.now();
+        chatHistory.push({ role: 'model', text, ts: aiTs });
+        renderMessage('model', text, aiTs, true);
+        saveHistory();
+
       } catch (err) {
-        showAnswer(`❌ Network error: ${err.message}`, true);
+        removeTyping(typingEl);
+        renderError(`❌ Network error: ${err.message}`);
+        chatHistory.pop();
       } finally {
         setLoading(false);
       }
     }
 
-    function showAnswer(text, isError) {
-      answerBody.textContent = text;
-      answerBody.className   = 'answer-body' + (isError ? ' error' : '');
-      answerIcon.textContent = isError ? '⚠️' : '🤖';
-      answerWrap.classList.add('visible');
-      answerWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // ── Render helpers ────────────────────────────────────────────────────────
+    function renderMessage(role, text, ts, animate) {
+      const isUser = role === 'user';
+
+      const wrap   = el('div', `msg ${isUser ? 'user' : 'ai'}`);
+      if (!animate) wrap.style.animation = 'none';
+
+      const avatar = el('div', 'msg-avatar');
+      avatar.textContent = isUser ? '👤' : '🤖';
+
+      const content = el('div', 'msg-content');
+
+      const bubble = el('div', 'msg-bubble');
+      if (isUser) {
+        bubble.textContent = text;
+      } else {
+        bubble.innerHTML = renderMarkdown(text);
+        bubble.querySelectorAll('pre').forEach(pre => {
+          const btn = document.createElement('button');
+          btn.className   = 'pre-copy';
+          btn.textContent = 'Copy';
+          btn.onclick     = () => copyText(pre.querySelector('code')?.innerText ?? pre.innerText, btn);
+          pre.appendChild(btn);
+        });
+      }
+
+      const meta = el('div', 'msg-meta');
+      const time = el('span');
+      time.textContent = formatTime(ts);
+      meta.appendChild(time);
+
+      if (!isUser) {
+        const copyBtn = document.createElement('button');
+        copyBtn.className   = 'copy-btn';
+        copyBtn.textContent = '⎘ Copy';
+        copyBtn.title       = 'Copy response';
+        copyBtn.onclick     = () => copyText(text, copyBtn);
+        meta.appendChild(copyBtn);
+      }
+
+      content.appendChild(bubble);
+      content.appendChild(meta);
+      wrap.appendChild(avatar);
+      wrap.appendChild(content);
+      chatArea.appendChild(wrap);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function renderError(text) {
+      const wrap   = el('div', 'msg ai');
+      const avatar = el('div', 'msg-avatar');
+      avatar.textContent = '⚠️';
+      const content = el('div', 'msg-content');
+      const bubble  = el('div', 'msg-bubble error');
+      bubble.textContent = text;
+      content.appendChild(bubble);
+      wrap.appendChild(avatar);
+      wrap.appendChild(content);
+      chatArea.appendChild(wrap);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function showTyping() {
+      const wrap   = el('div', 'typing-indicator');
+      const avatar = el('div', 'msg-avatar');
+      avatar.textContent           = '🤖';
+      avatar.style.background      = '#222';
+      avatar.style.border          = '1px solid #272727';
+      const dots = el('div', 'typing-dots');
+      dots.innerHTML = '<span></span><span></span><span></span>';
+      wrap.appendChild(avatar);
+      wrap.appendChild(dots);
+      chatArea.appendChild(wrap);
+      chatArea.scrollTop = chatArea.scrollHeight;
+      return wrap;
+    }
+
+    function removeTyping(node) { node?.remove(); }
+
+    function showEmpty() { emptyState.style.display = ''; }
+    function hideEmpty() { emptyState.style.display = 'none'; }
+
+    // ── Markdown renderer ─────────────────────────────────────────────────────
+    function renderMarkdown(md) {
+      // Extract code blocks first (protect from further processing)
+      const codeBlocks  = [];
+      const inlineCodes = [];
+
+      let html = md.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+        const escaped = escHtml(code.trimEnd());
+        const cls     = lang ? ` class="language-${escHtml(lang)}"` : '';
+        codeBlocks.push(`<pre><code${cls}>${escaped}</code></pre>`);
+        return `\x00CB${codeBlocks.length - 1}\x00`;
+      });
+
+      html = html.replace(/`([^`\n]+)`/g, (_, code) => {
+        inlineCodes.push(`<code>${escHtml(code)}</code>`);
+        return `\x00IC${inlineCodes.length - 1}\x00`;
+      });
+
+      // Escape remaining HTML
+      html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      // Headings
+      html = html.replace(/^#{6}\s+(.+)$/gm, '<h6>$1</h6>');
+      html = html.replace(/^#{5}\s+(.+)$/gm, '<h5>$1</h5>');
+      html = html.replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>');
+      html = html.replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>');
+      html = html.replace(/^#\s+(.+)$/gm,    '<h1>$1</h1>');
+
+      // Inline formatting
+      html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      html = html.replace(/\*\*(.+?)\*\*/g,     '<strong>$1</strong>');
+      html = html.replace(/\*(.+?)\*/g,         '<em>$1</em>');
+      html = html.replace(/__(.+?)__/g,         '<strong>$1</strong>');
+      html = html.replace(/_(.+?)_/g,           '<em>$1</em>');
+
+      // Horizontal rule
+      html = html.replace(/^---+$/gm, '<hr>');
+
+      // Blockquote (after &gt; substitution)
+      html = html.replace(/^&gt;\s*(.+)$/gm, '<blockquote>$1</blockquote>');
+
+      // Links
+      html = html.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      );
+
+      // Unordered lists
+      html = html.replace(/((?:^[*\-]\s.+\n?)+)/gm, match => {
+        const items = match.trim().split('\n')
+          .map(l => `<li>${l.replace(/^[*\-]\s/, '')}</li>`).join('');
+        return `<ul>${items}</ul>`;
+      });
+
+      // Ordered lists
+      html = html.replace(/((?:^\d+\.\s.+\n?)+)/gm, match => {
+        const items = match.trim().split('\n')
+          .map(l => `<li>${l.replace(/^\d+\.\s/, '')}</li>`).join('');
+        return `<ol>${items}</ol>`;
+      });
+
+      // Paragraphs
+      html = html.replace(/\n{2,}/g, '</p><p>');
+      html = '<p>' + html + '</p>';
+      html = html.replace(/([^>])\n([^<])/g, '$1<br>$2');
+
+      // Clean up tag soup around block elements
+      const BLOCKS = 'h[1-6]|ul|ol|hr|blockquote|pre';
+      html = html.replace(new RegExp(`<p>(<(?:${BLOCKS})[\\s>])`, 'g'), '$1');
+      html = html.replace(new RegExp(`(</(?:${BLOCKS})>)<\\/p>`, 'g'), '$1');
+      html = html.replace(/<p>\s*<\/p>/g, '');
+
+      // Restore inline code
+      inlineCodes.forEach((code, i) => {
+        html = html.split(`\x00IC${i}\x00`).join(code);
+      });
+
+      // Restore code blocks
+      codeBlocks.forEach((block, i) => {
+        html = html.split(`\x00CB${i}\x00`).join(block);
+      });
+
+      return html;
+    }
+
+    function escHtml(s) {
+      return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────────────────
+    function el(tag, cls) {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      return node;
+    }
+
+    function formatTime(ts) {
+      if (!ts) return '';
+      return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function copyText(text, btn) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+      } catch (_) {}
+    }
+
+    function flashInput(inputEl, placeholder) {
+      inputEl.style.borderColor = '#ff4e50';
+      const orig = inputEl.placeholder;
+      inputEl.placeholder = placeholder;
+      inputEl.focus();
+      setTimeout(() => {
+        inputEl.style.borderColor = '';
+        inputEl.placeholder = orig;
+      }, 2500);
+    }
+
+    function saveHistory() {
+      try {
+        localStorage.setItem(STORAGE_HISTORY, JSON.stringify(chatHistory));
+      } catch (_) {}
     }
 
     function setLoading(on) {
-      fightBtn.disabled    = on;
-      fightBtn.innerHTML   = on
-        ? '<span class="spinner"></span>&nbsp; Fighting…'
-        : '⚔️ Fight!';
+      isLoading         = on;
+      sendBtn.disabled  = on;
+      sendBtn.textContent = on ? '⏳' : '⚔️';
     }
 
-    // Allow Ctrl+Enter / Cmd+Enter to submit
-    questionEl.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') fight();
+    function autoResize() {
+      questionEl.style.height = 'auto';
+      questionEl.style.height = Math.min(questionEl.scrollHeight, 144) + 'px';
+    }
+
+    // ── Input listeners ───────────────────────────────────────────────────────
+    questionEl.addEventListener('input', () => {
+      autoResize();
+      const len = questionEl.value.length;
+      charCountEl.textContent = len > 0 ? `${len} chars` : '';
+    });
+
+    questionEl.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        fight();
+      }
     });
   </script>
 
