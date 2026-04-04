@@ -1,23 +1,23 @@
 /* ═══════════════════════════════════════════════════════════════
-   AI Ring — Final Fantasy VII Stylesheet
+   AI Ring — Final Fantasy VI Stylesheet
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── Reset & base ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:          #050508;
-  --surface:     #0d0d28;
-  --surface2:    #111135;
-  --border:      #2a2a55;
+  --bg:          #08070a;
+  --surface:     #100e18;
+  --surface2:    #171422;
+  --border:      #2e2848;
   --border-gold: #c8a84b;
-  --text:        #e8e8f8;
-  --text-muted:  #8080aa;
-  --mako:        #00e5a0;
-  --mako-glow:   rgba(0,229,160,0.45);
-  --mako-dim:    rgba(0,229,160,0.12);
-  --accent:      #00e5a0;
-  --accent2:     #00aaff;
+  --text:        #e8e6f0;
+  --text-muted:  #806898;
+  --mako:        #8855cc;
+  --mako-glow:   rgba(136,85,204,0.45);
+  --mako-dim:    rgba(136,85,204,0.12);
+  --accent:      #8855cc;
+  --accent2:     #5588ee;
   --gold:        #ffd700;
   --limit:       #ff6600;
   --radius:      3px;
@@ -143,7 +143,7 @@ html, body {
   overflow: hidden;
   box-shadow:
     0 0 0 1px var(--surface),
-    0 0 30px rgba(0,229,160,.1),
+    0 0 30px rgba(136,85,204,.1),
     var(--shadow);
 }
 
@@ -164,388 +164,233 @@ html, body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   3D Underground Midgar Battle Scene
+   FF6 Airship Deck Battle Scene
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── The 3D Room — perspective container ────────────────────── */
+/* ── The Room — sky above, wooden deck below ────────────────── */
 .room {
   position: relative;
   width: 100%;
   aspect-ratio: 4/3;
-  /* 3D perspective: viewer sits slightly above, looking down */
   perspective: 1400px;
   perspective-origin: 50% 30%;
   background:
-    radial-gradient(ellipse at 50% 30%, rgba(0,229,160,.06) 0%, transparent 45%),
-    radial-gradient(ellipse at 22% 82%, rgba(190,80,8,.28) 0%, transparent 38%),
-    radial-gradient(ellipse at 78% 78%, rgba(190,80,8,.22) 0%, transparent 36%),
     linear-gradient(180deg,
-      #030207 0%,
-      #08060c 18%,
-      #0e0a08 42%,
-      #1a0e06 65%,
-      #120a04 85%,
-      #0a0703 100%
+      #0d1122 0%,       /* dark night sky */
+      #121830 20%,
+      #182040 36%,
+      #1c2448 43%,
+      #211c14 47%,      /* sky-to-deck horizon */
+      #2c2010 53%,      /* deck warm brown */
+      #261c0e 67%,
+      #201508 82%,
+      #1a1206 100%      /* deck bottom */
     );
   overflow: hidden;
 }
 
-/* ── Distant Mako Reactor — silhouette at horizon ─────────────── */
-.reactor-bg {
+/* ── Sky background tint ────────────────────────────────────── */
+.sky-bg {
   position: absolute;
-  left: 50%; top: 16%;
-  transform: translateX(-50%);
-  width: 44%; height: 62%;
+  left: 0; top: 0; right: 0;
+  height: 50%;
   z-index: 1;
   pointer-events: none;
-}
-/* Stepped tower silhouette */
-.reactor-bg::before {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 50%; height: 92%;
-  clip-path: polygon(
-    20% 100%,
-    20% 76%, 10% 76%, 10% 60%, 20% 60%,
-    20% 44%, 12% 44%, 12% 28%, 20% 28%,
-    28% 18%, 34% 10%, 40% 4%, 46% 0%,
-    54% 0%, 60% 4%, 66% 10%, 72% 18%,
-    80% 28%, 88% 28%, 88% 44%, 80% 44%,
-    80% 60%, 90% 60%, 90% 76%, 80% 76%,
-    80% 100%
-  );
   background: linear-gradient(180deg,
-    rgba(0,229,160,.32) 0%,
-    rgba(0,180,120,.14) 22%,
-    #0d1208 52%,
-    #080c06 100%
+    rgba(8,12,28,0.92) 0%,
+    rgba(12,18,36,0.78) 40%,
+    rgba(18,24,46,0.52) 78%,
+    transparent 100%
   );
-  filter: blur(0.5px);
-}
-/* Mako halo glow behind reactor */
-.reactor-bg::after {
-  content: '';
-  position: absolute;
-  bottom: 20%; left: 50%;
-  transform: translateX(-50%);
-  width: 110%; height: 58%;
-  background: radial-gradient(ellipse at 50% 100%,
-    rgba(0,229,160,.32) 0%,
-    rgba(0,229,160,.12) 38%,
-    transparent 70%
-  );
-  filter: blur(9px);
-  animation: reactor-pulse 4s ease-in-out infinite;
-}
-@keyframes reactor-pulse {
-  0%, 100% { opacity: 1;   transform: translateX(-50%) scaleY(1);    }
-  50%       { opacity: .62; transform: translateX(-50%) scaleY(1.09); }
 }
 
-/* ── Midgar Plate — massive overhead ceiling ─────────────────── */
-.plate-ceiling {
+/* ── Near cloud layer (animated drift) ─────────────────────── */
+.cloud-layer-1 {
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 36%;
-  z-index: 2;
-  pointer-events: none;
-  background:
-    repeating-linear-gradient(90deg,
-      transparent 0px, transparent 47px,
-      rgba(10,10,16,.95) 47px, rgba(10,10,16,.95) 49px
-    ),
-    repeating-linear-gradient(0deg,
-      transparent 0px, transparent 15px,
-      rgba(10,10,16,.70) 15px, rgba(10,10,16,.70) 16px
-    ),
-    linear-gradient(180deg,
-      #1a1a24 0%,
-      #141420 45%,
-      #0c0c16 75%,
-      #080810 100%
-    );
-  clip-path: polygon(
-    0% 0%, 100% 0%, 100% 72%,
-    97% 80%, 94% 68%, 90% 80%, 86% 70%,
-    82% 80%, 77% 67%, 72% 78%, 67% 66%,
-    62% 78%, 57% 68%, 52% 80%, 47% 70%,
-    42% 82%, 37% 70%, 32% 80%, 27% 70%,
-    22% 80%, 17% 68%, 12% 78%, 7%  68%,
-    4%  76%, 2%  68%, 0%  72%
-  );
-}
-.plate-ceiling::before {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0; height: 40%;
-  background: linear-gradient(to bottom, transparent, rgba(90,40,5,.25));
-  pointer-events: none;
-}
-.plate-ceiling::after {
-  content: '';
-  position: absolute;
-  bottom: 18%; left: 2%; right: 2%; height: 4px;
-  background: repeating-linear-gradient(90deg,
-    rgba(45,45,58,.95) 0px, rgba(45,45,58,.95) 14px,
-    rgba(22,22,30,.8)  14px, rgba(22,22,30,.8)  16px
-  );
-  pointer-events: none;
-}
-
-/* ── Pipe Network — industrial ceiling piping ────────────────── */
-.pipe-network {
-  position: absolute;
-  top: 0; left: 0; right: 0;
+  left: -6%; top: 1%; right: -6%;
   height: 44%;
   z-index: 2;
   pointer-events: none;
+  animation: cloud-drift 22s ease-in-out infinite;
   background:
-    linear-gradient(158deg,
-      transparent 0%, transparent 14.8%,
-      rgba(30,30,40,.9) 14.8%, rgba(42,42,55,.9) 16%,
-      rgba(30,30,40,.9) 17.2%, transparent 17.2%
-    ),
-    linear-gradient(22deg,
-      transparent 0%, transparent 14.8%,
-      rgba(30,30,40,.9) 14.8%, rgba(42,42,55,.9) 16%,
-      rgba(30,30,40,.9) 17.2%, transparent 17.2%
-    ),
-    linear-gradient(180deg,
-      transparent 0%, transparent 52%,
-      rgba(28,28,38,.88) 52%, rgba(40,40,52,.9) 56%,
-      rgba(28,28,38,.88) 60%, transparent 60%
-    );
+    radial-gradient(ellipse 190px 58px at 11% 44%, rgba(200,212,230,0.34) 0%, transparent 72%),
+    radial-gradient(ellipse 145px 42px at 28% 26%, rgba(190,204,224,0.27) 0%, transparent 72%),
+    radial-gradient(ellipse 210px 60px at 51% 36%, rgba(196,210,228,0.21) 0%, transparent 72%),
+    radial-gradient(ellipse 165px 50px at 72% 22%, rgba(204,216,234,0.29) 0%, transparent 72%),
+    radial-gradient(ellipse 185px 55px at 89% 40%, rgba(198,212,232,0.25) 0%, transparent 72%);
+}
+@keyframes cloud-drift {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(24px); }
 }
 
-/* ── Support Pillars ─────────────────────────────────────────── */
-.plate-pillars {
+/* ── Far cloud layer (slower, lower) ───────────────────────── */
+.cloud-layer-2 {
   position: absolute;
-  inset: 0;
+  left: -8%; top: 0%; right: -8%;
+  height: 38%;
   z-index: 2;
   pointer-events: none;
+  animation: cloud-drift-far 34s ease-in-out infinite reverse;
   background:
-    linear-gradient(90deg,
-      transparent 8%,
-      rgba(8,8,12,.94) 8%, rgba(18,18,24,.97) 10%, rgba(8,8,12,.94) 12%,
-      transparent 12%
-    ),
-    linear-gradient(90deg,
-      transparent 47%,
-      rgba(8,8,12,.90) 47%, rgba(16,16,22,.94) 49%, rgba(8,8,12,.90) 51%,
-      transparent 51%
-    ),
-    linear-gradient(90deg,
-      transparent 88%,
-      rgba(8,8,12,.94) 88%, rgba(18,18,24,.97) 90%, rgba(8,8,12,.94) 92%,
-      transparent 92%
-    );
-  clip-path: polygon(0% 28%, 100% 28%, 100% 100%, 0% 100%);
+    radial-gradient(ellipse 270px 68px at 20% 58%, rgba(174,188,210,0.18) 0%, transparent 72%),
+    radial-gradient(ellipse 215px 58px at 54% 36%, rgba(168,184,208,0.15) 0%, transparent 72%),
+    radial-gradient(ellipse 248px 64px at 81% 55%, rgba(176,192,216,0.20) 0%, transparent 72%);
 }
-.plate-pillars::before {
-  content: '';
-  position: absolute;
-  top: 28%; bottom: 0; left: 8%; width: 4%;
-  box-shadow:
-    inset 2px 0 0 rgba(50,50,65,.8),
-    inset -2px 0 0 rgba(50,50,65,.8),
-    inset 0 0 6px rgba(0,0,0,.5);
-  pointer-events: none;
-}
-.plate-pillars::after {
-  content: '';
-  position: absolute;
-  top: 28%; bottom: 0; right: 8%; width: 4%;
-  box-shadow:
-    inset 2px 0 0 rgba(50,50,65,.8),
-    inset -2px 0 0 rgba(50,50,65,.8),
-    inset 0 0 6px rgba(0,0,0,.5);
-  pointer-events: none;
+@keyframes cloud-drift-far {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(14px); }
 }
 
-/* ── Mako Energy Tubes — glowing vertical pipes on side walls ── */
-.mako-tubes {
+/* ── Upper airship deck platform ────────────────────────────── */
+.airship-upper-deck {
   position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-.mako-tubes::before {
-  content: '';
-  position: absolute;
-  top: 22%; bottom: 0;
-  left: 2%; width: 4.5%;
-  background: linear-gradient(90deg,
-    #030a06 0%, #051408 10%,
-    rgba(0,180,120,.22) 28%,
-    rgba(0,229,160,.55) 42%,
-    rgba(0,255,190,.68) 50%,
-    rgba(0,229,160,.55) 58%,
-    rgba(0,180,120,.22) 72%,
-    #051408 90%, #030a06 100%
-  );
-  border-radius: 2px;
-  box-shadow:
-    0 0 20px rgba(0,229,160,.60),
-    0 0 40px rgba(0,229,160,.28),
-    inset 0 0 12px rgba(0,229,160,.22);
-  animation: tube-pulse 2.8s ease-in-out infinite;
-}
-.mako-tubes::after {
-  content: '';
-  position: absolute;
-  top: 22%; bottom: 0;
-  right: 2%; width: 4.5%;
-  background: linear-gradient(90deg,
-    #030a06 0%, #051408 10%,
-    rgba(0,180,120,.22) 28%,
-    rgba(0,229,160,.55) 42%,
-    rgba(0,255,190,.68) 50%,
-    rgba(0,229,160,.55) 58%,
-    rgba(0,180,120,.22) 72%,
-    #051408 90%, #030a06 100%
-  );
-  border-radius: 2px;
-  box-shadow:
-    0 0 20px rgba(0,229,160,.60),
-    0 0 40px rgba(0,229,160,.28),
-    inset 0 0 12px rgba(0,229,160,.22);
-  animation: tube-pulse 2.8s ease-in-out infinite .9s;
-}
-@keyframes tube-pulse {
-  0%, 100% { opacity: 1;   filter: brightness(1);    }
-  40%       { opacity: .70; filter: brightness(.82);  }
-  70%       { opacity: .86; filter: brightness(.92);  }
-}
-
-/* ── Pollution haze ──────────────────────────────────────────── */
-.slum-haze {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at 50% 52%, rgba(210,100,10,.18) 0%, transparent 55%),
-    radial-gradient(ellipse at 14% 78%, rgba(230,110,8,.22) 0%, transparent 38%),
-    radial-gradient(ellipse at 86% 74%, rgba(230,110,8,.18) 0%, transparent 36%),
-    radial-gradient(ellipse at 50% 94%, rgba(170,80,5,.26) 0%, transparent 44%);
-}
-
-/* ── Midgar Slum buildings — short ramshackle ────────────────── */
-.midgar-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-.midgar-bg::before {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0;
-  width: 30%; height: 40%;
-  clip-path: polygon(
-    0% 100%, 0% 62%,
-    6%  62%, 6%  50%, 12% 50%, 12% 60%,
-    18% 60%, 18% 42%, 24% 42%, 24% 54%,
-    30% 54%, 30% 44%, 37% 44%, 37% 56%,
-    45% 56%, 45% 46%, 54% 46%, 54% 57%,
-    63% 57%, 63% 47%, 73% 47%, 73% 59%,
-    82% 59%, 82% 51%, 92% 51%, 92% 63%,
-    100% 63%, 100% 100%
-  );
-  background:
-    repeating-linear-gradient(0deg,
-      transparent 0px, transparent 6px,
-      rgba(200,120,18,.11) 6px, rgba(200,120,18,.11) 7px
-    ),
-    linear-gradient(180deg, #221308 0%, #160e05 55%, #0d0803 100%);
-}
-.midgar-bg::after {
-  content: '';
-  position: absolute;
-  bottom: 0; right: 0;
-  width: 30%; height: 40%;
-  clip-path: polygon(
-    0% 63%, 0% 100%, 100% 100%, 100% 62%,
-    94% 62%, 94% 52%, 86% 52%, 86% 60%,
-    78% 60%, 78% 45%, 70% 45%, 70% 55%,
-    62% 55%, 62% 44%, 55% 44%, 55% 56%,
-    47% 56%, 47% 45%, 40% 45%, 40% 57%,
-    33% 57%, 33% 46%, 26% 46%, 26% 59%,
-    18% 59%, 18% 50%, 12% 50%, 12% 62%,
-    6%  62%, 6%  52%, 0%  52%
-  );
-  background:
-    repeating-linear-gradient(0deg,
-      transparent 0px, transparent 6px,
-      rgba(200,120,18,.11) 6px, rgba(200,120,18,.11) 7px
-    ),
-    linear-gradient(180deg, #221308 0%, #160e05 55%, #0d0803 100%);
-}
-
-/* ── Mako ground glow ─────────────────────────────────────────── */
-.mako-beam {
-  position: absolute;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 180px;
+  left: 0; right: 0;
+  top: 31%; height: 15%;
   z-index: 3;
   pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg,
+      transparent 0px, transparent 10px,
+      rgba(16,10,3,0.55) 10px, rgba(16,10,3,0.55) 12px
+    ),
+    linear-gradient(180deg,
+      #3a2810 0%, #2e2010 55%, #261c0c 100%
+    );
+  clip-path: polygon(3% 0%, 97% 0%, 100% 28%, 100% 100%, 0% 100%, 0% 28%);
 }
-.mako-beam::before {
+/* Front railing of upper deck */
+.airship-upper-deck::before {
   content: '';
   position: absolute;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 5px; height: 130px;
-  background: linear-gradient(to top, rgba(0,229,160,.65), transparent);
-  border-radius: 2px;
-  filter: blur(2px);
-  animation: mako-flicker 3s ease-in-out infinite;
+  left: 5%; right: 5%;
+  bottom: 0; height: 42%;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0px, transparent 22px,
+      rgba(65,45,14,0.95) 22px, rgba(85,58,18,1.00) 24px,
+      rgba(65,45,14,0.95) 26px, transparent 26px
+    ),
+    linear-gradient(180deg,
+      #624216 0%, #7a5220 9%, #6a4618 16%,
+      transparent 16%
+    );
 }
-.mako-beam::after {
+/* Drop-shadow ledge below upper deck */
+.airship-upper-deck::after {
   content: '';
   position: absolute;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 115px; height: 125px;
-  background: radial-gradient(ellipse at 50% 100%,
-    rgba(0,229,160,.28) 0%, transparent 70%
-  );
-  filter: blur(12px);
-  animation: mako-flicker 4s ease-in-out infinite 1.2s;
-}
-@keyframes mako-flicker {
-  0%, 100% { opacity: 1; }
-  45%       { opacity: .50; }
-  60%       { opacity: .84; }
-  78%       { opacity: .42; }
+  left: 0; right: 0;
+  top: 100%; height: 6px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.45) 0%, transparent 100%);
 }
 
-/* ── Scan-line CRT overlay ──────────────────────────────────── */
-.scan-lines {
+/* ── Upper deck gear wheels (far-left & far-right) ──────────── */
+.gear-upper-left,
+.gear-upper-right {
   position: absolute;
-  inset: 0;
-  z-index: 35;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0,0,0,.07) 0px,
-    rgba(0,0,0,.07) 1px,
-    transparent 1px,
-    transparent 3px
-  );
+  top: 25%;
+  width: 13%;
+  aspect-ratio: 1;
+  z-index: 5;
   pointer-events: none;
 }
+.gear-upper-left  { left: 0.5%; }
+.gear-upper-right { right: 0.5%; }
 
-/* ── Floor grid canvas — perspective 3D grid ────────────────── */
+/* Gear housing — outer ring with concentric box-shadow rings */
+.gear-upper-left::before,
+.gear-upper-right::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 48% 44%,
+    #5a3c1c 0%, #3e2a0e 30%, #2a1c08 55%, #382810 76%, #4a3414 100%
+  );
+  border: 3px solid #6a4820;
+  box-shadow:
+    0 0 0 4px #1c1408,
+    0 0 0 7px #5a3c14,
+    0 0 0 9px #1a1206,
+    inset 0 0 12px rgba(0,0,0,0.55);
+}
+/* Gear inner ring + hub */
+.gear-upper-left::after,
+.gear-upper-right::after {
+  content: '';
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #4a3818 0%, #2e2010 50%, #1e1608 100%);
+  border: 2px solid #7a5820;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.65);
+}
+
+/* ── Middle deck separator rail ─────────────────────────────── */
+.deck-mid-rail {
+  position: absolute;
+  left: 0; right: 0;
+  top: 61%; height: 3%;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0px, transparent 24px,
+      rgba(55,38,12,0.80) 24px, rgba(78,55,16,0.88) 26px,
+      rgba(55,38,12,0.80) 28px, transparent 28px
+    ),
+    linear-gradient(180deg, #5c3e14 0%, #7a5220 35%, #684816 65%, #4a3210 100%);
+}
+
+/* ── Lower deck gear wheels (bottom corners) ────────────────── */
+.gear-lower-left,
+.gear-lower-right {
+  position: absolute;
+  bottom: 1%;
+  width: 14%;
+  aspect-ratio: 1;
+  z-index: 5;
+  pointer-events: none;
+}
+.gear-lower-left  { left: 1%; }
+.gear-lower-right { right: 1%; }
+
+.gear-lower-left::before,
+.gear-lower-right::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 48% 44%,
+    #5a3c1c 0%, #3e2a0e 30%, #2a1c08 55%, #382810 76%, #4a3414 100%
+  );
+  border: 3px solid #6a4820;
+  box-shadow:
+    0 0 0 4px #1c1408,
+    0 0 0 7px #5a3c14,
+    0 0 0 9px #1a1206,
+    inset 0 0 12px rgba(0,0,0,0.55);
+}
+.gear-lower-left::after,
+.gear-lower-right::after {
+  content: '';
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #4a3818 0%, #2e2010 50%, #1e1608 100%);
+  border: 2px solid #7a5820;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.65);
+}
+
+/* ── Floor canvas — wooden deck planks ──────────────────────── */
 .room-floor {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 3;
-  opacity: .38;
+  z-index: 4;
+  opacity: .55;
 }
 
 /* ── Arena ATB glow ─────────────────────────────────────────── */
@@ -556,17 +401,17 @@ html, body {
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(0,229,160,.08) 0%, transparent 70%);
-  border: 1px solid rgba(0,229,160,.15);
-  z-index: 4;
+  background: radial-gradient(circle, rgba(136,85,204,.08) 0%, transparent 70%);
+  border: 1px solid rgba(136,85,204,.15);
+  z-index: 6;
   transition: all .5s;
 }
 .arena-glow.active {
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, rgba(0,229,160,.28) 0%, transparent 70%);
-  border-color: rgba(0,229,160,.5);
-  box-shadow: 0 0 60px rgba(0,229,160,.25), 0 0 120px rgba(0,229,160,.1);
+  background: radial-gradient(circle, rgba(136,85,204,.28) 0%, transparent 70%);
+  border-color: rgba(136,85,204,.5);
+  box-shadow: 0 0 60px rgba(136,85,204,.25), 0 0 120px rgba(136,85,204,.1);
 }
 
 /* ── Agent wrappers ─────────────────────────────────────────── */
@@ -811,7 +656,7 @@ html, body {
   height: 240px;
   background: radial-gradient(circle,
     rgba(200,168,75,.35) 0%,
-    rgba(0,229,160,.25) 40%,
+    rgba(136,85,204,.25) 40%,
     transparent 70%);
   border-color: var(--border-gold);
   box-shadow: 0 0 80px rgba(200,168,75,.3), 0 0 40px var(--mako-glow);
@@ -1137,7 +982,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #003322, #005533);
+  background: linear-gradient(135deg, #1a0a2e, #2e1650);
   color: var(--mako);
   border: 2px solid var(--mako);
   border-radius: var(--radius);
@@ -1151,7 +996,7 @@ html, body {
   text-shadow: 0 0 6px var(--mako-glow);
 }
 .submit-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #004433, #007755);
+  background: linear-gradient(135deg, #261050, #3c2070);
   box-shadow: 0 0 16px var(--mako-glow), 0 0 32px var(--mako-dim);
   transform: translateY(-1px);
 }
@@ -1269,9 +1114,9 @@ html, body {
   font-size: 7px;
   padding: 2px 7px;
   border-radius: var(--radius);
-  background: rgba(0,229,160,.1);
+  background: rgba(136,85,204,.12);
   color: var(--mako);
-  border: 1px solid rgba(0,229,160,.35);
+  border: 1px solid rgba(136,85,204,.35);
 }
 .response-card-score {
   font-family: var(--mono-font);

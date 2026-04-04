@@ -10,11 +10,11 @@ const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 // Client-side demo engine (mirrors server.js — used when no backend is present)
 // ─────────────────────────────────────────────────────────────────────────────
 const AI_MODELS_DATA = [
-  { id: 'gpt4',    name: 'GPT-4',   character: 'Cloud',     color: '#7eb8d4', emoji: '⚔️', strengths: ['reasoning', 'coding', 'analysis', 'general'] },
-  { id: 'claude',  name: 'Claude',  character: 'Aerith',    color: '#e06080', emoji: '🌸', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
-  { id: 'gemini',  name: 'Gemini',  character: 'Tifa',      color: '#cc4422', emoji: '👊', strengths: ['multimodal', 'search', 'factual', 'math'] },
-  { id: 'mistral', name: 'Mistral', character: 'Sephiroth', color: '#c8c8ff', emoji: '🌙', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
-  { id: 'copilot', name: 'Copilot', character: 'Cid',      color: '#7c5de8', emoji: '🚀', strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
+  { id: 'gpt4',    name: 'GPT-4',   character: 'Terra',  color: '#40c840', emoji: '✨', strengths: ['reasoning', 'coding', 'analysis', 'general'] },
+  { id: 'claude',  name: 'Claude',  character: 'Celes',  color: '#5090e0', emoji: '⚔️', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
+  { id: 'gemini',  name: 'Gemini',  character: 'Locke',  color: '#cc4422', emoji: '🗡️', strengths: ['multimodal', 'search', 'factual', 'math'] },
+  { id: 'mistral', name: 'Mistral', character: 'Edgar',  color: '#c8a030', emoji: '⚙️', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
+  { id: 'copilot', name: 'Copilot', character: 'Setzer', color: '#b0a8c8', emoji: '🎲', strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
 ];
 
 const DEMO_TEMPLATES = {
@@ -165,7 +165,7 @@ const DAMAGE_POOL = [42, 64, 87, 99, 128, 175, 210, 256, 333, 512];
 const MATERIA_CAST_CHANCE = 0.28;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Floor grid (canvas) — perspective 3D grid converging to vanishing point
+// Floor canvas — FF6 wooden airship deck planks with perspective
 // ─────────────────────────────────────────────────────────────────────────────
 function drawFloor() {
   const room = roomFloor.parentElement;
@@ -176,85 +176,71 @@ function drawFloor() {
   const ctx = roomFloor.getContext('2d');
   ctx.clearRect(0, 0, w, h);
 
-  // Vanishing point — horizontally centered, ~33% down (the "horizon")
-  const vpX = w / 2;
-  const vpY = h * 0.33;
+  // Deck starts at ~38% of the room height (where sky meets wood)
+  const deckTop = h * 0.38;
 
-  const BRIGHT = 'rgba(0,229,160,0.80)';
-  const DIM    = 'rgba(0,229,160,0.30)';
-  const FLOOR_FADE_TOP = vpY;   // floor starts at horizon
+  // Plank palette — warm brown tones
+  const PLANK_GAP   = 'rgba(12, 8, 3, 0.82)';
+  const PLANK_BODY  = 'rgba(68, 44, 16, 0.62)';
+  const PLANK_EDGE  = 'rgba(108, 74, 28, 0.50)';
+  const SEPARATOR   = 'rgba(8, 5, 2, 0.92)';
+  const SEP_HILIGHT = 'rgba(112, 78, 26, 0.55)';
 
   ctx.save();
 
-  // ── Vertical (radial) lines — fan out from vanishing point to bottom ──
-  const VCOUNT = 22;
-  for (let i = 0; i <= VCOUNT; i++) {
-    const bx = w * (i / VCOUNT);
-    const major = i % 4 === 0;
-    ctx.beginPath();
-    ctx.moveTo(vpX, vpY);
-    ctx.lineTo(bx, h);
-    ctx.strokeStyle = major ? BRIGHT : DIM;
-    ctx.lineWidth   = major ? 1.5 : 0.7;
-    ctx.stroke();
-  }
+  // ── Horizontal plank stripes with perspective compression ──
+  const PLANK_COUNT = 26;
+  for (let i = 0; i <= PLANK_COUNT; i++) {
+    const t     = i / PLANK_COUNT;
+    const y     = deckTop + (h - deckTop) * Math.pow(t, 1.65);
+    const ratio = (y - deckTop) / (h - deckTop);
 
-  // ── Horizontal lines — exponentially spaced (bunch near horizon) ──
-  const HCOUNT = 16;
-  for (let i = 1; i <= HCOUNT; i++) {
-    const t  = i / HCOUNT;
-    // Perspective compression: lines cluster near the horizon
-    const y  = FLOOR_FADE_TOP + (h - FLOOR_FADE_TOP) * Math.pow(t, 2.4);
-    const ratio = (y - vpY) / (h - vpY);
-    const lx = vpX * (1 - ratio);
-    const rx = vpX + (w - vpX) * ratio;
-    const major = i % 3 === 0;
+    // Planks narrow toward the vanishing point
+    const lx = w * 0.5 * (1 - ratio);
+    const rx = w * (1 - 0.5 * (1 - ratio));
+
+    const major = (i % 5 === 0);
     ctx.beginPath();
     ctx.moveTo(lx, y);
     ctx.lineTo(rx, y);
-    ctx.strokeStyle = major ? BRIGHT : DIM;
-    ctx.lineWidth   = major ? 1.2 : 0.6;
+    ctx.strokeStyle = major ? PLANK_GAP : PLANK_BODY;
+    ctx.lineWidth   = major ? 2.4 : 1.0;
     ctx.stroke();
+
+    // Plank top-edge highlight (lighter strip above each major gap)
+    if (major && y > deckTop + 10) {
+      ctx.beginPath();
+      ctx.moveTo(lx + 3, y - 2);
+      ctx.lineTo(rx - 3, y - 2);
+      ctx.strokeStyle = PLANK_EDGE;
+      ctx.lineWidth   = 0.7;
+      ctx.stroke();
+    }
   }
 
-  // ── Horizon glow line ──
-  ctx.beginPath();
-  ctx.moveTo(0, vpY);
-  ctx.lineTo(w, vpY);
-  ctx.strokeStyle = 'rgba(0,229,160,0.18)';
-  ctx.lineWidth   = 1;
-  ctx.stroke();
+  // ── Deck-level separator bars (horizontal beams between deck tiers) ──
+  [0.40, 0.68].forEach((relY) => {
+    const y     = deckTop + (h - deckTop) * relY;
+    const ratio = relY;
+    const lx    = w * 0.5 * (1 - ratio * 0.95);
+    const rx    = w * (1 - 0.5 * (1 - ratio * 0.95));
 
-  // ── Battle circle — ellipse on the floor plane ──
-  const bcy  = h * 0.72;
-  const bcR  = (bcy - vpY) / (h - vpY);
-  const rW   = w * 0.20 * bcR;
-  const rH   = rW * 0.35;
-  ctx.strokeStyle = 'rgba(0,229,160,0.60)';
-  ctx.lineWidth   = 1.8;
-  ctx.beginPath();
-  ctx.ellipse(vpX, bcy, rW, rH, 0, 0, Math.PI * 2);
-  ctx.stroke();
+    // Thick dark beam
+    ctx.beginPath();
+    ctx.moveTo(lx, y);
+    ctx.lineTo(rx, y);
+    ctx.strokeStyle = SEPARATOR;
+    ctx.lineWidth   = 5.5;
+    ctx.stroke();
 
-  // ── Outer ellipse ring ──
-  const rW2 = rW * 2.1;
-  const rH2 = rW2 * 0.35;
-  ctx.strokeStyle = 'rgba(0,229,160,0.22)';
-  ctx.lineWidth   = 1;
-  ctx.beginPath();
-  ctx.ellipse(vpX, bcy, rW2, rH2, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // ── Small crossed circle at vanishing point (reactor target) ──
-  ctx.strokeStyle = 'rgba(0,229,160,0.55)';
-  ctx.lineWidth   = 1;
-  ctx.beginPath();
-  ctx.arc(vpX, vpY, 6, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(vpX - 10, vpY); ctx.lineTo(vpX + 10, vpY);
-  ctx.moveTo(vpX, vpY - 10); ctx.lineTo(vpX, vpY + 10);
-  ctx.stroke();
+    // Highlight ledge above beam
+    ctx.beginPath();
+    ctx.moveTo(lx + 6, y - 3.5);
+    ctx.lineTo(rx - 6, y - 3.5);
+    ctx.strokeStyle = SEP_HILIGHT;
+    ctx.lineWidth   = 1.8;
+    ctx.stroke();
+  });
 
   ctx.restore();
 }
@@ -355,12 +341,12 @@ function hideBubble(id) {
 let staggerInterval = null;
 
 const THINKING_MSGS = [
-  'Casting materia…',
-  'ATB charging…',
-  'Drawing from draw point…',
-  'Limit break loading…',
-  'Analyzing enemy…',
-  'Summoning Bahamut…',
+  'Casting Ultima…',
+  'MP charging…',
+  'Drawing Esper…',
+  'Channeling Magitek…',
+  'Targeting foe…',
+  'Invoking Meteor…',
 ];
 
 function startThinkingBubbles() {
@@ -538,11 +524,11 @@ function disperseAgents() {
 // Intro animation — characters walk from corners and meet in the center
 // ─────────────────────────────────────────────────────────────────────────────
 const INTRO_GREETINGS = {
-  gpt4:    '…Let\'s fight.',
-  claude:  '♡ Hi everyone!',
-  gemini:  'Time to battle!',
-  mistral: '…Hmph.',
-  copilot: '// Ready to suggest.',
+  gpt4:    '…I won\'t give up.',
+  claude:  '♪ Let\'s battle!',
+  gemini:  'Treasure found!',
+  mistral: '…I\'ll handle this.',
+  copilot: '// Gadgets ready.',
 };
 
 async function playIntroAnimation() {
@@ -633,7 +619,7 @@ function renderResults(data) {
     header.innerHTML = `
       <span class="response-card-emoji">${r.emoji}</span>
       <span class="response-card-name" style="color:${r.color}">${r.name}</span>
-      ${r.isWinner ? '<span class="response-card-badge">LIMIT BREAK</span>' : ''}
+      ${r.isWinner ? '<span class="response-card-badge">ULTIMATE</span>' : ''}
       ${liveBadge}
       <span class="response-card-score">Score: ${r.score} · ${r.latencyMs}ms${r.isDemo ? ' · training' : ''}</span>
     `;
@@ -738,7 +724,7 @@ submitBtn.addEventListener('click', async () => {
       getScoreEl(r.modelId).textContent = r.score;
       if (r.isWinner) {
         el.classList.add('winner');
-        showBubble(r.modelId, '★ LIMIT BREAK!');
+        showBubble(r.modelId, '★ ULTIMATE!');
       } else {
         el.classList.add('loser');
       }

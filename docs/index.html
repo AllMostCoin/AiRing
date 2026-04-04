@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Ring — Midgar Battle Arena</title>
+    <title>AI Ring — World of Ruin Arena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=6" />
+    <link rel="stylesheet" href="style.css?v=7" />
   </head>
   <body>
     <!-- ─── Header ─────────────────────────────────────────────────── -->
@@ -15,7 +15,7 @@
         <div class="logo">
           <span class="logo-icon">⚔</span>
           <span class="logo-text">AI RING</span>
-          <span class="logo-sub">MIDGAR BATTLE ARENA</span>
+          <span class="logo-sub">FLOATING CONTINENT</span>
         </div>
         <div id="demo-badge" class="demo-badge hidden">TRAINING MODE</div>
       </div>
@@ -27,226 +27,231 @@
       <!-- 2D Battle Room ─────────────────────────────────────────── -->
       <section class="room-section">
         <div class="room-container">
-          <div class="room-label">◆ MIDGAR COLOSSEUM ◆</div>
+          <div class="room-label">◆ WORLD OF RUIN ◆</div>
 
           <div class="room" id="room">
-            <!-- 3D underground Midgar background layers (back → front) -->
-            <div class="reactor-bg"></div>
-            <div class="plate-ceiling"></div>
-            <div class="pipe-network"></div>
-            <div class="plate-pillars"></div>
-            <div class="slum-haze"></div>
-            <div class="midgar-bg"></div>
-            <div class="mako-tubes"></div>
-            <div class="mako-beam"></div>
-            <!-- Scan-line CRT overlay -->
-            <div class="scan-lines"></div>
+            <!-- FF6 Airship Deck background layers (back → front) -->
+            <div class="sky-bg"></div>
+            <div class="cloud-layer-1"></div>
+            <div class="cloud-layer-2"></div>
+            <div class="airship-upper-deck"></div>
+            <div class="gear-upper-left"></div>
+            <div class="gear-upper-right"></div>
+            <div class="deck-mid-rail"></div>
+            <div class="gear-lower-left"></div>
+            <div class="gear-lower-right"></div>
 
             <!-- Arena glow / ATB ring -->
             <div class="arena-glow" id="arena-glow"></div>
             <!-- Floor grid canvas -->
             <canvas class="room-floor" id="room-floor"></canvas>
 
-            <!-- ── Cloud · GPT-4 ───── back-left (far) ── -->
+            <!-- ── Terra · GPT-4 ───── back-left (far) ── -->
             <div class="agent-wrapper" id="agent-gpt4" data-model="gpt4" data-depth="far"
-                 style="left:10%;top:12%;--color:#7eb8d4;--glow:#7eb8d455;">
+                 style="left:10%;top:12%;--color:#40c840;--glow:#40c84055;">
               <div class="agent">
                 <div class="agent-sprite">
-                  <!-- Cloud Strife 32-bit pixel sprite (12×16) -->
+                  <!-- Terra Branford FF6-style pixel sprite (12×16) -->
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
-                    <!-- Spiky blond hair -->
-                    <rect x="2" y="0" width="2" height="3" fill="#f5e020"/>
-                    <rect x="8" y="0" width="2" height="2" fill="#f5e020"/>
-                    <rect x="1" y="2" width="10" height="2" fill="#f5e020"/>
-                    <rect x="0" y="3" width="12" height="1" fill="#f5e020"/>
+                    <!-- Green hair (medium, wavy) -->
+                    <rect x="2" y="0" width="8" height="2" fill="#30b830"/>
+                    <rect x="1" y="1" width="2" height="5" fill="#30b830"/>
+                    <rect x="9" y="1" width="2" height="5" fill="#30b830"/>
+                    <rect x="2" y="0" width="8" height="3" fill="#38c838"/>
                     <!-- Face / skin -->
-                    <rect x="2" y="4" width="8" height="3" fill="#e8c49a"/>
-                    <!-- Mako blue eyes -->
-                    <rect x="3" y="5" width="2" height="1" fill="#5599ff"/>
-                    <rect x="7" y="5" width="2" height="1" fill="#5599ff"/>
-                    <!-- SOLDIER dark-blue armor body -->
-                    <rect x="2" y="7" width="8" height="7" fill="#1a4070"/>
-                    <!-- Belt stripe -->
-                    <rect x="2" y="11" width="8" height="1" fill="#3a6090"/>
-                    <!-- Grey shoulder pauldrons -->
-                    <rect x="0" y="7" width="3" height="3" fill="#607090"/>
-                    <rect x="9" y="7" width="3" height="3" fill="#607090"/>
-                    <!-- Buster sword (right side, silver) -->
-                    <rect x="10" y="4" width="2" height="8" fill="#c0c8d8"/>
-                    <rect x="11" y="3" width="1" height="1" fill="#e8f0f8"/>
-                    <!-- Boots -->
-                    <rect x="2" y="14" width="3" height="2" fill="#2a3a50"/>
-                    <rect x="7" y="14" width="3" height="2" fill="#2a3a50"/>
+                    <rect x="2" y="2" width="8" height="5" fill="#e8c49a"/>
+                    <!-- Dark hazel eyes -->
+                    <rect x="3" y="4" width="2" height="1" fill="#6b3d11"/>
+                    <rect x="7" y="4" width="2" height="1" fill="#6b3d11"/>
+                    <!-- Magitek armor — pink/magenta -->
+                    <rect x="2" y="7" width="8" height="5" fill="#c03898"/>
+                    <!-- Armor shoulder guards (darker) -->
+                    <rect x="0" y="7" width="3" height="3" fill="#903070"/>
+                    <rect x="9" y="7" width="3" height="3" fill="#903070"/>
+                    <!-- Armor chest detail -->
+                    <rect x="4" y="7" width="4" height="2" fill="#e058b8"/>
+                    <!-- Purple skirt / lower armor -->
+                    <rect x="1" y="12" width="10" height="2" fill="#8030a8"/>
+                    <!-- Brown boots -->
+                    <rect x="2" y="14" width="3" height="2" fill="#7b3811"/>
+                    <rect x="7" y="14" width="3" height="2" fill="#7b3811"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">CLOUD · GPT-4</div>
+              <div class="agent-label">TERRA · GPT-4</div>
               <div class="agent-score" id="score-gpt4">—</div>
               <div class="agent-bubble" id="bubble-gpt4"></div>
             </div>
 
-            <!-- ── Aerith · Claude ─── back-right (far) ── -->
+            <!-- ── Celes · Claude ─── back-right (far) ── -->
             <div class="agent-wrapper" id="agent-claude" data-model="claude" data-depth="far"
-                 style="right:10%;top:12%;--color:#e06080;--glow:#e0608055;">
+                 style="right:10%;top:12%;--color:#5090e0;--glow:#5090e055;">
               <div class="agent">
                 <div class="agent-sprite">
-                  <!-- Aerith Gainsborough 32-bit pixel sprite (12×16) -->
+                  <!-- Celes Chere FF6-style pixel sprite (12×16) -->
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
-                    <!-- Brown hair top + flowing sides -->
-                    <rect x="2" y="0" width="8" height="2" fill="#7b3811"/>
-                    <rect x="0" y="1" width="3" height="9" fill="#7b3811"/>
-                    <rect x="9" y="1" width="3" height="9" fill="#7b3811"/>
-                    <!-- Pink hair ribbon -->
-                    <rect x="4" y="0" width="4" height="1" fill="#ff6680"/>
+                    <!-- Blonde hair (medium, swept) -->
+                    <rect x="2" y="0" width="8" height="2" fill="#d4aa30"/>
+                    <rect x="0" y="1" width="3" height="5" fill="#d4aa30"/>
+                    <rect x="9" y="1" width="3" height="5" fill="#d4aa30"/>
                     <!-- Face -->
-                    <rect x="2" y="1" width="8" height="5" fill="#e8c49a"/>
-                    <!-- Green eyes -->
-                    <rect x="3" y="3" width="2" height="1" fill="#22aa44"/>
-                    <rect x="7" y="3" width="2" height="1" fill="#22aa44"/>
-                    <!-- Pink dress bodice -->
-                    <rect x="2" y="6" width="8" height="4" fill="#d45070"/>
+                    <rect x="2" y="2" width="8" height="4" fill="#e8c49a"/>
+                    <!-- Blue eyes -->
+                    <rect x="3" y="3" width="2" height="1" fill="#4080cc"/>
+                    <rect x="7" y="3" width="2" height="1" fill="#4080cc"/>
+                    <!-- Blue/white knight armor torso -->
+                    <rect x="2" y="6" width="8" height="6" fill="#2858a8"/>
+                    <!-- Armor shoulder plates -->
+                    <rect x="0" y="6" width="3" height="3" fill="#1e4080"/>
+                    <rect x="9" y="6" width="3" height="3" fill="#1e4080"/>
+                    <!-- Gold armor trim -->
+                    <rect x="2" y="6" width="8" height="1" fill="#c8a030"/>
+                    <rect x="2" y="11" width="8" height="1" fill="#c8a030"/>
                     <!-- White collar detail -->
-                    <rect x="4" y="6" width="4" height="2" fill="#f0b0b8"/>
-                    <!-- Dress trim -->
-                    <rect x="2" y="6" width="8" height="1" fill="#f07090"/>
-                    <!-- Dress skirt (wider) -->
-                    <rect x="1" y="10" width="10" height="4" fill="#d45070"/>
-                    <!-- Boots (brown) -->
-                    <rect x="2" y="14" width="3" height="2" fill="#8b4513"/>
-                    <rect x="7" y="14" width="3" height="2" fill="#8b4513"/>
+                    <rect x="4" y="6" width="4" height="2" fill="#d8e8f8"/>
+                    <!-- Blue greaves/boots -->
+                    <rect x="2" y="12" width="4" height="4" fill="#1e3870"/>
+                    <rect x="6" y="12" width="4" height="4" fill="#1e3870"/>
+                    <!-- Rune blade (right side, glowing) -->
+                    <rect x="10" y="3" width="2" height="9" fill="#90b8e8"/>
+                    <rect x="11" y="2" width="1" height="1" fill="#c0d8f8"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">AERITH · CLAUDE</div>
+              <div class="agent-label">CELES · CLAUDE</div>
               <div class="agent-score" id="score-claude">—</div>
               <div class="agent-bubble" id="bubble-claude"></div>
             </div>
 
-            <!-- ── Tifa · Gemini ───── front-left (near) ── -->
+            <!-- ── Locke · Gemini ───── front-left (near) ── -->
             <div class="agent-wrapper" id="agent-gemini" data-model="gemini" data-depth="near"
                  style="left:8%;bottom:12%;--color:#cc4422;--glow:#cc442255;">
               <div class="agent">
                 <div class="agent-sprite">
-                  <!-- Tifa Lockhart 32-bit pixel sprite (12×16) -->
+                  <!-- Locke Cole FF6-style pixel sprite (12×16) -->
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
-                    <!-- Black hair (short bob) -->
-                    <rect x="1" y="0" width="10" height="4" fill="#1a1a1a"/>
-                    <rect x="0" y="2" width="2" height="7" fill="#1a1a1a"/>
-                    <rect x="10" y="2" width="2" height="7" fill="#1a1a1a"/>
-                    <!-- Red headband -->
-                    <rect x="0" y="3" width="12" height="1" fill="#cc2200"/>
+                    <!-- Brown hair (short, messy) -->
+                    <rect x="1" y="0" width="10" height="3" fill="#7b3811"/>
+                    <rect x="0" y="1" width="2" height="3" fill="#7b3811"/>
+                    <rect x="10" y="1" width="2" height="3" fill="#7b3811"/>
+                    <!-- Red/orange headband -->
+                    <rect x="0" y="2" width="12" height="2" fill="#cc2200"/>
                     <!-- Face -->
                     <rect x="2" y="2" width="8" height="5" fill="#e8c49a"/>
-                    <!-- Dark red eyes -->
-                    <rect x="3" y="4" width="2" height="1" fill="#aa2222"/>
-                    <rect x="7" y="4" width="2" height="1" fill="#aa2222"/>
-                    <!-- White crop top -->
-                    <rect x="2" y="7" width="8" height="3" fill="#f0f0f0"/>
-                    <!-- Red suspenders -->
-                    <rect x="4" y="6" width="1" height="5" fill="#cc2200"/>
-                    <rect x="7" y="6" width="1" height="5" fill="#cc2200"/>
-                    <!-- Black shorts -->
-                    <rect x="1" y="10" width="10" height="3" fill="#222222"/>
-                    <!-- Boots -->
-                    <rect x="1" y="13" width="4" height="3" fill="#333333"/>
-                    <rect x="7" y="13" width="4" height="3" fill="#333333"/>
-                    <!-- Boot highlight -->
-                    <rect x="2" y="14" width="2" height="1" fill="#666666"/>
-                    <rect x="8" y="14" width="2" height="1" fill="#666666"/>
+                    <!-- Brown eyes -->
+                    <rect x="3" y="4" width="2" height="1" fill="#5a2c08"/>
+                    <rect x="7" y="4" width="2" height="1" fill="#5a2c08"/>
+                    <!-- Green adventurer vest -->
+                    <rect x="2" y="7" width="8" height="4" fill="#306018"/>
+                    <!-- Leather shirt showing (brown) -->
+                    <rect x="4" y="7" width="4" height="4" fill="#7b4010"/>
+                    <!-- Belt (dark leather) -->
+                    <rect x="1" y="11" width="10" height="1" fill="#3a2808"/>
+                    <!-- Dark navy pants -->
+                    <rect x="2" y="11" width="8" height="3" fill="#202850"/>
+                    <!-- Brown leather boots -->
+                    <rect x="2" y="14" width="3" height="2" fill="#5a3010"/>
+                    <rect x="7" y="14" width="3" height="2" fill="#5a3010"/>
+                    <!-- Dagger (right side) -->
+                    <rect x="10" y="8" width="1" height="5" fill="#c0b880"/>
+                    <rect x="10" y="7" width="2" height="1" fill="#a09060"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">TIFA · GEMINI</div>
+              <div class="agent-label">LOCKE · GEMINI</div>
               <div class="agent-score" id="score-gemini">—</div>
               <div class="agent-bubble" id="bubble-gemini"></div>
             </div>
 
-            <!-- ── Sephiroth · Mistral ─── front-right (near) ── -->
+            <!-- ── Edgar · Mistral ─── front-right (near) ── -->
             <div class="agent-wrapper" id="agent-mistral" data-model="mistral" data-depth="near"
-                 style="right:8%;bottom:12%;--color:#c8c8ff;--glow:#c8c8ff44;">
+                 style="right:8%;bottom:12%;--color:#c8a030;--glow:#c8a03055;">
               <div class="agent">
                 <div class="agent-sprite">
-                  <!-- Sephiroth 32-bit pixel sprite (12×16) -->
+                  <!-- Edgar Roni Figaro FF6-style pixel sprite (12×16) -->
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
-                    <!-- Long flowing silver hair (top + sides) -->
-                    <rect x="0" y="0" width="12" height="2" fill="#c8c8ff"/>
-                    <rect x="0" y="2" width="3" height="14" fill="#c8c8ff"/>
-                    <rect x="9" y="2" width="3" height="14" fill="#c8c8ff"/>
-                    <!-- Pale face -->
-                    <rect x="3" y="1" width="6" height="5" fill="#d8d8f0"/>
-                    <!-- Green cat-slit eyes -->
-                    <rect x="3" y="3" width="2" height="1" fill="#00cc44"/>
-                    <rect x="7" y="3" width="2" height="1" fill="#00cc44"/>
-                    <!-- Black long coat body -->
-                    <rect x="3" y="6" width="6" height="10" fill="#111122"/>
-                    <!-- Coat lapels / highlight -->
-                    <rect x="4" y="6" width="2" height="5" fill="#1d1d3a"/>
-                    <rect x="6" y="6" width="2" height="5" fill="#1d1d3a"/>
-                    <!-- Masamune sword (thin, left side) -->
-                    <rect x="0" y="0" width="1" height="16" fill="#e0e0f8"/>
-                    <!-- Boots -->
-                    <rect x="3" y="14" width="2" height="2" fill="#080810"/>
-                    <rect x="7" y="14" width="2" height="2" fill="#080810"/>
+                    <!-- Blonde hair (longer, swept back) -->
+                    <rect x="2" y="0" width="8" height="2" fill="#d4b030"/>
+                    <rect x="0" y="1" width="3" height="5" fill="#d4b030"/>
+                    <rect x="9" y="1" width="3" height="5" fill="#d4b030"/>
+                    <!-- Face -->
+                    <rect x="2" y="2" width="8" height="4" fill="#e8c49a"/>
+                    <!-- Blue eyes -->
+                    <rect x="3" y="3" width="2" height="1" fill="#3070c0"/>
+                    <rect x="7" y="3" width="2" height="1" fill="#3070c0"/>
+                    <!-- Royal blue armor body -->
+                    <rect x="2" y="6" width="8" height="6" fill="#1e4898"/>
+                    <!-- Gold armor trim (top & sides) -->
+                    <rect x="2" y="6" width="8" height="1" fill="#c8a030"/>
+                    <rect x="2" y="11" width="8" height="1" fill="#c8a030"/>
+                    <rect x="2" y="6" width="1" height="6" fill="#c8a030"/>
+                    <rect x="9" y="6" width="1" height="6" fill="#c8a030"/>
+                    <!-- Shoulder armor plates -->
+                    <rect x="0" y="6" width="3" height="3" fill="#163878"/>
+                    <rect x="9" y="6" width="3" height="3" fill="#163878"/>
+                    <!-- Auto-crossbow (right) -->
+                    <rect x="10" y="7" width="2" height="3" fill="#708090"/>
+                    <rect x="11" y="6" width="1" height="2" fill="#90a0b0"/>
+                    <!-- Dark blue pants -->
+                    <rect x="3" y="12" width="6" height="2" fill="#14306a"/>
+                    <!-- Blue boots -->
+                    <rect x="2" y="14" width="3" height="2" fill="#1a2e60"/>
+                    <rect x="7" y="14" width="3" height="2" fill="#1a2e60"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">SEPH · MISTRAL</div>
+              <div class="agent-label">EDGAR · MISTRAL</div>
               <div class="agent-score" id="score-mistral">—</div>
               <div class="agent-bubble" id="bubble-mistral"></div>
             </div>
 
-            <!-- ── Cid · Copilot ─── front-center ── -->
+            <!-- ── Setzer · Copilot ─── front-center ── -->
             <div class="agent-wrapper" id="agent-copilot" data-model="copilot" data-depth="near"
-                 style="left:41%;bottom:12%;--color:#7c5de8;--glow:#7c5de844;">
+                 style="left:41%;bottom:12%;--color:#b0a8c8;--glow:#b0a8c844;">
               <div class="agent">
                 <div class="agent-sprite">
-                  <!-- Cid Highwind 32-bit pixel sprite (12×16) — GitHub Copilot -->
+                  <!-- Setzer Gabbiani FF6-style pixel sprite (12×16) — GitHub Copilot -->
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
-                    <!-- Venus Gospel spear (left side, full height) -->
-                    <rect x="0" y="0" width="1" height="16" fill="#b8ccd8"/>
-                    <rect x="0" y="0" width="2" height="3"  fill="#ddf0f8"/>
-                    <!-- Blond messy hair -->
-                    <rect x="2" y="0" width="8" height="2"  fill="#d4a030"/>
-                    <rect x="1" y="1" width="2" height="3"  fill="#d4a030"/>
-                    <!-- Pilot goggles strap (dark) -->
-                    <rect x="1" y="1" width="10" height="2" fill="#1e2244"/>
-                    <!-- Goggle lenses (blue) -->
-                    <rect x="2" y="1" width="3" height="2"  fill="#5588ee"/>
-                    <rect x="7" y="1" width="3" height="2"  fill="#5588ee"/>
-                    <!-- Face (skin) -->
-                    <rect x="2" y="3" width="8" height="4"  fill="#e8c49a"/>
-                    <!-- Brown eyes -->
-                    <rect x="3" y="5" width="2" height="1"  fill="#885522"/>
-                    <rect x="7" y="5" width="2" height="1"  fill="#885522"/>
-                    <!-- Cigarette (Cid's signature detail) -->
-                    <rect x="9" y="6" width="2" height="1"  fill="#eeeecc"/>
-                    <rect x="11" y="5" width="1" height="1" fill="#ff8800"/>
-                    <!-- Blue AVALANCHE-style jacket -->
-                    <rect x="1" y="7" width="10" height="5" fill="#1e4488"/>
-                    <!-- Jacket chest zipper / placket -->
-                    <rect x="5" y="7" width="2" height="5"  fill="#162e66"/>
-                    <!-- Shoulder patches (light) -->
-                    <rect x="1" y="7" width="2" height="2"  fill="#8899bb"/>
-                    <rect x="9" y="7" width="2" height="2"  fill="#8899bb"/>
-                    <!-- Khaki/tan pants -->
-                    <rect x="2" y="12" width="8" height="2" fill="#b89050"/>
-                    <!-- Brown boots -->
-                    <rect x="2" y="14" width="3" height="2" fill="#553322"/>
-                    <rect x="7" y="14" width="3" height="2" fill="#553322"/>
+                    <!-- Long silver/white flowing hair (top + sides) -->
+                    <rect x="0" y="0" width="12" height="2" fill="#c0b8d8"/>
+                    <rect x="0" y="2" width="3" height="14" fill="#c0b8d8"/>
+                    <rect x="9" y="2" width="3" height="14" fill="#c0b8d8"/>
+                    <!-- Face (light tan) -->
+                    <rect x="3" y="1" width="6" height="5" fill="#dfc090"/>
+                    <!-- Grey-blue eyes -->
+                    <rect x="3" y="3" width="2" height="1" fill="#7080a0"/>
+                    <rect x="7" y="3" width="2" height="1" fill="#7080a0"/>
+                    <!-- Scar (across nose) -->
+                    <rect x="4" y="4" width="4" height="1" fill="#c89870"/>
+                    <!-- Dark purple/black gambler jacket -->
+                    <rect x="3" y="6" width="6" height="8" fill="#201828"/>
+                    <!-- Silver ascot/cravat -->
+                    <rect x="4" y="6" width="4" height="3" fill="#b0a8c8"/>
+                    <!-- Jacket open lapels -->
+                    <rect x="3" y="6" width="1" height="5" fill="#2e2038"/>
+                    <rect x="8" y="6" width="1" height="5" fill="#2e2038"/>
+                    <!-- Dark trousers -->
+                    <rect x="3" y="12" width="6" height="2" fill="#14101c"/>
+                    <!-- Dark boots -->
+                    <rect x="3" y="14" width="2" height="2" fill="#100c18"/>
+                    <rect x="7" y="14" width="2" height="2" fill="#100c18"/>
+                    <!-- Playing card (right hand) -->
+                    <rect x="10" y="9" width="2" height="3" fill="#f0e8d0"/>
+                    <rect x="10" y="9" width="1" height="1" fill="#cc2020"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">CID · COPILOT</div>
+              <div class="agent-label">SETZER · COPILOT</div>
               <div class="agent-score" id="score-copilot">—</div>
               <div class="agent-bubble" id="bubble-copilot"></div>
             </div>
@@ -256,7 +261,7 @@
               <div class="thinking-dots">
                 <span></span><span></span><span></span>
               </div>
-              <p>▶ CASTING MATERIA…</p>
+              <p>▶ CASTING MAGIC…</p>
             </div>
           </div>
         </div>
@@ -274,13 +279,13 @@
       <section class="chat-section">
         <!-- Input -->
         <div class="input-panel">
-          <h2 class="input-title">▶ MATERIA COMMAND</h2>
-          <p class="input-hint">Enter your command — all party members will cast their best spell.</p>
+          <h2 class="input-title">▶ MAGIC COMMAND</h2>
+          <p class="input-hint">Enter your command — all party members will weave their best magic.</p>
           <div class="input-row">
             <textarea
               id="prompt-input"
               class="prompt-textarea"
-              placeholder="e.g. Explain the Lifestream to a Wutai soldier…"
+              placeholder="e.g. Explain the Espers to a soldier of the Empire…"
               rows="3"
               maxlength="2000"
             ></textarea>
@@ -297,7 +302,7 @@
         <div class="winner-panel hidden" id="winner-panel">
           <div class="winner-header">
             <span class="winner-crown">★</span>
-            <span class="winner-label">LIMIT BREAK! Winner:</span>
+            <span class="winner-label">ULTIMATE! Winner:</span>
             <span class="winner-name" id="winner-name"></span>
           </div>
           <div class="winner-response" id="winner-response"></div>
@@ -324,9 +329,9 @@
     </main>
 
     <footer class="site-footer">
-      <p>AI Ring &mdash; Midgar Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
+      <p>AI Ring &mdash; World of Ruin Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
     </footer>
 
-    <script src="app.js?v=6"></script>
+    <script src="app.js?v=7"></script>
   </body>
 </html>
