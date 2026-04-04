@@ -622,19 +622,26 @@
       setLoading(true);
       const typingEl = showTyping();
 
-      // Build Gemini multi-turn contents array
+      // Build Gemini multi-turn contents array.
+      // Each entry is { role: 'user'|'model', parts: [{text}] }
+      // alternating user → model → user … as required by the API.
       const contents = chatHistory.map(m => ({
         role: m.role,
         parts: [{ text: m.text }]
       }));
 
+      // API key is sent as a request header to keep it out of the URL
+      // (avoids browser history, server access logs, and referrer leakage).
       const url =
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
       try {
         const res  = await fetch(url, {
           method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type':   'application/json',
+            'x-goog-api-key': apiKey
+          },
           body:    JSON.stringify({ contents })
         });
 
@@ -881,7 +888,10 @@
     function saveHistory() {
       try {
         localStorage.setItem(STORAGE_HISTORY, JSON.stringify(chatHistory));
-      } catch (_) {}
+      } catch (e) {
+        // Storage quota exceeded or blocked (e.g. private-browsing restrictions)
+        renderError('⚠️ Could not save chat history: ' + e.message);
+      }
     }
 
     function setLoading(on) {
