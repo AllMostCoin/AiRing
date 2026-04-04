@@ -1160,6 +1160,14 @@ html, body {
   overflow-y: auto;
 }
 
+.response-card-error {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  color: #e05050;
+  margin-top: 6px;
+  word-break: break-word;
+}
+
 /* ── Quest Log / History ────────────────────────────────────── */
 .history-panel {
   background: var(--surface);

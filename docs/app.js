@@ -1006,6 +1006,15 @@ function renderResults(data) {
 
     card.appendChild(header);
     card.appendChild(body);
+
+    // Show API error hint when a model fell back to demo due to a live-call failure
+    if (r.isDemo && r.error) {
+      const errNote = document.createElement('div');
+      errNote.className = 'response-card-error';
+      errNote.textContent = `⚠ Live call failed: ${r.error}`;
+      card.appendChild(errNote);
+    }
+
     accordionContent.appendChild(card);
   });
   allResponses.classList.remove('hidden');
@@ -1203,6 +1212,7 @@ submitBtn.addEventListener('click', async () => {
         score:     totalScore,
         latencyMs: bestRound ? bestRound.latencyMs : 0,
         isDemo:    bestRound ? bestRound.isDemo : true,
+        error:     bestRound ? (bestRound.error || null) : null,
         roundWins: wins[model.id],
         isWinner:  model.id === matchWinnerId,
       };
@@ -1237,6 +1247,16 @@ submitBtn.addEventListener('click', async () => {
 
     renderResults(matchData);
     addToHistory(matchData);
+
+    // Surface any API errors from the match to the settings panel
+    const failedLive = aggregated.filter((r) => r.isDemo && r.error);
+    if (failedLive.length > 0 && settingsStatus) {
+      const names = failedLive.map((r) => r.name).join(', ');
+      const firstErr = failedLive[0].error;
+      settingsStatus.textContent = `⚠ ${names} fell back to demo — ${firstErr}`;
+      settingsStatus.className = 'settings-status err';
+      settingsPanel.classList.remove('hidden');
+    }
   } catch (err) {
     stopBattleSequence();
     stopThinkingBubbles();

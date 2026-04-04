@@ -338,6 +338,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
         const score = scoreResponse(trimmed, text, model);
         return { model, response: text, latencyMs, score, isDemo, error: null };
       } catch (err) {
+        console.error(`[${model.id}] API call failed: ${err.message}`);
         const text = generateDemoResponse(model.id, trimmed);
         const latencyMs = Date.now() - start;
         const score = scoreResponse(trimmed, text, model);
@@ -362,6 +363,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
       score: r.score,
       latencyMs: r.latencyMs,
       isDemo: r.isDemo,
+      error: r.error || null,
       isWinner: r.model.id === winner.model.id,
     })),
     winnerId: winner.model.id,
