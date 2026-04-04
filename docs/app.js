@@ -26,6 +26,7 @@ function setLocalGeminiKey(key) {
 
 function clearLocalGeminiKey() {
   try { localStorage.removeItem(LS_GEMINI_KEY); } catch { /* ignore */ }
+  window.AIRING_GEMINI_KEY = '';
 }
 
 async function callGeminiDirect(prompt, key) {
