@@ -1,0 +1,7 @@
+// This file is generated at deploy time by the GitHub Actions workflow.
+// It injects the GEMINI_API_KEY repository secret so the static site can
+// call the Gemini API directly from the browser.
+//
+// To use locally: copy this file to config.js and fill in your key.
+// config.js is listed in .gitignore so your key is never committed.
+window.AIRING_GEMINI_KEY = '';

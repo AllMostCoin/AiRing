@@ -12,7 +12,12 @@ const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 const LS_GEMINI_KEY = 'airing_gemini_key';
 
 function getLocalGeminiKey() {
-  try { return localStorage.getItem(LS_GEMINI_KEY) || ''; } catch { return ''; }
+  // Priority: user-supplied key in localStorage → site-wide key injected at deploy time
+  try {
+    return localStorage.getItem(LS_GEMINI_KEY) || window.AIRING_GEMINI_KEY || '';
+  } catch {
+    return window.AIRING_GEMINI_KEY || '';
+  }
 }
 
 function setLocalGeminiKey(key) {
