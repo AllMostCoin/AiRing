@@ -253,20 +253,38 @@ window.addEventListener('load', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Check server / demo mode
+// Check server / demo mode — apply per-model LIVE/DEMO status badges
 // ─────────────────────────────────────────────────────────────────────────────
 let backendAvailable = false;
+
+// Append a small LIVE/DEMO status indicator below each character label
+function applyModelStatus(configured) {
+  MODEL_IDS.forEach((id) => {
+    const wrapper = getAgentEl(id);
+    if (!wrapper) return;
+    // Remove any existing status badge
+    const existing = wrapper.querySelector('.api-status-badge');
+    if (existing) existing.remove();
+    const isLive = configured && configured[id];
+    const badge = document.createElement('div');
+    badge.className = `api-status-badge ${isLive ? 'api-live' : 'api-demo'}`;
+    badge.textContent = isLive ? '● LIVE' : '○ DEMO';
+    wrapper.appendChild(badge);
+  });
+}
 
 async function checkServerMode() {
   try {
     const res = await fetch(`${API_BASE}/api/models`);
-    if (!res.ok) { demoBadge.classList.remove('hidden'); return; }
+    if (!res.ok) { demoBadge.classList.remove('hidden'); applyModelStatus(null); return; }
     const data = await res.json();
     backendAvailable = true;
     if (data.demoMode) demoBadge.classList.remove('hidden');
+    applyModelStatus(data.configured || null);
   } catch (_) {
     // No backend (static hosting / GitHub Pages) — run fully client-side
     demoBadge.classList.remove('hidden');
+    applyModelStatus(null);
   }
 }
 

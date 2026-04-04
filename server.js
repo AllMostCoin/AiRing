@@ -21,46 +21,46 @@ const AI_MODELS = [
   {
     id: 'gpt4',
     name: 'GPT-4',
-    character: 'Cloud',
+    character: 'Terra',
     provider: 'openai',
-    color: '#7eb8d4',
-    emoji: '⚔️',
+    color: '#40c840',
+    emoji: '✨',
     strengths: ['reasoning', 'coding', 'analysis', 'general'],
   },
   {
     id: 'claude',
     name: 'Claude',
-    character: 'Aerith',
+    character: 'Celes',
     provider: 'anthropic',
-    color: '#e06080',
-    emoji: '🌸',
+    color: '#5090e0',
+    emoji: '⚔️',
     strengths: ['writing', 'analysis', 'safety', 'nuance'],
   },
   {
     id: 'gemini',
     name: 'Gemini',
-    character: 'Tifa',
+    character: 'Locke',
     provider: 'google',
     color: '#cc4422',
-    emoji: '👊',
+    emoji: '🗡️',
     strengths: ['multimodal', 'search', 'factual', 'math'],
   },
   {
     id: 'mistral',
     name: 'Mistral',
-    character: 'Sephiroth',
+    character: 'Edgar',
     provider: 'mistral',
-    color: '#c8c8ff',
-    emoji: '🌙',
+    color: '#c8a030',
+    emoji: '⚙️',
     strengths: ['coding', 'efficiency', 'multilingual', 'speed'],
   },
   {
     id: 'copilot',
     name: 'Copilot',
-    character: 'Cid',
+    character: 'Setzer',
     provider: 'github',
-    color: '#7c5de8',
-    emoji: '🚀',
+    color: '#b0a8c8',
+    emoji: '🎲',
     strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'],
   },
 ];
@@ -110,7 +110,7 @@ async function callAnthropic(prompt) {
 async function callGoogle(prompt) {
   const key = process.env.GOOGLE_API_KEY;
   if (!key) return null;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

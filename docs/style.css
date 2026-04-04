@@ -1208,5 +1208,28 @@ html, body {
   color: var(--mako);
 }
 
+/* ── Per-model API status badge ─────────────────────────────── */
+.api-status-badge {
+  font-family: var(--pixel-font);
+  font-size: 5px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  padding: 2px 5px;
+  border-radius: var(--radius);
+  margin-top: 1px;
+  pointer-events: none;
+}
+.api-live {
+  color: #40e870;
+  text-shadow: 0 0 6px rgba(64,232,112,.7);
+  background: rgba(64,232,112,.08);
+  border: 1px solid rgba(64,232,112,.3);
+}
+.api-demo {
+  color: var(--text-muted);
+  background: rgba(128,104,152,.08);
+  border: 1px solid rgba(128,104,152,.2);
+}
+
 /* ── Utility ────────────────────────────────────────────────── */
 .hidden { display: none !important; }
