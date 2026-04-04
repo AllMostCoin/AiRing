@@ -14,7 +14,7 @@ async function main() {
   }
 
   const question = process.argv[2] || "What is the meaning of life?";
-  console.log(`Model : ${model}`);
+  console.log(`Model: ${model}`);
   console.log(`Question: ${question}\n`);
 
   const gemini = createGeminiModel(apiKey, model);

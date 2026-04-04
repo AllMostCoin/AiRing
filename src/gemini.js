@@ -14,6 +14,7 @@ function createGeminiModel(apiKey, model = "gemini-1.5-pro") {
 
 /**
  * Sends a prompt to the Gemini API and returns the text response.
+ * Throws if the API call fails or no text is returned.
  *
  * @param {import("@google/generative-ai").GenerativeModel} geminiModel
  * @param {string} prompt
@@ -21,7 +22,11 @@ function createGeminiModel(apiKey, model = "gemini-1.5-pro") {
  */
 async function askGemini(geminiModel, prompt) {
   const result = await geminiModel.generateContent(prompt);
-  return result.response.text();
+  const text = result.response.text();
+  if (!text) {
+    throw new Error("Gemini returned an empty response.");
+  }
+  return text;
 }
 
 module.exports = { createGeminiModel, askGemini };
