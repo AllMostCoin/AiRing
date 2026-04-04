@@ -26,14 +26,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject Gemini API key
-        # Writes docs/config.js with the key from the repository secret.
-        # If the secret is not set, the file contains an empty string so the
+      - name: Inject API keys
+        # Writes docs/config.js with keys from repository secrets.
+        # If a secret is not set, the value is an empty string so the
         # app falls back to demo mode (or lets the user supply their own key).
         run: |
-          echo "window.AIRING_GEMINI_KEY = '${GEMINI_API_KEY}';" > docs/config.js
+          {
+            echo "window.AIRING_GEMINI_KEY = '${GEMINI_API_KEY}';"
+            echo "window.AIRING_GROK_KEY   = '${GROK_API_KEY}';"
+          } > docs/config.js
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
