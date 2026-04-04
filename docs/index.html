@@ -27,15 +27,22 @@
       <div class="settings-inner">
         <div class="settings-title">◆ API KEY CONFIG ◆</div>
         <p class="settings-note">
-          <strong>GitHub Pages / static hosting:</strong> paste your Gemini API key below and hit SAVE — Gemini goes LIVE instantly (key stored in browser local storage only, never sent anywhere except Google's API).<br />
-          <strong>Node.js server:</strong> add <code>GOOGLE_API_KEY=your-key</code> to your <code>.env</code> file instead — no key entry here needed.<br />
-          Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.
+          <strong>GitHub Pages / static hosting:</strong> paste your API key(s) below and hit SAVE — that model goes LIVE instantly (stored in browser local storage only, never sent anywhere except the model's own API).<br />
+          <strong>Node.js server:</strong> add keys to your <code>.env</code> file instead — no key entry here needed.<br />
+          Gemini key: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> &nbsp;|&nbsp;
+          Grok key: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a>
         </p>
         <div class="settings-row">
           <label class="settings-label" for="gemini-key-input">🔥 GEMINI API KEY</label>
           <input id="gemini-key-input" class="settings-input" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false" />
-          <button id="settings-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="settings-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="gemini-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="gemini-clear-btn" class="settings-clear-btn">CLEAR</button>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="grok-key-input">🦇 GROK API KEY</label>
+          <input id="grok-key-input" class="settings-input" type="password" placeholder="xai-…" autocomplete="off" spellcheck="false" />
+          <button id="grok-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="grok-clear-btn" class="settings-clear-btn">CLEAR</button>
         </div>
         <div id="settings-status" class="settings-status"></div>
       </div>
@@ -292,6 +299,50 @@
               <div class="agent-bubble" id="bubble-copilot"></div>
             </div>
 
+            <!-- ── Vincent · Grok ─── back-center ── -->
+            <div class="agent-wrapper" id="agent-grok" data-model="grok" data-depth="far"
+                 style="left:41%;top:55%;--color:#7030c8;--glow:#7030c855;">
+              <div class="agent">
+                <div class="agent-sprite">
+                  <!-- Vincent Valentine FF7-style pixel sprite (12×16) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
+                    <!-- Long dark hair (draping sides) -->
+                    <rect x="2" y="0" width="8" height="3" fill="#101018"/>
+                    <rect x="0" y="1" width="3" height="9" fill="#101018"/>
+                    <rect x="9" y="1" width="3" height="9" fill="#101018"/>
+                    <!-- Red bandana / headband -->
+                    <rect x="2" y="1" width="8" height="2" fill="#b01818"/>
+                    <!-- Pale skin face -->
+                    <rect x="2" y="2" width="8" height="4" fill="#d0c0b0"/>
+                    <!-- Crimson eyes -->
+                    <rect x="3" y="4" width="2" height="1" fill="#c02020"/>
+                    <rect x="7" y="4" width="2" height="1" fill="#c02020"/>
+                    <!-- Dark cloak body -->
+                    <rect x="1" y="6" width="10" height="6" fill="#1a1030"/>
+                    <!-- Red cloak cape overlay (sides) -->
+                    <rect x="0" y="6" width="2" height="7" fill="#901828"/>
+                    <rect x="10" y="6" width="2" height="7" fill="#901828"/>
+                    <!-- Golden claw (left arm) -->
+                    <rect x="0" y="8" width="2" height="4" fill="#c8a820"/>
+                    <rect x="0" y="11" width="1" height="2" fill="#e0c030"/>
+                    <!-- Cerberus gun (right side) -->
+                    <rect x="10" y="7" width="2" height="4" fill="#484858"/>
+                    <rect x="11" y="6" width="1" height="2" fill="#303040"/>
+                    <!-- Dark pants -->
+                    <rect x="2" y="12" width="8" height="2" fill="#12101e"/>
+                    <!-- Dark boots -->
+                    <rect x="2" y="14" width="3" height="2" fill="#0e0c18"/>
+                    <rect x="7" y="14" width="3" height="2" fill="#0e0c18"/>
+                  </svg>
+                </div>
+                <div class="agent-ring"></div>
+                <div class="agent-pulse"></div>
+              </div>
+              <div class="agent-label">VINCENT · GROK</div>
+              <div class="agent-score" id="score-grok">—</div>
+              <div class="agent-bubble" id="bubble-grok"></div>
+            </div>
+
             <!-- Thinking overlay (ATB-style) -->
             <div class="thinking-overlay" id="thinking-overlay">
               <div class="thinking-dots">
@@ -381,7 +432,8 @@
     <!-- config.js is generated at deploy time (GitHub Actions) and injects   -->
     <!-- window.AIRING_GEMINI_KEY. It is absent in local dev — that is fine.  -->
     <script>window.AIRING_GEMINI_KEY = window.AIRING_GEMINI_KEY || '';</script>
+    <script>window.AIRING_GROK_KEY = window.AIRING_GROK_KEY || '';</script>
     <script src="config.js" onerror="void 0"></script>
-    <script src="app.js?v=11"></script>
+    <script src="app.js?v=12"></script>
   </body>
 </html>

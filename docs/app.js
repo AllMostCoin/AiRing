@@ -7,9 +7,10 @@
 const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Local API key storage (Gemini only — browser ↔ Google directly, no backend)
+// Local API key storage (Gemini + Grok — browser ↔ API directly, no backend)
 // ─────────────────────────────────────────────────────────────────────────────
 const LS_GEMINI_KEY = 'airing_gemini_key';
+const LS_GROK_KEY   = 'airing_grok_key';
 
 function getLocalGeminiKey() {
   // Priority: user-supplied key in localStorage → site-wide key injected at deploy time
@@ -29,6 +30,23 @@ function clearLocalGeminiKey() {
   window.AIRING_GEMINI_KEY = '';
 }
 
+function getLocalGrokKey() {
+  try {
+    return localStorage.getItem(LS_GROK_KEY) || window.AIRING_GROK_KEY || '';
+  } catch {
+    return window.AIRING_GROK_KEY || '';
+  }
+}
+
+function setLocalGrokKey(key) {
+  try { localStorage.setItem(LS_GROK_KEY, key); } catch { /* ignore */ }
+}
+
+function clearLocalGrokKey() {
+  try { localStorage.removeItem(LS_GROK_KEY); } catch { /* ignore */ }
+  window.AIRING_GROK_KEY = '';
+}
+
 async function callGeminiDirect(prompt, key) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   const res = await fetch(url, {
@@ -46,6 +64,25 @@ async function callGeminiDirect(prompt, key) {
   return textPart.text.trim();
 }
 
+async function callGrokDirect(prompt, key) {
+  // xAI Grok — OpenAI-compatible endpoint, called directly from the browser
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: 'grok-3-mini',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 512,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const msg = data.error?.message || res.statusText;
+    throw new Error(`Grok API error: ${msg}`);
+  }
+  return data.choices[0].message.content.trim();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Client-side demo engine (mirrors server.js — used when no backend is present)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,6 +92,7 @@ const AI_MODELS_DATA = [
   { id: 'gemini',  name: 'Gemini',  character: 'Red XIII',color: '#e04010', emoji: '🔥', strengths: ['multimodal', 'search', 'factual', 'math'] },
   { id: 'mistral', name: 'Mistral', character: 'Cid',     color: '#20a8c0', emoji: '✈️', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
   { id: 'copilot', name: 'Copilot', character: 'Tifa',    color: '#e03860', emoji: '👊', strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
+  { id: 'grok',    name: 'Grok',    character: 'Vincent', color: '#7030c8', emoji: '🦇', strengths: ['reasoning', 'speed', 'creative', 'search'] },
 ];
 
 const DEMO_TEMPLATES = {
@@ -82,6 +120,11 @@ const DEMO_TEMPLATES = {
     "// Autocomplete engaged for {topic}\nBased on patterns across millions of repos, here's the optimal implementation. I've inlined comments, handled edge cases, and added error boundaries. Would you like me to also generate unit tests?",
     "I've analyzed your codebase context for {topic}. Suggestions: 1) Refactor for type safety, 2) Extract reusable helpers, 3) Add guard clauses. My training on GitHub repositories shows this pattern reduces bugs by ~40%. Accepting suggestion…",
     "Scanning open-source patterns for {topic}. Top result: a clean, well-documented solution with zero security vulnerabilities detected. I can also suggest a Copilot Workspace task to automate this across your entire project.",
+  ],
+  grok: [
+    "Cutting straight to {topic}: the answer is simpler than most pretend. Strip the noise, follow first principles, and you get a clean solution. My reasoning chain is short but airtight — here's what actually matters.",
+    "On {topic} — interesting problem. Most AI would hedge, but I'll tell you directly: the key insight is counterintuitive. The conventional wisdom here is wrong in at least two ways, and here's why the unconventional approach wins.",
+    "Real-time analysis of {topic}: speed and clarity over verbosity. The creative angle nobody mentions is: what if the premise itself needs rethinking? My search-augmented reasoning surfaces a perspective that reframes the entire question.",
   ],
 };
 
@@ -150,6 +193,7 @@ function runLocalCompetition(prompt) {
 
 async function runHybridCompetition(prompt) {
   const geminiKey = getLocalGeminiKey();
+  const grokKey   = getLocalGrokKey();
   const results = await Promise.all(
     AI_MODELS_DATA.map(async (model) => {
       const start = Date.now();
@@ -159,12 +203,15 @@ async function runHybridCompetition(prompt) {
         if (model.id === 'gemini' && geminiKey) {
           text = await callGeminiDirect(prompt, geminiKey);
           isDemo = false;
+        } else if (model.id === 'grok' && grokKey) {
+          text = await callGrokDirect(prompt, grokKey);
+          isDemo = false;
         }
       } catch (err) {
         text = null;
         // Surface the error to the user via the settings status element
         if (settingsStatus) {
-          settingsStatus.textContent = `✗ Gemini live call failed: ${err.message}`;
+          settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
         }
@@ -221,8 +268,11 @@ const zoomBtn         = document.getElementById('zoom-btn');
 const settingsBtn     = document.getElementById('settings-btn');
 const settingsPanel   = document.getElementById('settings-panel');
 const geminiKeyInput  = document.getElementById('gemini-key-input');
-const settingsSaveBtn = document.getElementById('settings-save-btn');
-const settingsClearBtn= document.getElementById('settings-clear-btn');
+const geminiSaveBtn   = document.getElementById('gemini-save-btn');
+const geminiClearBtn  = document.getElementById('gemini-clear-btn');
+const grokKeyInput    = document.getElementById('grok-key-input');
+const grokSaveBtn     = document.getElementById('grok-save-btn');
+const grokClearBtn    = document.getElementById('grok-clear-btn');
 const settingsStatus  = document.getElementById('settings-status');
 const roundIndicator  = document.getElementById('round-indicator');
 const roundLabel      = document.getElementById('round-label');
@@ -251,45 +301,69 @@ settingsBtn.addEventListener('click', () => {
   const hidden = settingsPanel.classList.toggle('hidden');
   if (!hidden) {
     if (backendGeminiConfigured) {
-      // Server has GOOGLE_API_KEY set in .env — no manual entry needed
       geminiKeyInput.value = '';
       settingsStatus.textContent = '✔ Gemini key active via server (.env)';
       settingsStatus.className = 'settings-status ok';
     } else {
-      // Static / no-backend mode — show any locally stored key
       const stored = getLocalGeminiKey();
       geminiKeyInput.value = stored;
-      settingsStatus.textContent = stored ? '● Key loaded from local storage' : '';
-      settingsStatus.className = 'settings-status ok';
+      const grokStored = getLocalGrokKey();
+      grokKeyInput.value = grokStored;
+      if (stored || grokStored) {
+        settingsStatus.textContent = '● Key(s) loaded from local storage';
+        settingsStatus.className = 'settings-status ok';
+      } else {
+        settingsStatus.textContent = '';
+      }
     }
   }
 });
 
-settingsSaveBtn.addEventListener('click', () => {
+geminiSaveBtn.addEventListener('click', () => {
   const key = geminiKeyInput.value.trim();
   if (!key) {
-    settingsStatus.textContent = '✗ Please enter a key first.';
+    settingsStatus.textContent = '✗ Please enter a Gemini key first.';
     settingsStatus.className = 'settings-status err';
     return;
   }
   setLocalGeminiKey(key);
-  settingsStatus.textContent = '✔ Key saved! Gemini will run LIVE.';
+  settingsStatus.textContent = '✔ Gemini key saved! Gemini will run LIVE.';
   settingsStatus.className = 'settings-status ok';
-  // Refresh model status badges
   checkServerMode();
 });
 
-settingsClearBtn.addEventListener('click', () => {
+geminiClearBtn.addEventListener('click', () => {
   clearLocalGeminiKey();
   geminiKeyInput.value = '';
-  settingsStatus.textContent = '✔ Key cleared. Gemini will run in DEMO mode.';
+  settingsStatus.textContent = '✔ Gemini key cleared. Gemini will run in DEMO mode.';
   settingsStatus.className = 'settings-status ok';
   checkServerMode();
 });
 
-const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot'];
+grokSaveBtn.addEventListener('click', () => {
+  const key = grokKeyInput.value.trim();
+  if (!key) {
+    settingsStatus.textContent = '✗ Please enter a Grok key first.';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  setLocalGrokKey(key);
+  settingsStatus.textContent = '✔ Grok key saved! Grok will run LIVE.';
+  settingsStatus.className = 'settings-status ok';
+  checkServerMode();
+});
 
-// Home positions — populated at runtime by initTeams() for a random 2 vs 3 split
+grokClearBtn.addEventListener('click', () => {
+  clearLocalGrokKey();
+  grokKeyInput.value = '';
+  settingsStatus.textContent = '✔ Grok key cleared. Grok will run in DEMO mode.';
+  settingsStatus.className = 'settings-status ok';
+  checkServerMode();
+});
+
+const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot', 'grok'];
+
+// Home positions — populated at runtime by initTeams() for a random split
 const AGENT_POSITIONS = {};
 
 // Team side assignment — populated by initTeams(); 'left' | 'right'
@@ -319,15 +393,34 @@ const SLOTS_3_R = [
   { left: '',    right: '14%',  top: '',    bottom: '3%',  depth: 'near' },
 ];
 
-// Assign characters to random 2 vs 3 floor slots and update their DOM state
+// Floor slots for the 4-member side (left or right)
+const SLOTS_4 = [
+  { left: '26%', right: '',     top: '56%', bottom: '',    depth: 'far'  },
+  { left: '8%',  right: '',     top: '56%', bottom: '',    depth: 'far'  },
+  { left: '1%',  right: '',     top: '',    bottom: '26%', depth: 'mid'  },
+  { left: '14%', right: '',     top: '',    bottom: '3%',  depth: 'near' },
+];
+const SLOTS_4_R = [
+  { left: '',    right: '26%',  top: '56%', bottom: '',    depth: 'far'  },
+  { left: '',    right: '8%',   top: '56%', bottom: '',    depth: 'far'  },
+  { left: '',    right: '1%',   top: '',    bottom: '26%', depth: 'mid'  },
+  { left: '',    right: '14%',  top: '',    bottom: '3%',  depth: 'near' },
+];
+
+// Assign characters to random split floor slots and update their DOM state
 function initTeams() {
   const shuffled = [...MODEL_IDS].sort(() => Math.random() - 0.5);
-  const twoOnLeft = Math.random() < 0.5;
+  const total = MODEL_IDS.length; // 6
+  const leftCount = Math.random() < 0.5 ? 2 : 3;
+  const rightCount = total - leftCount;
 
-  const leftIds  = twoOnLeft ? shuffled.slice(0, 2) : shuffled.slice(0, 3);
-  const rightIds = twoOnLeft ? shuffled.slice(2, 5) : shuffled.slice(3, 5);
-  const leftSlots  = twoOnLeft ? SLOTS_2   : SLOTS_3;
-  const rightSlots = twoOnLeft ? SLOTS_3_R : SLOTS_2_R;
+  const leftIds  = shuffled.slice(0, leftCount);
+  const rightIds = shuffled.slice(leftCount);
+
+  const SLOT_MAP = { 2: SLOTS_2, 3: SLOTS_3, 4: SLOTS_4 };
+  const SLOT_MAP_R = { 2: SLOTS_2_R, 3: SLOTS_3_R, 4: SLOTS_4_R };
+  const leftSlots  = SLOT_MAP[leftCount];
+  const rightSlots = SLOT_MAP_R[rightCount];
 
   leftIds.forEach((id, i) => {
     const slot = leftSlots[i];
@@ -356,21 +449,23 @@ function initTeams() {
 
 // Battle positions — converged on floor; all below horizon (~52%)
 const CENTER_POSITIONS = {
-  gpt4:    { left: '28%',  right: '',     top: '54%',    bottom: '' },
-  claude:  { left: '',     right: '28%',  top: '54%',    bottom: '' },
-  gemini:  { left: '28%',  right: '',     top: '',       bottom: '22%' },
-  mistral: { left: '',     right: '28%',  top: '',       bottom: '22%' },
-  copilot: { left: '41%',  right: '',     top: '',       bottom: '22%' },
+  gpt4:    { left: '22%',  right: '',     top: '54%',    bottom: '' },
+  claude:  { left: '',     right: '22%',  top: '54%',    bottom: '' },
+  gemini:  { left: '22%',  right: '',     top: '',       bottom: '22%' },
+  mistral: { left: '',     right: '22%',  top: '',       bottom: '22%' },
+  copilot: { left: '37%',  right: '',     top: '',       bottom: '22%' },
+  grok:    { left: '37%',  right: '',     top: '54%',    bottom: '' },
 };
 
 // Approximate pixel-center of each character when converged (% of room)
 // All positions are on the floor (y > 52 ensures below the horizon)
 const BATTLE_POS = {
-  gpt4:    { x: 34, y: 56 },
-  claude:  { x: 66, y: 56 },
-  gemini:  { x: 34, y: 66 },
-  mistral: { x: 66, y: 66 },
-  copilot: { x: 50, y: 70 },
+  gpt4:    { x: 28, y: 56 },
+  claude:  { x: 72, y: 56 },
+  gemini:  { x: 28, y: 66 },
+  mistral: { x: 72, y: 66 },
+  copilot: { x: 43, y: 70 },
+  grok:    { x: 43, y: 56 },
 };
 
 // FF7-style damage number pool
@@ -460,6 +555,7 @@ window.addEventListener('load', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 let backendAvailable = false;
 let backendGeminiConfigured = false;  // true when GOOGLE_API_KEY is set in server .env
+let backendGrokConfigured   = false;  // true when XAI_API_KEY is set in server .env
 
 // Append a small LIVE/DEMO status indicator below each character label
 function applyModelStatus(configured) {
@@ -481,19 +577,21 @@ async function checkServerMode() {
   // Shared fallback used when no backend is reachable (static / GitHub Pages).
   function applyLocalOnly() {
     backendGeminiConfigured = false;
+    backendGrokConfigured   = false;
     const geminiKey = getLocalGeminiKey();
+    const grokKey   = getLocalGrokKey();
     const localConfigured = {
-      gpt4: false, claude: false, gemini: !!geminiKey, mistral: false, copilot: false,
+      gpt4: false, claude: false, gemini: !!geminiKey, mistral: false, copilot: false, grok: !!grokKey,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(localConfigured);
-    // Auto-open settings panel once per session when no Gemini key is present
+    // Auto-open settings panel once per session when no keys are present
     // so users know exactly how to activate live mode.
-    if (!geminiKey && !sessionStorage.getItem('airing_settings_shown')) {
+    if (!geminiKey && !grokKey && !sessionStorage.getItem('airing_settings_shown')) {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
-      settingsStatus.textContent = '⚡ Paste your Gemini key here and hit SAVE to go LIVE!';
+      settingsStatus.textContent = '⚡ Paste your Gemini or Grok key and hit SAVE to go LIVE!';
       settingsStatus.className = 'settings-status info';
     }
   }
@@ -507,12 +605,12 @@ async function checkServerMode() {
     }
     const data = await res.json();
     backendAvailable = true;
-    // Track whether the server has GOOGLE_API_KEY configured in .env
     backendGeminiConfigured = !!(data.configured && data.configured.gemini);
-    // Merge server-configured status with any locally-stored Gemini key so the
-    // badge correctly reflects LIVE when the user has saved their own key.
+    backendGrokConfigured   = !!(data.configured && data.configured.grok);
+    // Merge server-configured status with any locally-stored keys
     const configured = data.configured || {};
     if (!configured.gemini && getLocalGeminiKey()) configured.gemini = true;
+    if (!configured.grok   && getLocalGrokKey())   configured.grok   = true;
     const anyLive = Object.values(configured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(configured);
@@ -987,7 +1085,7 @@ async function fetchOneRound(prompt) {
     return res.json();
   }
   // Static / GitHub Pages mode
-  const hasKey = !!getLocalGeminiKey();
+  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey());
   await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
   return runHybridCompetition(prompt);
 }

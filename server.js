@@ -66,6 +66,15 @@ const AI_MODELS = [
     emoji: '👊',
     strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'],
   },
+  {
+    id: 'grok',
+    name: 'Grok',
+    character: 'Vincent',
+    provider: 'xai',
+    color: '#7030c8',
+    emoji: '🦇',
+    strengths: ['reasoning', 'speed', 'creative', 'search'],
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,6 +170,24 @@ async function callCopilot(prompt) {
   return data.choices[0].message.content.trim();
 }
 
+async function callXAI(prompt) {
+  // xAI Grok — OpenAI-compatible endpoint
+  const key = process.env.XAI_API_KEY;
+  if (!key) return null;
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: 'grok-3-mini',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 512,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`xAI Grok HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  return data.choices[0].message.content.trim();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Demo mode responses (used when no API keys are set)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -190,6 +217,11 @@ const DEMO_TEMPLATES = {
     "// Autocomplete engaged for {topic}\nBased on patterns across millions of repos, here's the optimal implementation. I've inlined comments, handled edge cases, and added error boundaries. Would you like me to also generate unit tests?",
     "I've analyzed your codebase context for {topic}. Suggestions: 1) Refactor for type safety, 2) Extract reusable helpers, 3) Add guard clauses. My training on GitHub repositories shows this pattern reduces bugs by ~40%. Accepting suggestion…",
     "Scanning open-source patterns for {topic}. Top result: a clean, well-documented solution with zero security vulnerabilities detected. I can also suggest a Copilot Workspace task to automate this across your entire project.",
+  ],
+  grok: [
+    "Cutting straight to {topic}: the answer is simpler than most pretend. Strip the noise, follow first principles, and you get a clean solution. My reasoning chain is short but airtight — here's what actually matters.",
+    "On {topic} — interesting problem. Most AI would hedge, but I'll tell you directly: the key insight is counterintuitive. The conventional wisdom here is wrong in at least two ways, and here's why the unconventional approach wins.",
+    "Real-time analysis of {topic}: speed and clarity over verbosity. The creative angle nobody mentions is: what if the premise itself needs rethinking? My search-augmented reasoning surfaces a perspective that reframes the entire question.",
   ],
 };
 
@@ -274,6 +306,7 @@ app.get('/api/models', (_req, res) => {
     gemini:  !!process.env.GOOGLE_API_KEY,
     mistral: !!process.env.MISTRAL_API_KEY,
     copilot: !!process.env.GITHUB_TOKEN,
+    grok:    !!process.env.XAI_API_KEY,
   };
   res.json({ models: AI_MODELS, configured, demoMode: Object.values(configured).every((v) => !v) });
 });
@@ -291,7 +324,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
   }
   const trimmed = prompt.trim();
 
-  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot };
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI };
 
   // Call all models in parallel
   const results = await Promise.all(
