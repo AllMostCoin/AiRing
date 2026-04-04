@@ -373,7 +373,7 @@ html, body {
   bottom: 18px;
   left: 50%;
   transform: translateX(-50%);
-  width: 54px; height: 7px;
+  width: 72px; height: 7px;
   background: rgba(0,0,0,.8);
   border-radius: 50%;
   pointer-events: none;
@@ -384,8 +384,8 @@ html, body {
 
 .agent {
   position: relative;
-  width: 78px;
-  height: 88px;
+  width: 110px;
+  height: 128px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -403,14 +403,14 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 64px;
+  width: 72px;
+  height: 96px;
 }
 
 /* Pixel SVG — rendered crisp (no anti-aliasing) */
 .pixel-sprite {
-  width: 48px;
-  height: 64px;
+  width: 72px;
+  height: 96px;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   filter: drop-shadow(2px 2px 0 #000);

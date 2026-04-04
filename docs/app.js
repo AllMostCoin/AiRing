@@ -626,8 +626,8 @@ async function fireBattleRound() {
   const model      = AI_MODELS_DATA.find((m) => m.id === attackerId);
   const useSpell   = Math.random() < MATERIA_CAST_CHANCE;
 
-  const attPos = BATTLE_POS[attackerId];
-  const defPos = BATTLE_POS[defenderId];
+  const attPos = agentXY(attackerId);
+  const defPos = agentXY(defenderId);
   // Impact lands between attacker and defender, biased toward defender
   const impactX = defPos.x * 0.58 + attPos.x * 0.42;
   const impactY = defPos.y * 0.58 + attPos.y * 0.42;
@@ -696,29 +696,20 @@ function applyPosition(id, pos) {
   el.style.bottom = pos.bottom || '';
 }
 
+// Convert a home AGENT_POSITIONS entry to a percentage x/y point for effects
+function agentXY(id) {
+  const pos = AGENT_POSITIONS[id];
+  const x = pos.left  ? parseFloat(pos.left)  : 100 - parseFloat(pos.right);
+  const y = pos.top   ? parseFloat(pos.top)   : 100 - parseFloat(pos.bottom);
+  return { x, y };
+}
+
 async function convergeAgents() {
-  // Walk each character to the centre one at a time, 350 ms apart
-  for (const id of MODEL_IDS) {
-    if (agentSide[id] === 'left') getAgentEl(id).classList.add('walking');
-    else getAgentEl(id).classList.add('walking-left');
-    applyPosition(id, CENTER_POSITIONS[id]);
-    await delay(350);
-  }
-  // Wait for the last character's transition to finish (~700 ms)
-  await delay(750);
-  MODEL_IDS.forEach((id) => getAgentEl(id).classList.remove('walking', 'walking-left'));
+  // Characters stay in their home positions — no movement
 }
 
 function disperseAgents() {
-  // Reverse walk direction for the return trip
-  MODEL_IDS.forEach((id) => {
-    if (agentSide[id] === 'left') getAgentEl(id).classList.add('walking-left');
-    else getAgentEl(id).classList.add('walking');
-  });
-  MODEL_IDS.forEach((id) => applyPosition(id, AGENT_POSITIONS[id]));
-  setTimeout(() => {
-    MODEL_IDS.forEach((id) => getAgentEl(id).classList.remove('walking', 'walking-left'));
-  }, 850);
+  // Characters stay in their home positions — no movement
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -991,7 +982,7 @@ submitBtn.addEventListener('click', async () => {
       if (round < TOTAL_ROUNDS) {
         // Reset agents for next round — disperse, then clear states
         disperseAgents();
-        await delay(800);
+        await delay(200);
         MODEL_IDS.forEach((id) => {
           const el = getAgentEl(id);
           el.classList.remove('winner', 'loser', 'thinking');
@@ -1064,7 +1055,7 @@ submitBtn.addEventListener('click', async () => {
 
     // Characters walk back to their corners
     disperseAgents();
-    await delay(950);
+    await delay(100);
 
     renderResults(matchData);
     addToHistory(matchData);
