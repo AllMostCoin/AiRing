@@ -1,0 +1,6 @@
+node_modules/
+.env
+dist/
+*.log
+# Generated at deploy time — contains the injected Gemini API key
+docs/config.js
