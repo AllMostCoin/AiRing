@@ -2,7 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - copilot/create-2d-room-for-ai-collaboration
   workflow_dispatch:
 
 permissions:
