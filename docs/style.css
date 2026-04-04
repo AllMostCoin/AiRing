@@ -225,10 +225,48 @@ html, body {
 
 .room-container {
   position: relative;
-  border: 4px solid var(--border-gold);
+  border: none;
   overflow: hidden;
   box-shadow: var(--shadow);
 }
+
+/* ── Zoomed / full-viewport arena ──────────────────────────── */
+.room-container.zoomed {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100vw;
+  height: 100vh;
+  box-shadow: none;
+}
+.room-container.zoomed .room {
+  aspect-ratio: unset;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Zoom toggle button ─────────────────────────────────────── */
+.zoom-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 50;
+  width: 28px;
+  height: 28px;
+  background: rgba(0,0,0,.65);
+  border: 1px solid rgba(255,255,255,.25);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s;
+  padding: 0;
+  border-radius: 0;
+}
+.zoom-btn:hover { background: rgba(0,0,0,.85); }
 
 .room-label {
   position: absolute;
@@ -279,17 +317,8 @@ html, body {
   );
 }
 
-/* ── Horizon bar — bright line at sky-ground boundary ─────── */
-.horizon-bar {
-  position: absolute;
-  left: 0; right: 0;
-  top: 51%;
-  height: 3px;
-  z-index: 5;
-  pointer-events: none;
-  background: var(--border-gold);
-  box-shadow: 0 0 12px var(--border-gold), 0 0 24px var(--accent2);
-}
+/* ── Horizon bar — hidden (photo background provides natural horizon) */
+.horizon-bar { display: none; }
 
 /* ── Floor canvas — Mode 7 perspective checkerboard ─────────── */
 .room-floor {
@@ -389,19 +418,11 @@ html, body {
 }
 
 .agent-ring {
-  position: absolute;
-  inset: -4px;
-  border: 2px solid var(--color);
-  opacity: .40;
-  transition: all .4s;
+  display: none;
 }
 
 .agent-pulse {
-  position: absolute;
-  inset: -10px;
-  border: 2px solid var(--color);
-  opacity: 0;
-  animation: none;
+  display: none;
 }
 
 /* Thinking state */
@@ -713,17 +734,17 @@ html, body {
 
 /* ── 3D depth scaling — perspective scale by floor depth row */
 .agent-wrapper[data-depth="far"] {
-  transform: scale(.72);
+  transform: scale(.50);
   transform-origin: bottom center;
   z-index: 8;
 }
 .agent-wrapper[data-depth="mid"] {
-  transform: scale(.86);
+  transform: scale(.60);
   transform-origin: bottom center;
   z-index: 9;
 }
 .agent-wrapper[data-depth="near"] {
-  transform: scale(1);
+  transform: scale(.72);
   transform-origin: bottom center;
   z-index: 11;
 }

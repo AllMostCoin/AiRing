@@ -214,6 +214,7 @@ const scoreRows       = document.getElementById('score-rows');
 const historyList     = document.getElementById('history-list');
 const roomFloor       = document.getElementById('room-floor');
 const room            = document.getElementById('room');
+const zoomBtn         = document.getElementById('zoom-btn');
 const settingsBtn     = document.getElementById('settings-btn');
 const settingsPanel   = document.getElementById('settings-panel');
 const geminiKeyInput  = document.getElementById('gemini-key-input');
@@ -227,6 +228,18 @@ const roundPips       = [
   document.getElementById('pip-2'),
   document.getElementById('pip-3'),
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Zoom (full-viewport arena) toggle
+// ─────────────────────────────────────────────────────────────────────────────
+zoomBtn.addEventListener('click', () => {
+  const container = zoomBtn.parentElement;
+  const zoomed = container.classList.toggle('zoomed');
+  zoomBtn.textContent = zoomed ? '✕' : '⛶';
+  zoomBtn.title = zoomed ? 'Exit fullscreen' : 'Toggle fullscreen arena';
+  // Redraw floor to match new dimensions
+  requestAnimationFrame(drawFloor);
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Settings panel handlers
