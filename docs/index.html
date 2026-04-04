@@ -6,7 +6,7 @@
     <title>AI Ring — Midgar Battle Arena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=2" />
+    <link rel="stylesheet" href="style.css?v=3" />
   </head>
   <body>
     <!-- ─── Header ─────────────────────────────────────────────────── -->
@@ -46,25 +46,31 @@
                  style="left:12%;top:15%;">
               <div class="agent" style="--color:#7eb8d4;--glow:#7eb8d455;">
                 <div class="agent-sprite">
-                  <!-- Cloud Strife pixel sprite (8×9) -->
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 9" class="pixel-sprite">
-                    <!-- spiky blond hair -->
-                    <rect x="2" y="0" width="1" height="3" fill="#f5e020"/>
-                    <rect x="4" y="0" width="2" height="2" fill="#f5e020"/>
-                    <rect x="1" y="1" width="6" height="2" fill="#f5e020"/>
-                    <rect x="0" y="2" width="8" height="1" fill="#f5e020"/>
-                    <!-- face / skin -->
-                    <rect x="2" y="3" width="4" height="2" fill="#e8c49a"/>
-                    <!-- blue eyes -->
-                    <rect x="2" y="4" width="1" height="1" fill="#5599ff"/>
-                    <rect x="5" y="4" width="1" height="1" fill="#5599ff"/>
-                    <!-- SOLDIER dark-blue armor -->
-                    <rect x="1" y="5" width="6" height="4" fill="#1a4070"/>
-                    <!-- grey pauldrons -->
-                    <rect x="0" y="5" width="2" height="2" fill="#607090"/>
-                    <rect x="6" y="5" width="2" height="2" fill="#607090"/>
-                    <!-- buster sword hint (diagonal) -->
-                    <rect x="7" y="3" width="1" height="5" fill="#c0c8d8"/>
+                  <!-- Cloud Strife 32-bit pixel sprite (12×16) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
+                    <!-- Spiky blond hair -->
+                    <rect x="2" y="0" width="2" height="3" fill="#f5e020"/>
+                    <rect x="8" y="0" width="2" height="2" fill="#f5e020"/>
+                    <rect x="1" y="2" width="10" height="2" fill="#f5e020"/>
+                    <rect x="0" y="3" width="12" height="1" fill="#f5e020"/>
+                    <!-- Face / skin -->
+                    <rect x="2" y="4" width="8" height="3" fill="#e8c49a"/>
+                    <!-- Mako blue eyes -->
+                    <rect x="3" y="5" width="2" height="1" fill="#5599ff"/>
+                    <rect x="7" y="5" width="2" height="1" fill="#5599ff"/>
+                    <!-- SOLDIER dark-blue armor body -->
+                    <rect x="2" y="7" width="8" height="7" fill="#1a4070"/>
+                    <!-- Belt stripe -->
+                    <rect x="2" y="11" width="8" height="1" fill="#3a6090"/>
+                    <!-- Grey shoulder pauldrons -->
+                    <rect x="0" y="7" width="3" height="3" fill="#607090"/>
+                    <rect x="9" y="7" width="3" height="3" fill="#607090"/>
+                    <!-- Buster sword (right side, silver) -->
+                    <rect x="10" y="4" width="2" height="8" fill="#c0c8d8"/>
+                    <rect x="11" y="3" width="1" height="1" fill="#e8f0f8"/>
+                    <!-- Boots -->
+                    <rect x="2" y="14" width="3" height="2" fill="#2a3a50"/>
+                    <rect x="7" y="14" width="3" height="2" fill="#2a3a50"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
@@ -80,23 +86,30 @@
                  style="right:12%;top:15%;">
               <div class="agent" style="--color:#e06080;--glow:#e0608055;">
                 <div class="agent-sprite">
-                  <!-- Aerith Gainsborough pixel sprite (8×9) -->
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 9" class="pixel-sprite">
-                    <!-- brown hair (top + sides) -->
-                    <rect x="1" y="0" width="6" height="2" fill="#7b3811"/>
-                    <rect x="0" y="1" width="2" height="6" fill="#7b3811"/>
-                    <rect x="6" y="1" width="2" height="6" fill="#7b3811"/>
-                    <!-- face -->
-                    <rect x="2" y="1" width="4" height="4" fill="#e8c49a"/>
-                    <!-- green eyes -->
-                    <rect x="2" y="3" width="1" height="1" fill="#22aa44"/>
-                    <rect x="5" y="3" width="1" height="1" fill="#22aa44"/>
-                    <!-- red hair ribbon -->
-                    <rect x="3" y="0" width="2" height="1" fill="#ff6680"/>
-                    <!-- pink dress -->
-                    <rect x="1" y="5" width="6" height="4" fill="#d45070"/>
-                    <!-- dress trim -->
-                    <rect x="1" y="5" width="6" height="1" fill="#f07090"/>
+                  <!-- Aerith Gainsborough 32-bit pixel sprite (12×16) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
+                    <!-- Brown hair top + flowing sides -->
+                    <rect x="2" y="0" width="8" height="2" fill="#7b3811"/>
+                    <rect x="0" y="1" width="3" height="9" fill="#7b3811"/>
+                    <rect x="9" y="1" width="3" height="9" fill="#7b3811"/>
+                    <!-- Pink hair ribbon -->
+                    <rect x="4" y="0" width="4" height="1" fill="#ff6680"/>
+                    <!-- Face -->
+                    <rect x="2" y="1" width="8" height="5" fill="#e8c49a"/>
+                    <!-- Green eyes -->
+                    <rect x="3" y="3" width="2" height="1" fill="#22aa44"/>
+                    <rect x="7" y="3" width="2" height="1" fill="#22aa44"/>
+                    <!-- Pink dress bodice -->
+                    <rect x="2" y="6" width="8" height="4" fill="#d45070"/>
+                    <!-- White collar detail -->
+                    <rect x="4" y="6" width="4" height="2" fill="#f0b0b8"/>
+                    <!-- Dress trim -->
+                    <rect x="2" y="6" width="8" height="1" fill="#f07090"/>
+                    <!-- Dress skirt (wider) -->
+                    <rect x="1" y="10" width="10" height="4" fill="#d45070"/>
+                    <!-- Boots (brown) -->
+                    <rect x="2" y="14" width="3" height="2" fill="#8b4513"/>
+                    <rect x="7" y="14" width="3" height="2" fill="#8b4513"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
@@ -112,24 +125,32 @@
                  style="left:12%;bottom:15%;">
               <div class="agent" style="--color:#cc4422;--glow:#cc442255;">
                 <div class="agent-sprite">
-                  <!-- Tifa Lockhart pixel sprite (8×9) -->
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 9" class="pixel-sprite">
-                    <!-- black hair (short bob) -->
-                    <rect x="1" y="0" width="6" height="3" fill="#1a1a1a"/>
-                    <!-- face -->
-                    <rect x="2" y="2" width="4" height="3" fill="#e8c49a"/>
-                    <!-- red headband -->
-                    <rect x="1" y="2" width="6" height="1" fill="#cc2200"/>
-                    <!-- dark red eyes -->
-                    <rect x="2" y="3" width="1" height="1" fill="#aa2222"/>
-                    <rect x="5" y="3" width="1" height="1" fill="#aa2222"/>
-                    <!-- white crop top -->
-                    <rect x="1" y="5" width="6" height="1" fill="#f0f0f0"/>
-                    <!-- red shorts -->
-                    <rect x="0" y="6" width="8" height="3" fill="#cc2200"/>
-                    <!-- suspenders -->
-                    <rect x="2" y="5" width="1" height="4" fill="#222222"/>
-                    <rect x="5" y="5" width="1" height="4" fill="#222222"/>
+                  <!-- Tifa Lockhart 32-bit pixel sprite (12×16) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
+                    <!-- Black hair (short bob) -->
+                    <rect x="1" y="0" width="10" height="4" fill="#1a1a1a"/>
+                    <rect x="0" y="2" width="2" height="7" fill="#1a1a1a"/>
+                    <rect x="10" y="2" width="2" height="7" fill="#1a1a1a"/>
+                    <!-- Red headband -->
+                    <rect x="0" y="3" width="12" height="1" fill="#cc2200"/>
+                    <!-- Face -->
+                    <rect x="2" y="2" width="8" height="5" fill="#e8c49a"/>
+                    <!-- Dark red eyes -->
+                    <rect x="3" y="4" width="2" height="1" fill="#aa2222"/>
+                    <rect x="7" y="4" width="2" height="1" fill="#aa2222"/>
+                    <!-- White crop top -->
+                    <rect x="2" y="7" width="8" height="3" fill="#f0f0f0"/>
+                    <!-- Red suspenders -->
+                    <rect x="4" y="6" width="1" height="5" fill="#cc2200"/>
+                    <rect x="7" y="6" width="1" height="5" fill="#cc2200"/>
+                    <!-- Black shorts -->
+                    <rect x="1" y="10" width="10" height="3" fill="#222222"/>
+                    <!-- Boots -->
+                    <rect x="1" y="13" width="4" height="3" fill="#333333"/>
+                    <rect x="7" y="13" width="4" height="3" fill="#333333"/>
+                    <!-- Boot highlight -->
+                    <rect x="2" y="14" width="2" height="1" fill="#666666"/>
+                    <rect x="8" y="14" width="2" height="1" fill="#666666"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
@@ -145,23 +166,27 @@
                  style="right:12%;bottom:15%;">
               <div class="agent" style="--color:#c8c8ff;--glow:#c8c8ff44;">
                 <div class="agent-sprite">
-                  <!-- Sephiroth pixel sprite (8×9) -->
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 9" class="pixel-sprite">
-                    <!-- long silver hair (sides flow down) -->
-                    <rect x="0" y="0" width="8" height="2" fill="#c8c8ff"/>
-                    <rect x="0" y="2" width="2" height="7" fill="#c8c8ff"/>
-                    <rect x="6" y="2" width="2" height="7" fill="#c8c8ff"/>
-                    <!-- pale face -->
-                    <rect x="2" y="1" width="4" height="4" fill="#d8d8f0"/>
-                    <!-- green cat-slit eyes -->
-                    <rect x="2" y="3" width="2" height="1" fill="#00cc44"/>
-                    <rect x="4" y="3" width="2" height="1" fill="#00cc44"/>
-                    <!-- black coat -->
-                    <rect x="2" y="5" width="4" height="4" fill="#111122"/>
-                    <rect x="0" y="5" width="2" height="4" fill="#1a1a33"/>
-                    <rect x="6" y="5" width="2" height="4" fill="#1a1a33"/>
-                    <!-- coat highlight -->
-                    <rect x="3" y="5" width="2" height="4" fill="#1d1d3a"/>
+                  <!-- Sephiroth 32-bit pixel sprite (12×16) -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
+                    <!-- Long flowing silver hair (top + sides) -->
+                    <rect x="0" y="0" width="12" height="2" fill="#c8c8ff"/>
+                    <rect x="0" y="2" width="3" height="14" fill="#c8c8ff"/>
+                    <rect x="9" y="2" width="3" height="14" fill="#c8c8ff"/>
+                    <!-- Pale face -->
+                    <rect x="3" y="1" width="6" height="5" fill="#d8d8f0"/>
+                    <!-- Green cat-slit eyes -->
+                    <rect x="3" y="3" width="2" height="1" fill="#00cc44"/>
+                    <rect x="7" y="3" width="2" height="1" fill="#00cc44"/>
+                    <!-- Black long coat body -->
+                    <rect x="3" y="6" width="6" height="10" fill="#111122"/>
+                    <!-- Coat lapels / highlight -->
+                    <rect x="4" y="6" width="2" height="5" fill="#1d1d3a"/>
+                    <rect x="6" y="6" width="2" height="5" fill="#1d1d3a"/>
+                    <!-- Masamune sword (thin, left side) -->
+                    <rect x="0" y="0" width="1" height="16" fill="#e0e0f8"/>
+                    <!-- Boots -->
+                    <rect x="3" y="14" width="2" height="2" fill="#080810"/>
+                    <rect x="7" y="14" width="2" height="2" fill="#080810"/>
                   </svg>
                 </div>
                 <div class="agent-ring"></div>
@@ -248,6 +273,6 @@
       <p>AI Ring &mdash; Midgar Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
     </footer>
 
-    <script src="app.js?v=2"></script>
+    <script src="app.js?v=3"></script>
   </body>
 </html>

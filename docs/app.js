@@ -172,8 +172,11 @@ function drawFloor() {
 }
 
 window.addEventListener('resize', drawFloor);
-// Defer until layout is ready
-requestAnimationFrame(() => { drawFloor(); });
+// Defer until layout is ready, then kick off intro animation
+requestAnimationFrame(() => {
+  drawFloor();
+  playIntroAnimation();
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Check server / demo mode
@@ -287,18 +290,18 @@ function stopThinkingBubbles() {
 // Animate agents to center during competition
 // ─────────────────────────────────────────────────────────────────────────────
 const AGENT_POSITIONS = {
-  gpt4:    { left: '15%', right: '',    top: '20%',    bottom: '' },
-  claude:  { left: '',    right: '15%', top: '20%',    bottom: '' },
-  gemini:  { left: '15%', right: '',    top: '',       bottom: '20%' },
-  mistral: { left: '',    right: '15%', top: '',       bottom: '20%' },
+  gpt4:    { left: '12%', right: '',    top: '15%',    bottom: '' },
+  claude:  { left: '',    right: '12%', top: '15%',    bottom: '' },
+  gemini:  { left: '12%', right: '',    top: '',       bottom: '15%' },
+  mistral: { left: '',    right: '12%', top: '',       bottom: '15%' },
 };
 
 // Positions when "converging" to center
 const CENTER_POSITIONS = {
-  gpt4:    { left: '28%', right: '',    top: '35%',    bottom: '' },
-  claude:  { left: '',    right: '28%', top: '35%',    bottom: '' },
-  gemini:  { left: '28%', right: '',    top: '',       bottom: '35%' },
-  mistral: { left: '',    right: '28%', top: '',       bottom: '35%' },
+  gpt4:    { left: '30%', right: '',    top: '36%',    bottom: '' },
+  claude:  { left: '',    right: '30%', top: '36%',    bottom: '' },
+  gemini:  { left: '30%', right: '',    top: '',       bottom: '36%' },
+  mistral: { left: '',    right: '30%', top: '',       bottom: '36%' },
 };
 
 function applyPosition(id, pos) {
@@ -310,11 +313,64 @@ function applyPosition(id, pos) {
 }
 
 function convergeAgents() {
+  // Left-side characters walk right; right-side characters walk left
+  getAgentEl('gpt4').classList.add('walking');
+  getAgentEl('gemini').classList.add('walking');
+  getAgentEl('claude').classList.add('walking', 'walking-left');
+  getAgentEl('mistral').classList.add('walking', 'walking-left');
   MODEL_IDS.forEach((id) => applyPosition(id, CENTER_POSITIONS[id]));
+  // Remove walk cycle once they arrive (~700 ms transition)
+  setTimeout(() => {
+    MODEL_IDS.forEach((id) => getAgentEl(id).classList.remove('walking', 'walking-left'));
+  }, 850);
 }
 
 function disperseAgents() {
+  // Reverse directions for the return walk
+  getAgentEl('gpt4').classList.add('walking-left');
+  getAgentEl('gemini').classList.add('walking-left');
+  getAgentEl('claude').classList.add('walking');
+  getAgentEl('mistral').classList.add('walking');
   MODEL_IDS.forEach((id) => applyPosition(id, AGENT_POSITIONS[id]));
+  setTimeout(() => {
+    MODEL_IDS.forEach((id) => getAgentEl(id).classList.remove('walking', 'walking-left'));
+  }, 850);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Intro animation — characters walk from corners and meet in the center
+// ─────────────────────────────────────────────────────────────────────────────
+const INTRO_GREETINGS = {
+  gpt4:    '…Let\'s fight.',
+  claude:  '♡ Hi everyone!',
+  gemini:  'Time to battle!',
+  mistral: '…Hmph.',
+};
+
+async function playIntroAnimation() {
+  await delay(700);
+
+  // Walk to center
+  convergeAgents();
+
+  await delay(1100);
+
+  // Meeting! — burst the arena glow
+  arenaGlow.classList.add('active', 'meeting');
+
+  // Stagger greeting bubbles for each character
+  MODEL_IDS.forEach((id, i) => {
+    setTimeout(() => showBubble(id, INTRO_GREETINGS[id]), i * 180);
+  });
+
+  await delay(1800);
+
+  // Clear meeting state
+  MODEL_IDS.forEach((id) => hideBubble(id));
+  arenaGlow.classList.remove('active', 'meeting');
+
+  // Walk back to corners
+  disperseAgents();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
