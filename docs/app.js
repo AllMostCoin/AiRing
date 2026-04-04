@@ -494,7 +494,7 @@ async function checkServerMode() {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
       settingsStatus.textContent = '⚡ Paste your Gemini key here and hit SAVE to go LIVE!';
-      settingsStatus.className = 'settings-status ok';
+      settingsStatus.className = 'settings-status info';
     }
   }
 

@@ -202,8 +202,9 @@ html, body {
   font-size: 12px;
   min-height: 16px;
 }
-.settings-status.ok  { color: #00ff88; }
-.settings-status.err { color: #ff4040; }
+.settings-status.ok   { color: #00ff88; }
+.settings-status.err  { color: #ff4040; }
+.settings-status.info { color: var(--border-gold); }
 
 /* ── Layout ─────────────────────────────────────────────────── */
 .layout {
