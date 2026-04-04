@@ -472,8 +472,13 @@ async function checkServerMode() {
     if (!res.ok) { demoBadge.classList.remove('hidden'); applyModelStatus(null); return; }
     const data = await res.json();
     backendAvailable = true;
-    if (data.demoMode) demoBadge.classList.remove('hidden');
-    applyModelStatus(data.configured || null);
+    // Merge server-configured status with any locally-stored Gemini key so the
+    // badge correctly reflects LIVE when the user has saved their own key.
+    const configured = data.configured || {};
+    if (!configured.gemini && getLocalGeminiKey()) configured.gemini = true;
+    const anyLive = Object.values(configured).some(Boolean);
+    if (!anyLive) demoBadge.classList.remove('hidden');
+    applyModelStatus(configured);
   } catch (_) {
     // No backend (static hosting / GitHub Pages) — run fully client-side
     const geminiKey = getLocalGeminiKey();
