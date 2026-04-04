@@ -10,11 +10,11 @@ const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 // Client-side demo engine (mirrors server.js — used when no backend is present)
 // ─────────────────────────────────────────────────────────────────────────────
 const AI_MODELS_DATA = [
-  { id: 'gpt4',    name: 'GPT-4',   character: 'Terra',  color: '#40c840', emoji: '✨', strengths: ['reasoning', 'coding', 'analysis', 'general'] },
-  { id: 'claude',  name: 'Claude',  character: 'Celes',  color: '#5090e0', emoji: '⚔️', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
-  { id: 'gemini',  name: 'Gemini',  character: 'Locke',  color: '#cc4422', emoji: '🗡️', strengths: ['multimodal', 'search', 'factual', 'math'] },
-  { id: 'mistral', name: 'Mistral', character: 'Edgar',  color: '#c8a030', emoji: '⚙️', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
-  { id: 'copilot', name: 'Copilot', character: 'Setzer', color: '#b0a8c8', emoji: '🎲', strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
+  { id: 'gpt4',    name: 'GPT-4',   character: 'Cloud',   color: '#4888d8', emoji: '⚔️', strengths: ['reasoning', 'coding', 'analysis', 'general'] },
+  { id: 'claude',  name: 'Claude',  character: 'Barret',  color: '#d84020', emoji: '🔫', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
+  { id: 'gemini',  name: 'Gemini',  character: 'Red XIII',color: '#e04010', emoji: '🔥', strengths: ['multimodal', 'search', 'factual', 'math'] },
+  { id: 'mistral', name: 'Mistral', character: 'Cid',     color: '#20a8c0', emoji: '✈️', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
+  { id: 'copilot', name: 'Copilot', character: 'Tifa',    color: '#e03860', emoji: '👊', strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
 ];
 
 const DEMO_TEMPLATES = {
@@ -165,84 +165,71 @@ const DAMAGE_POOL = [42, 64, 87, 99, 128, 175, 210, 256, 333, 512];
 const MATERIA_CAST_CHANCE = 0.28;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Floor canvas — FF6 wooden airship deck planks with perspective
+// Floor canvas — Mode 7 perspective checkerboard (SUPER 256 style)
 // ─────────────────────────────────────────────────────────────────────────────
 function drawFloor() {
-  const room = roomFloor.parentElement;
-  const w = room.clientWidth;
-  const h = room.clientHeight;
+  const roomEl = roomFloor.parentElement;
+  const w = roomEl.clientWidth;
+  const h = roomEl.clientHeight;
   roomFloor.width  = w;
   roomFloor.height = h;
   const ctx = roomFloor.getContext('2d');
   ctx.clearRect(0, 0, w, h);
 
-  // Deck starts at ~38% of the room height (where sky meets wood)
-  const deckTop = h * 0.38;
+  // Floor starts just below the horizon (52% down)
+  const HORIZON_Y = h * 0.52;
+  const VP_X = w * 0.5;
 
-  // Plank palette — warm brown tones
-  const PLANK_GAP   = 'rgba(12, 8, 3, 0.82)';
-  const PLANK_BODY  = 'rgba(68, 44, 16, 0.62)';
-  const PLANK_EDGE  = 'rgba(108, 74, 28, 0.50)';
-  const SEPARATOR   = 'rgba(8, 5, 2, 0.92)';
-  const SEP_HILIGHT = 'rgba(112, 78, 26, 0.55)';
+  // Mako-tinted checkerboard colors
+  const DARK  = '#001c38';
+  const LIGHT = '#003060';
+  const LINE  = '#001428';
 
-  ctx.save();
+  const ROWS = 22;
+  const BASE_COLS = 6;
 
-  // ── Horizontal plank stripes with perspective compression ──
-  const PLANK_COUNT = 26;
-  for (let i = 0; i <= PLANK_COUNT; i++) {
-    const t     = i / PLANK_COUNT;
-    const y     = deckTop + (h - deckTop) * Math.pow(t, 1.65);
-    const ratio = (y - deckTop) / (h - deckTop);
+  for (let row = 0; row < ROWS; row++) {
+    const t0 = row / ROWS;
+    const t1 = (row + 1) / ROWS;
+    // Perspective compression — rows bunch up near horizon
+    const y0 = HORIZON_Y + (h - HORIZON_Y) * Math.pow(t0, 1.9);
+    const y1 = HORIZON_Y + (h - HORIZON_Y) * Math.pow(t1, 1.9);
 
-    // Planks narrow toward the vanishing point
-    const lx = w * 0.5 * (1 - ratio);
-    const rx = w * (1 - 0.5 * (1 - ratio));
+    const spread0 = (y0 - HORIZON_Y) / (h - HORIZON_Y);
+    const spread1 = (y1 - HORIZON_Y) / (h - HORIZON_Y);
 
-    const major = (i % 5 === 0);
-    ctx.beginPath();
-    ctx.moveTo(lx, y);
-    ctx.lineTo(rx, y);
-    ctx.strokeStyle = major ? PLANK_GAP : PLANK_BODY;
-    ctx.lineWidth   = major ? 2.4 : 1.0;
-    ctx.stroke();
+    // Left/right edge of each row — converge at vanishing point
+    const lx0 = VP_X * (1 - spread0);
+    const rx0 = w - VP_X * (1 - spread0);
+    const lx1 = VP_X * (1 - spread1);
+    const rx1 = w - VP_X * (1 - spread1);
 
-    // Plank top-edge highlight (lighter strip above each major gap)
-    if (major && y > deckTop + 10) {
+    // More columns at the bottom, fewer near the horizon
+    const cols = Math.max(2, BASE_COLS + Math.round(spread1 * 10));
+
+    for (let col = 0; col < cols; col++) {
+      const fx0 = col / cols;
+      const fx1 = (col + 1) / cols;
+      const x00 = lx0 + (rx0 - lx0) * fx0;
+      const x10 = lx0 + (rx0 - lx0) * fx1;
+      const x01 = lx1 + (rx1 - lx1) * fx0;
+      const x11 = lx1 + (rx1 - lx1) * fx1;
+
       ctx.beginPath();
-      ctx.moveTo(lx + 3, y - 2);
-      ctx.lineTo(rx - 3, y - 2);
-      ctx.strokeStyle = PLANK_EDGE;
-      ctx.lineWidth   = 0.7;
+      ctx.moveTo(x00, y0);
+      ctx.lineTo(x10, y0);
+      ctx.lineTo(x11, y1);
+      ctx.lineTo(x01, y1);
+      ctx.closePath();
+
+      ctx.fillStyle = (row + col) % 2 === 0 ? DARK : LIGHT;
+      ctx.fill();
+
+      ctx.strokeStyle = LINE;
+      ctx.lineWidth = 1;
       ctx.stroke();
     }
   }
-
-  // ── Deck-level separator bars (horizontal beams between deck tiers) ──
-  [0.40, 0.68].forEach((relY) => {
-    const y     = deckTop + (h - deckTop) * relY;
-    const ratio = relY;
-    const lx    = w * 0.5 * (1 - ratio * 0.95);
-    const rx    = w * (1 - 0.5 * (1 - ratio * 0.95));
-
-    // Thick dark beam
-    ctx.beginPath();
-    ctx.moveTo(lx, y);
-    ctx.lineTo(rx, y);
-    ctx.strokeStyle = SEPARATOR;
-    ctx.lineWidth   = 5.5;
-    ctx.stroke();
-
-    // Highlight ledge above beam
-    ctx.beginPath();
-    ctx.moveTo(lx + 6, y - 3.5);
-    ctx.lineTo(rx - 6, y - 3.5);
-    ctx.strokeStyle = SEP_HILIGHT;
-    ctx.lineWidth   = 1.8;
-    ctx.stroke();
-  });
-
-  ctx.restore();
 }
 
 window.addEventListener('resize', drawFloor);
@@ -359,12 +346,12 @@ function hideBubble(id) {
 let staggerInterval = null;
 
 const THINKING_MSGS = [
-  'Casting Ultima…',
-  'MP charging…',
-  'Drawing Esper…',
-  'Channeling Magitek…',
-  'Targeting foe…',
-  'Invoking Meteor…',
+  'Limit Break charging…',
+  'Materia attuned…',
+  'Mako energy rising…',
+  'Summon loading…',
+  'ATB gauge filling…',
+  'Omnislash queuing…',
 ];
 
 function startThinkingBubbles() {
@@ -542,11 +529,11 @@ function disperseAgents() {
 // Intro animation — characters walk from corners and meet in the center
 // ─────────────────────────────────────────────────────────────────────────────
 const INTRO_GREETINGS = {
-  gpt4:    '…I won\'t give up.',
-  claude:  '♪ Let\'s battle!',
-  gemini:  'Treasure found!',
-  mistral: '…I\'ll handle this.',
-  copilot: '// Gadgets ready.',
+  gpt4:    'Not interested.',
+  claude:  'Yo! AVALANCHE!',
+  gemini:  'Nanaki, ready.',
+  mistral: '#$%@! Let\'s go!',
+  copilot: 'For the Planet!',
 };
 
 async function playIntroAnimation() {
