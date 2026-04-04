@@ -40,7 +40,9 @@ async function callGeminiDirect(prompt, key) {
     const msg = data.error?.message || res.statusText;
     throw new Error(`Gemini API error: ${msg}`);
   }
-  return data.candidates[0].content.parts[0].text.trim();
+  const parts = data.candidates[0].content.parts;
+  const textPart = parts.find((p) => !p.thought) || parts[0];
+  return textPart.text.trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

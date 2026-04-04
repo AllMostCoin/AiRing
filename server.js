@@ -121,7 +121,9 @@ async function callGoogle(prompt) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`Google HTTP ${res.status}: ${data.error?.message || res.statusText}`);
-  return data.candidates[0].content.parts[0].text.trim();
+  const parts = data.candidates[0].content.parts;
+  const textPart = parts.find((p) => !p.thought) || parts[0];
+  return textPart.text.trim();
 }
 
 async function callMistral(prompt) {
