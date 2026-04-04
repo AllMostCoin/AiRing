@@ -608,9 +608,35 @@ function spawnMateriaShot(fromX, fromY, toX, toY, color) {
   el.addEventListener('animationend', () => el.remove(), { once: true });
 }
 
+function spawnSparks(pctX, pctY, color) {
+  const COUNT = 5;
+  for (let i = 0; i < COUNT; i++) {
+    const angle = (i / COUNT) * 2 * Math.PI + Math.random() * 0.8;
+    const dist  = 22 + Math.random() * 24;
+    const sx    = Math.round(Math.cos(angle) * dist);
+    const sy    = Math.round(Math.sin(angle) * dist);
+    const dur   = 280 + Math.floor(Math.random() * 140);
+    const el    = document.createElement('div');
+    el.className = 'spark';
+    el.style.cssText =
+      `left:${pctX}%;top:${pctY}%;background:${color};` +
+      `box-shadow:0 0 4px ${color};` +
+      `--sx:${sx}px;--sy:${sy}px;--dur:${dur}ms`;
+    room.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+}
+
+function arenaShake() {
+  room.classList.remove('shaking');
+  void room.offsetWidth; // force reflow to restart animation
+  room.classList.add('shaking');
+  room.addEventListener('animationend', () => room.classList.remove('shaking'), { once: true });
+}
+
+
 function spawnScreenFlash() {
   const el = document.createElement('div');
-  el.className = 'room-flash';
   room.appendChild(el);
   el.addEventListener('animationend', () => el.remove(), { once: true });
 }
@@ -654,17 +680,20 @@ async function fireBattleRound() {
   const dmg = DAMAGE_POOL[Math.floor(Math.random() * DAMAGE_POOL.length)];
   spawnImpactFlash(impactX, impactY, model.color);
   spawnDamageNumber(defPos.x, defPos.y - 9, dmg, model.color);
-  if (Math.random() < 0.35) spawnScreenFlash();
+  spawnSparks(impactX, impactY, model.color);
+  if (Math.random() < 0.50) spawnScreenFlash();
+  if (Math.random() < 0.40) arenaShake();
 
   // 4. Defender flinches (pushed away from attacker)
   const flinchDir = attPos.x <= defPos.x ? 'flinching-right' : 'flinching-left';
-  defenderEl.classList.add(flinchDir);
+  defenderEl.classList.add(flinchDir, 'hit');
   await delay(340);
-  defenderEl.classList.remove(flinchDir);
+  defenderEl.classList.remove(flinchDir, 'hit');
 }
 
 function startBattleSequence() {
   battleActive = true;
+  MODEL_IDS.forEach((id) => getAgentEl(id).classList.add('fighting'));
   const loop = async () => {
     if (!battleActive) return;
     await fireBattleRound();
@@ -680,8 +709,8 @@ function stopBattleSequence() {
   if (battleLoopId) { clearTimeout(battleLoopId); battleLoopId = null; }
   MODEL_IDS.forEach((id) =>
     getAgentEl(id).classList.remove(
-      'charging', 'lunging-right', 'lunging-left',
-      'flinching-left', 'flinching-right',
+      'fighting', 'charging', 'lunging-right', 'lunging-left',
+      'flinching-left', 'flinching-right', 'hit',
     ),
   );
 }

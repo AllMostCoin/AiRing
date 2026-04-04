@@ -531,6 +531,39 @@ html, body {
 
 /* ── Battle states ──────────────────────────────────────────── */
 
+/* Combat idle sway — all fighters rock gently while the battle is active */
+@keyframes combat-sway {
+  0%   { transform: rotate(-2deg) translateY(0px);   }
+  25%  { transform: rotate( 2deg) translateY(-2px);  }
+  50%  { transform: rotate(-1deg) translateY(0px);   }
+  75%  { transform: rotate( 1.5deg) translateY(-1px);}
+  100% { transform: rotate(-2deg) translateY(0px);   }
+}
+.agent-wrapper.fighting .pixel-sprite {
+  animation: combat-sway .7s ease-in-out infinite;
+}
+
+/* Hit flash — defender sprite briefly turns white (classic invincibility flash) */
+@keyframes hit-flash {
+  0%   { filter: brightness(10) saturate(0); opacity: 1;   }
+  50%  { filter: brightness(10) saturate(0); opacity: .5;  }
+  100% { filter: none;                        opacity: 1;   }
+}
+.agent-wrapper.hit .pixel-sprite {
+  animation: hit-flash .28s steps(2, end);
+}
+
+/* Arena shake — room jiggles on heavy impact */
+@keyframes arena-shake {
+  0%   { transform: translate(0,      0);      }
+  18%  { transform: translate(-5px,   2px);    }
+  36%  { transform: translate( 5px,  -3px);    }
+  54%  { transform: translate(-3px,   3px);    }
+  72%  { transform: translate( 3px,  -2px);    }
+  100% { transform: translate(0,      0);      }
+}
+.room.shaking { animation: arena-shake .22s ease-out; }
+
 /* Charging — pre-attack power-up glow */
 .agent-wrapper.charging .pixel-sprite {
   animation: charge-up .22s steps(2, end) infinite;
@@ -679,6 +712,21 @@ html, body {
 @keyframes screen-flash {
   0%   { opacity: .38; }
   100% { opacity: 0;   }
+}
+
+/* ── Spark particles — radial chips on impact ───────────────── */
+.spark {
+  position: absolute;
+  z-index: 26;
+  width: 6px; height: 6px;
+  border-radius: 1px;
+  pointer-events: none;
+  animation: spark-fly var(--dur, 340ms) ease-out forwards;
+}
+@keyframes spark-fly {
+  0%   { transform: translate(0, 0) scale(1);           opacity: 1; }
+  60%  { transform: translate(var(--sx), var(--sy)) scale(.7); opacity: .9; }
+  100% { transform: translate(calc(var(--sx)*1.6), calc(var(--sy)*1.6)) scale(.2); opacity: 0; }
 }
 
 .agent-label {
