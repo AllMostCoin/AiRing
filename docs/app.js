@@ -467,9 +467,24 @@ function applyModelStatus(configured) {
 }
 
 async function checkServerMode() {
+  // Shared fallback used when no backend is reachable (static / GitHub Pages).
+  function applyLocalOnly() {
+    const geminiKey = getLocalGeminiKey();
+    const localConfigured = {
+      gpt4: false, claude: false, gemini: !!geminiKey, mistral: false, copilot: false,
+    };
+    const anyLive = Object.values(localConfigured).some(Boolean);
+    if (!anyLive) demoBadge.classList.remove('hidden');
+    applyModelStatus(localConfigured);
+  }
+
   try {
     const res = await fetch(`${API_BASE}/api/models`);
-    if (!res.ok) { demoBadge.classList.remove('hidden'); applyModelStatus(null); return; }
+    if (!res.ok) {
+      // Non-2xx (e.g. 404 on GitHub Pages) — treat same as no backend
+      applyLocalOnly();
+      return;
+    }
     const data = await res.json();
     backendAvailable = true;
     // Merge server-configured status with any locally-stored Gemini key so the
@@ -480,14 +495,8 @@ async function checkServerMode() {
     if (!anyLive) demoBadge.classList.remove('hidden');
     applyModelStatus(configured);
   } catch (_) {
-    // No backend (static hosting / GitHub Pages) — run fully client-side
-    const geminiKey = getLocalGeminiKey();
-    const localConfigured = {
-      gpt4: false, claude: false, gemini: !!geminiKey, mistral: false, copilot: false,
-    };
-    const anyLive = Object.values(localConfigured).some(Boolean);
-    if (!anyLive) demoBadge.classList.remove('hidden');
-    applyModelStatus(localConfigured);
+    // Network error / no backend (static hosting / GitHub Pages)
+    applyLocalOnly();
   }
 }
 
