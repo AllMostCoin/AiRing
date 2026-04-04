@@ -11,7 +11,7 @@ RUN npm install --omit=dev
 
 # Copy application source
 COPY server.js ./
-COPY public ./public
+COPY docs ./docs
 
 # Set ownership
 RUN chown -R airing:airing /app

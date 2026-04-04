@@ -299,9 +299,20 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Rate limiter — protect the frontend catch-all from abuse
+// ─────────────────────────────────────────────────────────────────────────────
+const pageLimiter = rateLimit({
+  windowMs: 60 * 1000,   // 1 minute window
+  max: 120,              // generous limit for page loads
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Serve frontend
 // ─────────────────────────────────────────────────────────────────────────────
-app.get('*', (_req, res) => {
+app.get('*', pageLimiter, (_req, res) => {
   res.sendFile(path.join(__dirname, 'docs', 'index.html'));
 });
 
