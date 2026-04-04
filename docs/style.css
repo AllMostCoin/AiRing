@@ -691,9 +691,13 @@ html, body {
   text-transform: uppercase;
 }
 
-/* ── 3D depth scaling — far (back-row) characters appear smaller */
+/* ── 3D depth scaling — perspective scale by floor depth row */
 .agent-wrapper[data-depth="far"] {
   transform: scale(.72);
+  transform-origin: bottom center;
+}
+.agent-wrapper[data-depth="mid"] {
+  transform: scale(.86);
   transform-origin: bottom center;
 }
 .agent-wrapper[data-depth="near"] {
@@ -701,9 +705,8 @@ html, body {
   transform-origin: bottom center;
 }
 
-/* Right-side characters face left (mirror sprite) */
-.agent-wrapper[id="agent-claude"]  .pixel-sprite,
-.agent-wrapper[id="agent-mistral"] .pixel-sprite {
+/* Right-side characters face left (mirror sprite) — assigned dynamically via .facing-left */
+.agent-wrapper.facing-left .pixel-sprite {
   transform: scaleX(-1);
 }
 /* Keep the mirror during walk-left (already scaleX(-1) inside keyframe) */
@@ -711,8 +714,7 @@ html, body {
   /* walk-bob-left keyframe handles scaleX(-1) already */
 }
 /* Override mirror for walk-right so right-side characters face inward */
-.agent-wrapper[id="agent-claude"].walking  .pixel-sprite,
-.agent-wrapper[id="agent-mistral"].walking .pixel-sprite {
+.agent-wrapper.facing-left.walking .pixel-sprite {
   animation: walk-bob-left 0.38s steps(4, end) infinite;
 }
 

@@ -259,29 +259,83 @@ settingsClearBtn.addEventListener('click', () => {
 
 const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot'];
 
-// Home positions — 5-character layout; far/near depth handled by CSS scale
-const AGENT_POSITIONS = {
-  gpt4:    { left: '10%',  right: '',     top: '12%',    bottom: '' },
-  claude:  { left: '',     right: '10%',  top: '12%',    bottom: '' },
-  gemini:  { left: '8%',   right: '',     top: '',       bottom: '12%' },
-  mistral: { left: '',     right: '8%',   top: '',       bottom: '12%' },
-  copilot: { left: '41%',  right: '',     top: '',       bottom: '12%' },
-};
+// Home positions — populated at runtime by initTeams() for a random 2 vs 3 split
+const AGENT_POSITIONS = {};
 
-// Battle positions — converged on floor; far pair higher (near horizon), near pair lower
+// Team side assignment — populated by initTeams(); 'left' | 'right'
+const agentSide = {};
+
+// Floor slots for the 2-member side (left or right)
+const SLOTS_2 = [
+  { left: '16%', right: '',     top: '55%', bottom: '',     depth: 'far'  },
+  { left: '8%',  right: '',     top: '',    bottom: '12%',  depth: 'near' },
+];
+const SLOTS_2_R = [
+  { left: '',    right: '16%',  top: '55%', bottom: '',     depth: 'far'  },
+  { left: '',    right: '8%',   top: '',    bottom: '12%',  depth: 'near' },
+];
+
+// Floor slots for the 3-member side (left or right)
+const SLOTS_3 = [
+  { left: '16%', right: '',     top: '55%', bottom: '',     depth: 'far'  },
+  { left: '6%',  right: '',     top: '',    bottom: '28%',  depth: 'mid'  },
+  { left: '15%', right: '',     top: '',    bottom: '10%',  depth: 'near' },
+];
+const SLOTS_3_R = [
+  { left: '',    right: '16%',  top: '55%', bottom: '',     depth: 'far'  },
+  { left: '',    right: '6%',   top: '',    bottom: '28%',  depth: 'mid'  },
+  { left: '',    right: '15%',  top: '',    bottom: '10%',  depth: 'near' },
+];
+
+// Assign characters to random 2 vs 3 floor slots and update their DOM state
+function initTeams() {
+  const shuffled = [...MODEL_IDS].sort(() => Math.random() - 0.5);
+  const twoOnLeft = Math.random() < 0.5;
+
+  const leftIds  = twoOnLeft ? shuffled.slice(0, 2) : shuffled.slice(0, 3);
+  const rightIds = twoOnLeft ? shuffled.slice(2, 5) : shuffled.slice(3, 5);
+  const leftSlots  = twoOnLeft ? SLOTS_2   : SLOTS_3;
+  const rightSlots = twoOnLeft ? SLOTS_3_R : SLOTS_2_R;
+
+  leftIds.forEach((id, i) => {
+    const slot = leftSlots[i];
+    AGENT_POSITIONS[id] = slot;
+    agentSide[id] = 'left';
+    const el = getAgentEl(id);
+    if (el) {
+      el.setAttribute('data-depth', slot.depth);
+      el.classList.remove('facing-left');
+      applyPosition(id, slot);
+    }
+  });
+
+  rightIds.forEach((id, i) => {
+    const slot = rightSlots[i];
+    AGENT_POSITIONS[id] = slot;
+    agentSide[id] = 'right';
+    const el = getAgentEl(id);
+    if (el) {
+      el.setAttribute('data-depth', slot.depth);
+      el.classList.add('facing-left');
+      applyPosition(id, slot);
+    }
+  });
+}
+
+// Battle positions — converged on floor; all below horizon (~52%)
 const CENTER_POSITIONS = {
-  gpt4:    { left: '28%',  right: '',     top: '34%',    bottom: '' },
-  claude:  { left: '',     right: '28%',  top: '34%',    bottom: '' },
+  gpt4:    { left: '28%',  right: '',     top: '54%',    bottom: '' },
+  claude:  { left: '',     right: '28%',  top: '54%',    bottom: '' },
   gemini:  { left: '28%',  right: '',     top: '',       bottom: '22%' },
   mistral: { left: '',     right: '28%',  top: '',       bottom: '22%' },
   copilot: { left: '41%',  right: '',     top: '',       bottom: '22%' },
 };
 
 // Approximate pixel-center of each character when converged (% of room)
-// Far characters sit higher (near horizon), near sit lower (front of floor)
+// All positions are on the floor (y > 52 ensures below the horizon)
 const BATTLE_POS = {
-  gpt4:    { x: 34, y: 40 },
-  claude:  { x: 66, y: 40 },
+  gpt4:    { x: 34, y: 56 },
+  claude:  { x: 66, y: 56 },
   gemini:  { x: 34, y: 66 },
   mistral: { x: 66, y: 66 },
   copilot: { x: 50, y: 70 },
@@ -364,6 +418,7 @@ function drawFloor() {
 window.addEventListener('resize', drawFloor);
 // Wait for full page load so the room element is laid out with its final dimensions
 window.addEventListener('load', () => {
+  initTeams();
   drawFloor();
   playIntroAnimation();
 });
@@ -635,11 +690,11 @@ function applyPosition(id, pos) {
 }
 
 function convergeAgents() {
-  // Left-side characters walk right; right-side characters walk left
-  getAgentEl('gpt4').classList.add('walking');
-  getAgentEl('gemini').classList.add('walking');
-  getAgentEl('claude').classList.add('walking-left');
-  getAgentEl('mistral').classList.add('walking-left');
+  // Walk direction based on which side each character starts on
+  MODEL_IDS.forEach((id) => {
+    if (agentSide[id] === 'left') getAgentEl(id).classList.add('walking');
+    else getAgentEl(id).classList.add('walking-left');
+  });
   MODEL_IDS.forEach((id) => applyPosition(id, CENTER_POSITIONS[id]));
   // Remove walk cycle once they arrive (~700 ms transition)
   setTimeout(() => {
@@ -648,11 +703,11 @@ function convergeAgents() {
 }
 
 function disperseAgents() {
-  // Reverse directions for the return walk
-  getAgentEl('gpt4').classList.add('walking-left');
-  getAgentEl('gemini').classList.add('walking-left');
-  getAgentEl('claude').classList.add('walking');
-  getAgentEl('mistral').classList.add('walking');
+  // Reverse walk direction for the return trip
+  MODEL_IDS.forEach((id) => {
+    if (agentSide[id] === 'left') getAgentEl(id).classList.add('walking-left');
+    else getAgentEl(id).classList.add('walking');
+  });
   MODEL_IDS.forEach((id) => applyPosition(id, AGENT_POSITIONS[id]));
   setTimeout(() => {
     MODEL_IDS.forEach((id) => getAgentEl(id).classList.remove('walking', 'walking-left'));
