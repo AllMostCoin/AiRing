@@ -250,11 +250,18 @@ zoomBtn.addEventListener('click', () => {
 settingsBtn.addEventListener('click', () => {
   const hidden = settingsPanel.classList.toggle('hidden');
   if (!hidden) {
-    // Pre-fill with stored key (masked) when opening
-    const stored = getLocalGeminiKey();
-    geminiKeyInput.value = stored;
-    settingsStatus.textContent = stored ? '● Key loaded from storage' : '';
-    settingsStatus.className = 'settings-status ok';
+    if (backendGeminiConfigured) {
+      // Server has GOOGLE_API_KEY set in .env — no manual entry needed
+      geminiKeyInput.value = '';
+      settingsStatus.textContent = '✔ Gemini key active via server (.env)';
+      settingsStatus.className = 'settings-status ok';
+    } else {
+      // Static / no-backend mode — show any locally stored key
+      const stored = getLocalGeminiKey();
+      geminiKeyInput.value = stored;
+      settingsStatus.textContent = stored ? '● Key loaded from local storage' : '';
+      settingsStatus.className = 'settings-status ok';
+    }
   }
 });
 
@@ -452,6 +459,7 @@ window.addEventListener('load', () => {
 // Check server / demo mode — apply per-model LIVE/DEMO status badges
 // ─────────────────────────────────────────────────────────────────────────────
 let backendAvailable = false;
+let backendGeminiConfigured = false;  // true when GOOGLE_API_KEY is set in server .env
 
 // Append a small LIVE/DEMO status indicator below each character label
 function applyModelStatus(configured) {
@@ -472,12 +480,13 @@ function applyModelStatus(configured) {
 async function checkServerMode() {
   // Shared fallback used when no backend is reachable (static / GitHub Pages).
   function applyLocalOnly() {
+    backendGeminiConfigured = false;
     const geminiKey = getLocalGeminiKey();
     const localConfigured = {
       gpt4: false, claude: false, gemini: !!geminiKey, mistral: false, copilot: false,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
-    if (!anyLive) demoBadge.classList.remove('hidden');
+    demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(localConfigured);
   }
 
@@ -490,12 +499,14 @@ async function checkServerMode() {
     }
     const data = await res.json();
     backendAvailable = true;
+    // Track whether the server has GOOGLE_API_KEY configured in .env
+    backendGeminiConfigured = !!(data.configured && data.configured.gemini);
     // Merge server-configured status with any locally-stored Gemini key so the
     // badge correctly reflects LIVE when the user has saved their own key.
     const configured = data.configured || {};
     if (!configured.gemini && getLocalGeminiKey()) configured.gemini = true;
     const anyLive = Object.values(configured).some(Boolean);
-    if (!anyLive) demoBadge.classList.remove('hidden');
+    demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(configured);
   } catch (_) {
     // Network error / no backend (static hosting / GitHub Pages)

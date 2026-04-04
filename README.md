@@ -14,7 +14,7 @@ The app works fully in your browser in **demo mode** (simulated responses). It s
 |---|---|---|
 | Terra (✨) | GPT-4o | `OPENAI_API_KEY` |
 | Celes (⚔️) | Claude 3.5 Sonnet | `ANTHROPIC_API_KEY` |
-| Locke (🗡️) | Gemini 2.0 Flash | `GOOGLE_API_KEY` |
+| Locke (🗡️) | Gemini 2.5 Flash | `GOOGLE_API_KEY` |
 | Edgar (⚙️) | Mistral Large | `MISTRAL_API_KEY` |
 | Setzer (🎲) | GitHub Copilot (GitHub Models) | `GITHUB_TOKEN` |
 
@@ -90,7 +90,7 @@ npm start              # http://localhost:3000
 | `PORT` | HTTP port to listen on | `3000` |
 | `OPENAI_API_KEY` | OpenAI (GPT-4o) | — |
 | `ANTHROPIC_API_KEY` | Anthropic (Claude 3.5 Sonnet) | — |
-| `GOOGLE_API_KEY` | Google (Gemini 2.0 Flash) | — |
+| `GOOGLE_API_KEY` | Google (Gemini 2.5 Flash) | — |
 | `MISTRAL_API_KEY` | Mistral (mistral-large) | — |
 | `GITHUB_TOKEN` | GitHub Copilot (GitHub Models) | — |
 
