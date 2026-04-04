@@ -1,0 +1,26 @@
+{
+  "name": "airing",
+  "version": "1.0.0",
+  "description": "Ring where AI fight the question",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AllMostCoin/AiRing.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AllMostCoin/AiRing/issues"
+  },
+  "homepage": "https://github.com/AllMostCoin/AiRing#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.4.0"
+  }
+}
