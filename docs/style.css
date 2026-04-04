@@ -117,6 +117,94 @@ html, body {
   50%       { opacity: .55; }
 }
 
+/* ── Settings button ────────────────────────────────────────── */
+.settings-btn {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  background: var(--surface2);
+  color: var(--border-gold);
+  border: 2px solid var(--border-gold);
+  padding: 5px 10px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  box-shadow: 2px 2px 0 #000;
+  transition: background 0.15s;
+}
+.settings-btn:hover { background: var(--border); color: #fff; }
+
+/* ── Settings panel ─────────────────────────────────────────── */
+.settings-panel {
+  background: #000c20;
+  border-bottom: 4px solid var(--border-gold);
+  box-shadow: 0 4px 0 #000;
+  z-index: 90;
+}
+.settings-inner {
+  max-width: 1400px;
+  margin: auto;
+  padding: 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-title {
+  font-family: var(--pixel-font);
+  font-size: 9px;
+  color: var(--border-gold);
+  letter-spacing: 2px;
+}
+.settings-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.settings-note a { color: var(--border-gold); }
+.settings-note strong { color: var(--text); }
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.settings-label {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  color: #e04010;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.settings-input {
+  flex: 1;
+  min-width: 240px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono-font);
+  font-size: 13px;
+  padding: 6px 10px;
+  outline: none;
+}
+.settings-input:focus { border-color: var(--border-gold); }
+.settings-save-btn, .settings-clear-btn {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border: 2px solid;
+  box-shadow: 2px 2px 0 #000;
+  letter-spacing: 1px;
+}
+.settings-save-btn  { background: #003820; color: #00ff88; border-color: #00ff88; }
+.settings-clear-btn { background: #380000; color: #ff4040; border-color: #ff4040; }
+.settings-save-btn:hover  { background: #005830; }
+.settings-clear-btn:hover { background: #580000; }
+.settings-status {
+  font-size: 12px;
+  min-height: 16px;
+}
+.settings-status.ok  { color: #00ff88; }
+.settings-status.err { color: #ff4040; }
+
 /* ── Layout ─────────────────────────────────────────────────── */
 .layout {
   max-width: 1400px;

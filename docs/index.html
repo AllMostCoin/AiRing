@@ -6,7 +6,7 @@
     <title>AI Ring — Midgar Arena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=8" />
+    <link rel="stylesheet" href="style.css?v=9" />
   </head>
   <body>
     <!-- ─── Header ─────────────────────────────────────────────────── -->
@@ -18,8 +18,28 @@
           <span class="logo-sub">MIDGAR</span>
         </div>
         <div id="demo-badge" class="demo-badge hidden">TRAINING MODE</div>
+        <button id="settings-btn" class="settings-btn" title="API Key Settings">⚙ KEYS</button>
       </div>
     </header>
+
+    <!-- ─── Settings Panel ───────────────────────────────────────── -->
+    <div id="settings-panel" class="settings-panel hidden">
+      <div class="settings-inner">
+        <div class="settings-title">◆ API KEY CONFIG ◆</div>
+        <p class="settings-note">
+          Enter your <strong>Google Gemini</strong> API key to enable live Gemini responses directly in the browser.
+          The key is stored in your browser's local storage only — it is never sent anywhere except Google's API.
+          Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.
+        </p>
+        <div class="settings-row">
+          <label class="settings-label" for="gemini-key-input">🔥 GEMINI API KEY</label>
+          <input id="gemini-key-input" class="settings-input" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false" />
+          <button id="settings-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="settings-clear-btn" class="settings-clear-btn">CLEAR</button>
+        </div>
+        <div id="settings-status" class="settings-status"></div>
+      </div>
+    </div>
 
     <!-- ─── Main ───────────────────────────────────────────────────── -->
     <main class="layout">

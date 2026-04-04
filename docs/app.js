@@ -7,6 +7,38 @@
 const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Local API key storage (Gemini only — browser ↔ Google directly, no backend)
+// ─────────────────────────────────────────────────────────────────────────────
+const LS_GEMINI_KEY = 'airing_gemini_key';
+
+function getLocalGeminiKey() {
+  try { return localStorage.getItem(LS_GEMINI_KEY) || ''; } catch { return ''; }
+}
+
+function setLocalGeminiKey(key) {
+  try { localStorage.setItem(LS_GEMINI_KEY, key); } catch { /* ignore */ }
+}
+
+function clearLocalGeminiKey() {
+  try { localStorage.removeItem(LS_GEMINI_KEY); } catch { /* ignore */ }
+}
+
+async function callGeminiDirect(prompt, key) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const msg = data.error?.message || res.statusText;
+    throw new Error(`Gemini API error: ${msg}`);
+  }
+  return data.candidates[0].content.parts[0].text.trim();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Client-side demo engine (mirrors server.js — used when no backend is present)
 // ─────────────────────────────────────────────────────────────────────────────
 const AI_MODELS_DATA = [
@@ -108,6 +140,50 @@ function runLocalCompetition(prompt) {
   };
 }
 
+async function runHybridCompetition(prompt) {
+  const geminiKey = getLocalGeminiKey();
+  const results = await Promise.all(
+    AI_MODELS_DATA.map(async (model) => {
+      const start = Date.now();
+      let text = null;
+      let isDemo = true;
+      try {
+        if (model.id === 'gemini' && geminiKey) {
+          text = await callGeminiDirect(prompt, geminiKey);
+          isDemo = false;
+        }
+      } catch (_err) {
+        text = null;
+      }
+      if (text === null) {
+        text = generateDemoResponse(model.id, prompt);
+        isDemo = true;
+      }
+      const latencyMs = Date.now() - start;
+      const score = scoreResponse(prompt, text, model);
+      return { model, response: text, latencyMs, score, isDemo };
+    }),
+  );
+  results.sort((a, b) => b.score - a.score);
+  const winner = results[0];
+  return {
+    prompt,
+    results: results.map((r) => ({
+      modelId:   r.model.id,
+      name:      r.model.name,
+      color:     r.model.color,
+      emoji:     r.model.emoji,
+      response:  r.response,
+      score:     r.score,
+      latencyMs: r.latencyMs,
+      isDemo:    r.isDemo,
+      isWinner:  r.model.id === winner.model.id,
+    })),
+    winnerId:   winner.model.id,
+    winnerName: winner.model.name,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DOM references
 // ─────────────────────────────────────────────────────────────────────────────
@@ -127,6 +203,48 @@ const scoreRows       = document.getElementById('score-rows');
 const historyList     = document.getElementById('history-list');
 const roomFloor       = document.getElementById('room-floor');
 const room            = document.getElementById('room');
+const settingsBtn     = document.getElementById('settings-btn');
+const settingsPanel   = document.getElementById('settings-panel');
+const geminiKeyInput  = document.getElementById('gemini-key-input');
+const settingsSaveBtn = document.getElementById('settings-save-btn');
+const settingsClearBtn= document.getElementById('settings-clear-btn');
+const settingsStatus  = document.getElementById('settings-status');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Settings panel handlers
+// ─────────────────────────────────────────────────────────────────────────────
+settingsBtn.addEventListener('click', () => {
+  const hidden = settingsPanel.classList.toggle('hidden');
+  if (!hidden) {
+    // Pre-fill with stored key (masked) when opening
+    const stored = getLocalGeminiKey();
+    geminiKeyInput.value = stored;
+    settingsStatus.textContent = stored ? '● Key loaded from storage' : '';
+    settingsStatus.className = 'settings-status ok';
+  }
+});
+
+settingsSaveBtn.addEventListener('click', () => {
+  const key = geminiKeyInput.value.trim();
+  if (!key) {
+    settingsStatus.textContent = '✗ Please enter a key first.';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  setLocalGeminiKey(key);
+  settingsStatus.textContent = '✔ Key saved! Gemini will run LIVE.';
+  settingsStatus.className = 'settings-status ok';
+  // Refresh model status badges
+  checkServerMode();
+});
+
+settingsClearBtn.addEventListener('click', () => {
+  clearLocalGeminiKey();
+  geminiKeyInput.value = '';
+  settingsStatus.textContent = '✔ Key cleared. Gemini will run in DEMO mode.';
+  settingsStatus.className = 'settings-status ok';
+  checkServerMode();
+});
 
 const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot'];
 
@@ -270,8 +388,13 @@ async function checkServerMode() {
     applyModelStatus(data.configured || null);
   } catch (_) {
     // No backend (static hosting / GitHub Pages) — run fully client-side
-    demoBadge.classList.remove('hidden');
-    applyModelStatus(null);
+    const geminiKey = getLocalGeminiKey();
+    const localConfigured = {
+      gpt4: false, claude: false, gemini: !!geminiKey, mistral: false, copilot: false,
+    };
+    const anyLive = Object.values(localConfigured).some(Boolean);
+    if (!anyLive) demoBadge.classList.remove('hidden');
+    applyModelStatus(localConfigured);
   }
 }
 
@@ -713,9 +836,10 @@ submitBtn.addEventListener('click', async () => {
       }
       data = await res.json();
     } else {
-      // Static / GitHub Pages mode — give enough time for a few battle rounds
-      await delay(2200 + Math.floor(Math.random() * 800));
-      data = runLocalCompetition(prompt);
+      // Static / GitHub Pages mode — use direct Gemini if key is available
+      const hasKey = !!getLocalGeminiKey();
+      await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
+      data = await runHybridCompetition(prompt);
     }
 
     // Battle concludes
