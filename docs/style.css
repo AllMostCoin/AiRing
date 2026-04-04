@@ -163,209 +163,334 @@ html, body {
   white-space: nowrap;
 }
 
-/* ── The 2D Room — Midgar slums under the plate ─────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   3D Underground Midgar Battle Scene
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── The 3D Room — perspective container ────────────────────── */
 .room {
   position: relative;
   width: 100%;
   aspect-ratio: 4/3;
-  /* Dirty undercity atmosphere: charcoal top → amber-brown pollution mid → dark ground */
+  /* 3D perspective: viewer sits slightly above, looking down */
+  perspective: 1400px;
+  perspective-origin: 50% 30%;
   background:
-    radial-gradient(ellipse at 22% 82%, rgba(190,80,8,.32) 0%, transparent 38%),
-    radial-gradient(ellipse at 78% 78%, rgba(190,80,8,.26) 0%, transparent 36%),
-    radial-gradient(ellipse at 50% 58%, rgba(0,229,160,.05) 0%, transparent 52%),
+    radial-gradient(ellipse at 50% 30%, rgba(0,229,160,.06) 0%, transparent 45%),
+    radial-gradient(ellipse at 22% 82%, rgba(190,80,8,.28) 0%, transparent 38%),
+    radial-gradient(ellipse at 78% 78%, rgba(190,80,8,.22) 0%, transparent 36%),
     linear-gradient(180deg,
-      #07060c 0%,
-      #0e0a08 22%,
-      #1c1008 50%,
-      #160e06 76%,
-      #0d0904 100%
+      #030207 0%,
+      #08060c 18%,
+      #0e0a08 42%,
+      #1a0e06 65%,
+      #120a04 85%,
+      #0a0703 100%
     );
   overflow: hidden;
 }
 
-/* ── Midgar Plate — overhead ceiling (underside of the plate) ── */
+/* ── Distant Mako Reactor — silhouette at horizon ─────────────── */
+.reactor-bg {
+  position: absolute;
+  left: 50%; top: 16%;
+  transform: translateX(-50%);
+  width: 44%; height: 62%;
+  z-index: 1;
+  pointer-events: none;
+}
+/* Stepped tower silhouette */
+.reactor-bg::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 50%; height: 92%;
+  clip-path: polygon(
+    20% 100%,
+    20% 76%, 10% 76%, 10% 60%, 20% 60%,
+    20% 44%, 12% 44%, 12% 28%, 20% 28%,
+    28% 18%, 34% 10%, 40% 4%, 46% 0%,
+    54% 0%, 60% 4%, 66% 10%, 72% 18%,
+    80% 28%, 88% 28%, 88% 44%, 80% 44%,
+    80% 60%, 90% 60%, 90% 76%, 80% 76%,
+    80% 100%
+  );
+  background: linear-gradient(180deg,
+    rgba(0,229,160,.32) 0%,
+    rgba(0,180,120,.14) 22%,
+    #0d1208 52%,
+    #080c06 100%
+  );
+  filter: blur(0.5px);
+}
+/* Mako halo glow behind reactor */
+.reactor-bg::after {
+  content: '';
+  position: absolute;
+  bottom: 20%; left: 50%;
+  transform: translateX(-50%);
+  width: 110%; height: 58%;
+  background: radial-gradient(ellipse at 50% 100%,
+    rgba(0,229,160,.32) 0%,
+    rgba(0,229,160,.12) 38%,
+    transparent 70%
+  );
+  filter: blur(9px);
+  animation: reactor-pulse 4s ease-in-out infinite;
+}
+@keyframes reactor-pulse {
+  0%, 100% { opacity: 1;   transform: translateX(-50%) scaleY(1);    }
+  50%       { opacity: .62; transform: translateX(-50%) scaleY(1.09); }
+}
+
+/* ── Midgar Plate — massive overhead ceiling ─────────────────── */
 .plate-ceiling {
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 34%;
-  z-index: 1;
+  height: 36%;
+  z-index: 2;
   pointer-events: none;
-  /* Steel panel grid */
   background:
     repeating-linear-gradient(90deg,
-      transparent 0px, transparent 59px,
-      rgba(16,16,20,.9) 59px, rgba(16,16,20,.9) 61px
+      transparent 0px, transparent 47px,
+      rgba(10,10,16,.95) 47px, rgba(10,10,16,.95) 49px
     ),
     repeating-linear-gradient(0deg,
-      transparent 0px, transparent 19px,
-      rgba(16,16,20,.65) 19px, rgba(16,16,20,.65) 20px
+      transparent 0px, transparent 15px,
+      rgba(10,10,16,.70) 15px, rgba(10,10,16,.70) 16px
     ),
-    linear-gradient(180deg, #1e1e26 0%, #171720 50%, #0e0e14 85%, #0a0a10 100%);
-  /* Jagged industrial bottom edge */
+    linear-gradient(180deg,
+      #1a1a24 0%,
+      #141420 45%,
+      #0c0c16 75%,
+      #080810 100%
+    );
   clip-path: polygon(
-    0% 0%, 100% 0%, 100% 68%,
-    96% 76%, 91% 66%, 86% 78%,
-    80% 68%, 74% 80%, 68% 71%,
-    62% 80%, 56% 69%, 50% 80%,
-    44% 70%, 38% 80%, 32% 70%,
-    26% 78%, 20% 67%, 14% 76%,
-    8% 66%, 4% 74%, 0% 66%
+    0% 0%, 100% 0%, 100% 72%,
+    97% 80%, 94% 68%, 90% 80%, 86% 70%,
+    82% 80%, 77% 67%, 72% 78%, 67% 66%,
+    62% 78%, 57% 68%, 52% 80%, 47% 70%,
+    42% 82%, 37% 70%, 32% 80%, 27% 70%,
+    22% 80%, 17% 68%, 12% 78%, 7%  68%,
+    4%  76%, 2%  68%, 0%  72%
   );
 }
-/* Heat / pollution glow trapped at the plate bottom */
 .plate-ceiling::before {
   content: '';
   position: absolute;
-  bottom: 0; left: 0; right: 0; height: 45%;
-  background: linear-gradient(to bottom, transparent, rgba(100,48,5,.22));
+  bottom: 0; left: 0; right: 0; height: 40%;
+  background: linear-gradient(to bottom, transparent, rgba(90,40,5,.25));
   pointer-events: none;
 }
-/* Maintenance bolt-row near the bottom edge */
 .plate-ceiling::after {
   content: '';
   position: absolute;
-  bottom: 22%; left: 4%; right: 4%; height: 2px;
+  bottom: 18%; left: 2%; right: 2%; height: 4px;
   background: repeating-linear-gradient(90deg,
-    rgba(55,55,68,.9) 0px, rgba(55,55,68,.9) 9px,
-    transparent 9px, transparent 20px
+    rgba(45,45,58,.95) 0px, rgba(45,45,58,.95) 14px,
+    rgba(22,22,30,.8)  14px, rgba(22,22,30,.8)  16px
   );
   pointer-events: none;
 }
 
-/* ── Support Pillars — three columns from plate to ground ─────── */
+/* ── Pipe Network — industrial ceiling piping ────────────────── */
+.pipe-network {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 44%;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(158deg,
+      transparent 0%, transparent 14.8%,
+      rgba(30,30,40,.9) 14.8%, rgba(42,42,55,.9) 16%,
+      rgba(30,30,40,.9) 17.2%, transparent 17.2%
+    ),
+    linear-gradient(22deg,
+      transparent 0%, transparent 14.8%,
+      rgba(30,30,40,.9) 14.8%, rgba(42,42,55,.9) 16%,
+      rgba(30,30,40,.9) 17.2%, transparent 17.2%
+    ),
+    linear-gradient(180deg,
+      transparent 0%, transparent 52%,
+      rgba(28,28,38,.88) 52%, rgba(40,40,52,.9) 56%,
+      rgba(28,28,38,.88) 60%, transparent 60%
+    );
+}
+
+/* ── Support Pillars ─────────────────────────────────────────── */
 .plate-pillars {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
-  /* Three pillars via stacked transparent gradient layers */
   background:
     linear-gradient(90deg,
-      transparent 9%, rgba(11,11,15,.92) 9%, rgba(20,20,27,.96) 10.6%, rgba(11,11,15,.92) 12.2%, transparent 12.2%
+      transparent 8%,
+      rgba(8,8,12,.94) 8%, rgba(18,18,24,.97) 10%, rgba(8,8,12,.94) 12%,
+      transparent 12%
     ),
     linear-gradient(90deg,
-      transparent 47.5%, rgba(11,11,15,.88) 47.5%, rgba(18,18,25,.92) 49%, rgba(11,11,15,.88) 50.5%, transparent 50.5%
+      transparent 47%,
+      rgba(8,8,12,.90) 47%, rgba(16,16,22,.94) 49%, rgba(8,8,12,.90) 51%,
+      transparent 51%
     ),
     linear-gradient(90deg,
-      transparent 87.8%, rgba(11,11,15,.92) 87.8%, rgba(20,20,27,.96) 89.4%, rgba(11,11,15,.92) 91%, transparent 91%
+      transparent 88%,
+      rgba(8,8,12,.94) 88%, rgba(18,18,24,.97) 90%, rgba(8,8,12,.94) 92%,
+      transparent 92%
     );
-  /* Pillars start from plate bottom downward */
-  clip-path: polygon(0% 26%, 100% 26%, 100% 100%, 0% 100%);
+  clip-path: polygon(0% 28%, 100% 28%, 100% 100%, 0% 100%);
 }
-/* Edge highlights on left + right pillars */
 .plate-pillars::before {
   content: '';
   position: absolute;
-  top: 26%; bottom: 0; left: 9%; width: 3.2%;
-  box-shadow: inset 1px 0 0 rgba(55,55,75,.7), inset -1px 0 0 rgba(55,55,75,.7);
+  top: 28%; bottom: 0; left: 8%; width: 4%;
+  box-shadow:
+    inset 2px 0 0 rgba(50,50,65,.8),
+    inset -2px 0 0 rgba(50,50,65,.8),
+    inset 0 0 6px rgba(0,0,0,.5);
   pointer-events: none;
 }
 .plate-pillars::after {
   content: '';
   position: absolute;
-  top: 26%; bottom: 0; right: 9%; width: 3.2%;
-  box-shadow: inset 1px 0 0 rgba(55,55,75,.7), inset -1px 0 0 rgba(55,55,75,.7);
+  top: 28%; bottom: 0; right: 8%; width: 4%;
+  box-shadow:
+    inset 2px 0 0 rgba(50,50,65,.8),
+    inset -2px 0 0 rgba(50,50,65,.8),
+    inset 0 0 6px rgba(0,0,0,.5);
   pointer-events: none;
 }
 
-/* ── Pollution haze — amber smog under the plate ─────────────── */
+/* ── Mako Energy Tubes — glowing vertical pipes on side walls ── */
+.mako-tubes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.mako-tubes::before {
+  content: '';
+  position: absolute;
+  top: 22%; bottom: 0;
+  left: 2%; width: 4.5%;
+  background: linear-gradient(90deg,
+    #030a06 0%, #051408 10%,
+    rgba(0,180,120,.22) 28%,
+    rgba(0,229,160,.55) 42%,
+    rgba(0,255,190,.68) 50%,
+    rgba(0,229,160,.55) 58%,
+    rgba(0,180,120,.22) 72%,
+    #051408 90%, #030a06 100%
+  );
+  border-radius: 2px;
+  box-shadow:
+    0 0 20px rgba(0,229,160,.60),
+    0 0 40px rgba(0,229,160,.28),
+    inset 0 0 12px rgba(0,229,160,.22);
+  animation: tube-pulse 2.8s ease-in-out infinite;
+}
+.mako-tubes::after {
+  content: '';
+  position: absolute;
+  top: 22%; bottom: 0;
+  right: 2%; width: 4.5%;
+  background: linear-gradient(90deg,
+    #030a06 0%, #051408 10%,
+    rgba(0,180,120,.22) 28%,
+    rgba(0,229,160,.55) 42%,
+    rgba(0,255,190,.68) 50%,
+    rgba(0,229,160,.55) 58%,
+    rgba(0,180,120,.22) 72%,
+    #051408 90%, #030a06 100%
+  );
+  border-radius: 2px;
+  box-shadow:
+    0 0 20px rgba(0,229,160,.60),
+    0 0 40px rgba(0,229,160,.28),
+    inset 0 0 12px rgba(0,229,160,.22);
+  animation: tube-pulse 2.8s ease-in-out infinite .9s;
+}
+@keyframes tube-pulse {
+  0%, 100% { opacity: 1;   filter: brightness(1);    }
+  40%       { opacity: .70; filter: brightness(.82);  }
+  70%       { opacity: .86; filter: brightness(.92);  }
+}
+
+/* ── Pollution haze ──────────────────────────────────────────── */
 .slum-haze {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 58%, rgba(210,100,10,.20) 0%, transparent 55%),
-    radial-gradient(ellipse at 18% 78%, rgba(230,110,8,.24) 0%, transparent 40%),
-    radial-gradient(ellipse at 82% 74%, rgba(230,110,8,.20) 0%, transparent 38%),
-    radial-gradient(ellipse at 50% 90%, rgba(170,80,5,.28) 0%, transparent 46%);
+    radial-gradient(ellipse at 50% 52%, rgba(210,100,10,.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 14% 78%, rgba(230,110,8,.22) 0%, transparent 38%),
+    radial-gradient(ellipse at 86% 74%, rgba(230,110,8,.18) 0%, transparent 36%),
+    radial-gradient(ellipse at 50% 94%, rgba(170,80,5,.26) 0%, transparent 44%);
 }
 
-/* ── Midgar Slum buildings — short, ramshackle ───────────────── */
+/* ── Midgar Slum buildings — short ramshackle ────────────────── */
 .midgar-bg {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
 }
-/* Left cluster — irregular roofline, warm-tinted silhouettes */
 .midgar-bg::before {
   content: '';
   position: absolute;
   bottom: 0; left: 0;
-  width: 32%; height: 42%;
+  width: 30%; height: 40%;
   clip-path: polygon(
-    0% 100%, 0% 60%,
-    6%  60%, 6%  48%,
-    13% 48%, 13% 58%,
-    19% 58%, 19% 40%,
-    25% 40%, 25% 52%,
-    32% 52%, 32% 42%,
-    39% 42%, 39% 54%,
-    47% 54%, 47% 45%,
-    55% 45%, 55% 56%,
-    64% 56%, 64% 46%,
-    74% 46%, 74% 58%,
-    84% 58%, 84% 50%,
-    93% 50%, 93% 62%,
-    100% 62%, 100% 100%
+    0% 100%, 0% 62%,
+    6%  62%, 6%  50%, 12% 50%, 12% 60%,
+    18% 60%, 18% 42%, 24% 42%, 24% 54%,
+    30% 54%, 30% 44%, 37% 44%, 37% 56%,
+    45% 56%, 45% 46%, 54% 46%, 54% 57%,
+    63% 57%, 63% 47%, 73% 47%, 73% 59%,
+    82% 59%, 82% 51%, 92% 51%, 92% 63%,
+    100% 63%, 100% 100%
   );
   background:
     repeating-linear-gradient(0deg,
       transparent 0px, transparent 6px,
-      rgba(200,120,18,.12) 6px, rgba(200,120,18,.12) 7px
+      rgba(200,120,18,.11) 6px, rgba(200,120,18,.11) 7px
     ),
-    repeating-linear-gradient(90deg,
-      transparent 0px, transparent 8px,
-      rgba(200,120,18,.08) 8px, rgba(200,120,18,.08) 9px
-    ),
-    linear-gradient(180deg, #221308 0%, #160e05 55%, #0e0904 100%);
-  opacity: .97;
+    linear-gradient(180deg, #221308 0%, #160e05 55%, #0d0803 100%);
 }
-/* Right cluster */
 .midgar-bg::after {
   content: '';
   position: absolute;
   bottom: 0; right: 0;
-  width: 32%; height: 42%;
+  width: 30%; height: 40%;
   clip-path: polygon(
-    0%   62%, 0%   100%, 100% 100%, 100% 60%,
-    94%  60%, 94%  50%,
-    87%  50%, 87%  58%,
-    80%  58%, 80%  44%,
-    72%  44%, 72%  54%,
-    64%  54%, 64%  43%,
-    57%  43%, 57%  53%,
-    49%  53%, 49%  42%,
-    42%  42%, 42%  52%,
-    35%  52%, 35%  41%,
-    27%  41%, 27%  55%,
-    20%  55%, 20%  46%,
-    13%  46%, 13%  58%,
-    6%   58%, 6%   50%,
-    0%   50%
+    0% 63%, 0% 100%, 100% 100%, 100% 62%,
+    94% 62%, 94% 52%, 86% 52%, 86% 60%,
+    78% 60%, 78% 45%, 70% 45%, 70% 55%,
+    62% 55%, 62% 44%, 55% 44%, 55% 56%,
+    47% 56%, 47% 45%, 40% 45%, 40% 57%,
+    33% 57%, 33% 46%, 26% 46%, 26% 59%,
+    18% 59%, 18% 50%, 12% 50%, 12% 62%,
+    6%  62%, 6%  52%, 0%  52%
   );
   background:
     repeating-linear-gradient(0deg,
       transparent 0px, transparent 6px,
-      rgba(200,120,18,.12) 6px, rgba(200,120,18,.12) 7px
+      rgba(200,120,18,.11) 6px, rgba(200,120,18,.11) 7px
     ),
-    repeating-linear-gradient(90deg,
-      transparent 0px, transparent 8px,
-      rgba(200,120,18,.08) 8px, rgba(200,120,18,.08) 9px
-    ),
-    linear-gradient(180deg, #221308 0%, #160e05 55%, #0e0904 100%);
-  opacity: .97;
+    linear-gradient(180deg, #221308 0%, #160e05 55%, #0d0803 100%);
 }
 
-/* ── Mako Reactor — distant ground-level glow ────────────────── */
+/* ── Mako ground glow ─────────────────────────────────────────── */
 .mako-beam {
   position: absolute;
-  bottom: 0;
-  left: 50%;
+  bottom: 0; left: 50%;
   transform: translateX(-50%);
-  width: 140px;
-  z-index: 2;
+  width: 180px;
+  z-index: 3;
   pointer-events: none;
 }
 .mako-beam::before {
@@ -373,8 +498,8 @@ html, body {
   position: absolute;
   bottom: 0; left: 50%;
   transform: translateX(-50%);
-  width: 4px; height: 115px;
-  background: linear-gradient(to top, rgba(0,229,160,.55), transparent);
+  width: 5px; height: 130px;
+  background: linear-gradient(to top, rgba(0,229,160,.65), transparent);
   border-radius: 2px;
   filter: blur(2px);
   animation: mako-flicker 3s ease-in-out infinite;
@@ -384,16 +509,18 @@ html, body {
   position: absolute;
   bottom: 0; left: 50%;
   transform: translateX(-50%);
-  width: 90px; height: 110px;
-  background: radial-gradient(ellipse at 50% 100%, rgba(0,229,160,.20) 0%, transparent 70%);
-  filter: blur(10px);
-  animation: mako-flicker 4s ease-in-out infinite 1s;
+  width: 115px; height: 125px;
+  background: radial-gradient(ellipse at 50% 100%,
+    rgba(0,229,160,.28) 0%, transparent 70%
+  );
+  filter: blur(12px);
+  animation: mako-flicker 4s ease-in-out infinite 1.2s;
 }
 @keyframes mako-flicker {
   0%, 100% { opacity: 1; }
-  45%       { opacity: .55; }
-  55%       { opacity: .85; }
-  75%       { opacity: .45; }
+  45%       { opacity: .50; }
+  60%       { opacity: .84; }
+  78%       { opacity: .42; }
 }
 
 /* ── Scan-line CRT overlay ──────────────────────────────────── */
@@ -411,14 +538,14 @@ html, body {
   pointer-events: none;
 }
 
-/* ── Floor grid canvas ──────────────────────────────────────── */
+/* ── Floor grid canvas — perspective 3D grid ────────────────── */
 .room-floor {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   z-index: 3;
-  opacity: .2;
+  opacity: .38;
 }
 
 /* ── Arena ATB glow ─────────────────────────────────────────── */
@@ -783,6 +910,34 @@ html, body {
   text-shadow: 0 0 6px var(--glow);
   white-space: nowrap;
   text-transform: uppercase;
+}
+
+/* ── 3D depth scaling — far (back-row) characters appear smaller */
+.agent-wrapper[data-depth="far"] {
+  transform: scale(.72);
+  transform-origin: bottom center;
+}
+.agent-wrapper[data-depth="far"].winner {
+  transform: scale(.72);   /* base; victory-jump adds on top via pixel-sprite */
+}
+.agent-wrapper[data-depth="near"] {
+  transform: scale(1);
+  transform-origin: bottom center;
+}
+
+/* Right-side characters face left (mirror sprite) */
+.agent-wrapper[id="agent-claude"]  .pixel-sprite,
+.agent-wrapper[id="agent-mistral"] .pixel-sprite {
+  transform: scaleX(-1);
+}
+/* Keep the mirror during walk-left (already scaleX(-1) inside keyframe) */
+.agent-wrapper.walking-left .pixel-sprite {
+  /* walk-bob-left keyframe handles scaleX(-1) already */
+}
+/* Override mirror for walk-right so right-side characters face inward */
+.agent-wrapper[id="agent-claude"].walking  .pixel-sprite,
+.agent-wrapper[id="agent-mistral"].walking .pixel-sprite {
+  animation: walk-bob-left 0.38s steps(4, end) infinite;
 }
 
 .agent-score {

@@ -127,12 +127,29 @@ const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral'];
 // Characters whose home position is on the LEFT side of the arena
 const LEFT_SIDE = new Set(['gpt4', 'gemini']);
 
+// Home positions — 4-corner layout; far/near depth handled by CSS scale
+const AGENT_POSITIONS = {
+  gpt4:    { left: '10%',  right: '',     top: '12%',    bottom: '' },
+  claude:  { left: '',     right: '10%',  top: '12%',    bottom: '' },
+  gemini:  { left: '8%',   right: '',     top: '',       bottom: '10%' },
+  mistral: { left: '',     right: '8%',   top: '',       bottom: '10%' },
+};
+
+// Battle positions — converged on floor; far pair higher (near horizon), near pair lower
+const CENTER_POSITIONS = {
+  gpt4:    { left: '28%',  right: '',     top: '34%',    bottom: '' },
+  claude:  { left: '',     right: '28%',  top: '34%',    bottom: '' },
+  gemini:  { left: '28%',  right: '',     top: '',       bottom: '22%' },
+  mistral: { left: '',     right: '28%',  top: '',       bottom: '22%' },
+};
+
 // Approximate pixel-center of each character when converged (% of room)
+// Far characters sit higher (near horizon), near sit lower (front of floor)
 const BATTLE_POS = {
-  gpt4:    { x: 34, y: 44 },
-  claude:  { x: 66, y: 44 },
-  gemini:  { x: 34, y: 63 },
-  mistral: { x: 66, y: 63 },
+  gpt4:    { x: 34, y: 40 },
+  claude:  { x: 66, y: 40 },
+  gemini:  { x: 34, y: 66 },
+  mistral: { x: 66, y: 66 },
 };
 
 // FF7-style damage number pool
@@ -142,7 +159,7 @@ const DAMAGE_POOL = [42, 64, 87, 99, 128, 175, 210, 256, 333, 512];
 const MATERIA_CAST_CHANCE = 0.28;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Floor grid (canvas)
+// Floor grid (canvas) — perspective 3D grid converging to vanishing point
 // ─────────────────────────────────────────────────────────────────────────────
 function drawFloor() {
   const room = roomFloor.parentElement;
@@ -153,40 +170,87 @@ function drawFloor() {
   const ctx = roomFloor.getContext('2d');
   ctx.clearRect(0, 0, w, h);
 
-  const step = 40;
-  // Mako-green grid lines (FF7 style)
-  const GRID_COLOR = 'rgba(0,229,160,1)';
-  const RING_COLOR_INNER = 'rgba(0,229,160,0.5)';
-  const RING_COLOR_OUTER = 'rgba(0,229,160,0.18)';
+  // Vanishing point — horizontally centered, ~33% down (the "horizon")
+  const vpX = w / 2;
+  const vpY = h * 0.33;
 
-  ctx.strokeStyle = GRID_COLOR;
-  ctx.lineWidth = 1;
+  const BRIGHT = 'rgba(0,229,160,0.80)';
+  const DIM    = 'rgba(0,229,160,0.30)';
+  const FLOOR_FADE_TOP = vpY;   // floor starts at horizon
 
-  for (let x = 0; x <= w; x += step) {
+  ctx.save();
+
+  // ── Vertical (radial) lines — fan out from vanishing point to bottom ──
+  const VCOUNT = 22;
+  for (let i = 0; i <= VCOUNT; i++) {
+    const bx = w * (i / VCOUNT);
+    const major = i % 4 === 0;
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
+    ctx.moveTo(vpX, vpY);
+    ctx.lineTo(bx, h);
+    ctx.strokeStyle = major ? BRIGHT : DIM;
+    ctx.lineWidth   = major ? 1.5 : 0.7;
     ctx.stroke();
   }
-  for (let y = 0; y <= h; y += step) {
+
+  // ── Horizontal lines — exponentially spaced (bunch near horizon) ──
+  const HCOUNT = 16;
+  for (let i = 1; i <= HCOUNT; i++) {
+    const t  = i / HCOUNT;
+    // Perspective compression: lines cluster near the horizon
+    const y  = FLOOR_FADE_TOP + (h - FLOOR_FADE_TOP) * Math.pow(t, 2.4);
+    const ratio = (y - vpY) / (h - vpY);
+    const lx = vpX * (1 - ratio);
+    const rx = vpX + (w - vpX) * ratio;
+    const major = i % 3 === 0;
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
+    ctx.moveTo(lx, y);
+    ctx.lineTo(rx, y);
+    ctx.strokeStyle = major ? BRIGHT : DIM;
+    ctx.lineWidth   = major ? 1.2 : 0.6;
     ctx.stroke();
   }
 
-  // Center circle
-  ctx.strokeStyle = RING_COLOR_INNER;
-  ctx.lineWidth = 1;
+  // ── Horizon glow line ──
   ctx.beginPath();
-  ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.22, 0, Math.PI * 2);
+  ctx.moveTo(0, vpY);
+  ctx.lineTo(w, vpY);
+  ctx.strokeStyle = 'rgba(0,229,160,0.18)';
+  ctx.lineWidth   = 1;
   ctx.stroke();
 
-  // Outer ring
-  ctx.strokeStyle = RING_COLOR_OUTER;
+  // ── Battle circle — ellipse on the floor plane ──
+  const bcy  = h * 0.72;
+  const bcR  = (bcy - vpY) / (h - vpY);
+  const rW   = w * 0.20 * bcR;
+  const rH   = rW * 0.35;
+  ctx.strokeStyle = 'rgba(0,229,160,0.60)';
+  ctx.lineWidth   = 1.8;
   ctx.beginPath();
-  ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.42, 0, Math.PI * 2);
+  ctx.ellipse(vpX, bcy, rW, rH, 0, 0, Math.PI * 2);
   ctx.stroke();
+
+  // ── Outer ellipse ring ──
+  const rW2 = rW * 2.1;
+  const rH2 = rW2 * 0.35;
+  ctx.strokeStyle = 'rgba(0,229,160,0.22)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.ellipse(vpX, bcy, rW2, rH2, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // ── Small crossed circle at vanishing point (reactor target) ──
+  ctx.strokeStyle = 'rgba(0,229,160,0.55)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.arc(vpX, vpY, 6, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(vpX - 10, vpY); ctx.lineTo(vpX + 10, vpY);
+  ctx.moveTo(vpX, vpY - 10); ctx.lineTo(vpX, vpY + 10);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 window.addEventListener('resize', drawFloor);
@@ -430,20 +494,6 @@ function stopBattleSequence() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Animate agents to center during competition
 // ─────────────────────────────────────────────────────────────────────────────
-const AGENT_POSITIONS = {
-  gpt4:    { left: '12%', right: '',    top: '15%',    bottom: '' },
-  claude:  { left: '',    right: '12%', top: '15%',    bottom: '' },
-  gemini:  { left: '12%', right: '',    top: '',       bottom: '15%' },
-  mistral: { left: '',    right: '12%', top: '',       bottom: '15%' },
-};
-
-// Positions when "converging" to center
-const CENTER_POSITIONS = {
-  gpt4:    { left: '30%', right: '',    top: '36%',    bottom: '' },
-  claude:  { left: '',    right: '30%', top: '36%',    bottom: '' },
-  gemini:  { left: '30%', right: '',    top: '',       bottom: '36%' },
-  mistral: { left: '',    right: '30%', top: '',       bottom: '36%' },
-};
 
 function applyPosition(id, pos) {
   const el = getAgentEl(id);
@@ -457,8 +507,8 @@ function convergeAgents() {
   // Left-side characters walk right; right-side characters walk left
   getAgentEl('gpt4').classList.add('walking');
   getAgentEl('gemini').classList.add('walking');
-  getAgentEl('claude').classList.add('walking', 'walking-left');
-  getAgentEl('mistral').classList.add('walking', 'walking-left');
+  getAgentEl('claude').classList.add('walking-left');
+  getAgentEl('mistral').classList.add('walking-left');
   MODEL_IDS.forEach((id) => applyPosition(id, CENTER_POSITIONS[id]));
   // Remove walk cycle once they arrive (~700 ms transition)
   setTimeout(() => {

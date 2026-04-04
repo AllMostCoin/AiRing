@@ -6,7 +6,7 @@
     <title>AI Ring — Midgar Battle Arena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=4" />
+    <link rel="stylesheet" href="style.css?v=5" />
   </head>
   <body>
     <!-- ─── Header ─────────────────────────────────────────────────── -->
@@ -30,11 +30,14 @@
           <div class="room-label">◆ MIDGAR COLOSSEUM ◆</div>
 
           <div class="room" id="room">
-            <!-- Midgar below-plate slums background layers -->
+            <!-- 3D underground Midgar background layers (back → front) -->
+            <div class="reactor-bg"></div>
             <div class="plate-ceiling"></div>
+            <div class="pipe-network"></div>
             <div class="plate-pillars"></div>
             <div class="slum-haze"></div>
             <div class="midgar-bg"></div>
+            <div class="mako-tubes"></div>
             <div class="mako-beam"></div>
             <!-- Scan-line CRT overlay -->
             <div class="scan-lines"></div>
@@ -44,9 +47,9 @@
             <!-- Floor grid canvas -->
             <canvas class="room-floor" id="room-floor"></canvas>
 
-            <!-- ── Cloud · GPT-4 ───── top-left ── -->
-            <div class="agent-wrapper" id="agent-gpt4" data-model="gpt4"
-                 style="left:12%;top:15%;--color:#7eb8d4;--glow:#7eb8d455;">
+            <!-- ── Cloud · GPT-4 ───── back-left (far) ── -->
+            <div class="agent-wrapper" id="agent-gpt4" data-model="gpt4" data-depth="far"
+                 style="left:10%;top:12%;--color:#7eb8d4;--glow:#7eb8d455;">
               <div class="agent">
                 <div class="agent-sprite">
                   <!-- Cloud Strife 32-bit pixel sprite (12×16) -->
@@ -84,9 +87,9 @@
               <div class="agent-bubble" id="bubble-gpt4"></div>
             </div>
 
-            <!-- ── Aerith · Claude ─── top-right ── -->
-            <div class="agent-wrapper" id="agent-claude" data-model="claude"
-                 style="right:12%;top:15%;--color:#e06080;--glow:#e0608055;">
+            <!-- ── Aerith · Claude ─── back-right (far) ── -->
+            <div class="agent-wrapper" id="agent-claude" data-model="claude" data-depth="far"
+                 style="right:10%;top:12%;--color:#e06080;--glow:#e0608055;">
               <div class="agent">
                 <div class="agent-sprite">
                   <!-- Aerith Gainsborough 32-bit pixel sprite (12×16) -->
@@ -123,9 +126,9 @@
               <div class="agent-bubble" id="bubble-claude"></div>
             </div>
 
-            <!-- ── Tifa · Gemini ───── bottom-left ── -->
-            <div class="agent-wrapper" id="agent-gemini" data-model="gemini"
-                 style="left:12%;bottom:15%;--color:#cc4422;--glow:#cc442255;">
+            <!-- ── Tifa · Gemini ───── front-left (near) ── -->
+            <div class="agent-wrapper" id="agent-gemini" data-model="gemini" data-depth="near"
+                 style="left:8%;bottom:12%;--color:#cc4422;--glow:#cc442255;">
               <div class="agent">
                 <div class="agent-sprite">
                   <!-- Tifa Lockhart 32-bit pixel sprite (12×16) -->
@@ -164,9 +167,9 @@
               <div class="agent-bubble" id="bubble-gemini"></div>
             </div>
 
-            <!-- ── Sephiroth · Mistral ─── bottom-right ── -->
-            <div class="agent-wrapper" id="agent-mistral" data-model="mistral"
-                 style="right:12%;bottom:15%;--color:#c8c8ff;--glow:#c8c8ff44;">
+            <!-- ── Sephiroth · Mistral ─── front-right (near) ── -->
+            <div class="agent-wrapper" id="agent-mistral" data-model="mistral" data-depth="near"
+                 style="right:8%;bottom:12%;--color:#c8c8ff;--glow:#c8c8ff44;">
               <div class="agent">
                 <div class="agent-sprite">
                   <!-- Sephiroth 32-bit pixel sprite (12×16) -->
@@ -276,6 +279,6 @@
       <p>AI Ring &mdash; Midgar Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
     </footer>
 
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=5"></script>
   </body>
 </html>
