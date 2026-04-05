@@ -22,13 +22,13 @@ services:
         generateValue: false
         value: 10000         # Render's default internal port
       # Add your real API keys in the Render dashboard (not here)
-      # - key: OPENAI_API_KEY
-      #   sync: false
-      # - key: ANTHROPIC_API_KEY
-      #   sync: false
-      # - key: GOOGLE_API_KEY
-      #   sync: false
-      # - key: MISTRAL_API_KEY
-      #   sync: false
-      # - key: GITHUB_TOKEN
-      #   sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
