@@ -255,9 +255,14 @@ async function runHybridCompetition(prompt) {
         }
       } catch (err) {
         text = null;
-        // Surface the error to the user via the settings status element
+        // Flip the character badge back to DEMO — the stored key didn't work
+        setModelBadge(model.id, false);
+        // Surface a clear error with a hint to remove the bad key
         if (settingsStatus) {
-          settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}`;
+          const hint = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message)
+            ? ' — key may be invalid or have no credits. Hit CLEAR to remove it.'
+            : '';
+          settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}${hint}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
         }
@@ -646,25 +651,39 @@ function applyModelStatus(configured) {
   });
 }
 
+// Update a single model's badge without touching the others
+function setModelBadge(modelId, isLive) {
+  const wrapper = getAgentEl(modelId);
+  if (!wrapper) return;
+  const existing = wrapper.querySelector('.api-status-badge');
+  if (existing) existing.remove();
+  const badge = document.createElement('div');
+  badge.className = `api-status-badge ${isLive ? 'api-live' : 'api-demo'}`;
+  badge.textContent = isLive ? '● LIVE' : '○ DEMO';
+  wrapper.appendChild(badge);
+}
+
 async function checkServerMode() {
   // Shared fallback used when no backend is reachable (static / GitHub Pages).
   function applyLocalOnly() {
     backendGeminiConfigured = false;
     backendGrokConfigured   = false;
+    backendClaudeConfigured = false;
     const geminiKey = getLocalGeminiKey();
     const grokKey   = getLocalGrokKey();
+    const claudeKey = getLocalClaudeKey();
     const localConfigured = {
-      gpt4: false, claude: false, gemini: !!geminiKey, mistral: false, copilot: false, grok: !!grokKey,
+      gpt4: false, claude: !!claudeKey, gemini: !!geminiKey, mistral: false, copilot: false, grok: !!grokKey,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(localConfigured);
     // Auto-open settings panel once per session when no keys are present
     // so users know exactly how to activate live mode.
-    if (!geminiKey && !grokKey && !sessionStorage.getItem('airing_settings_shown')) {
+    if (!geminiKey && !grokKey && !claudeKey && !sessionStorage.getItem('airing_settings_shown')) {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
-      settingsStatus.textContent = '⚡ Paste your Gemini or Grok key and hit SAVE to go LIVE!';
+      settingsStatus.textContent = '⚡ Paste your Gemini, Grok, or Claude key and hit SAVE to go LIVE!';
       settingsStatus.className = 'settings-status info';
     }
   }
@@ -680,10 +699,12 @@ async function checkServerMode() {
     backendAvailable = true;
     backendGeminiConfigured = !!(data.configured && data.configured.gemini);
     backendGrokConfigured   = !!(data.configured && data.configured.grok);
+    backendClaudeConfigured = !!(data.configured && data.configured.claude);
     // Merge server-configured status with any locally-stored keys
     const configured = data.configured || {};
     if (!configured.gemini && getLocalGeminiKey()) configured.gemini = true;
     if (!configured.grok   && getLocalGrokKey())   configured.grok   = true;
+    if (!configured.claude && getLocalClaudeKey()) configured.claude = true;
     const anyLive = Object.values(configured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(configured);

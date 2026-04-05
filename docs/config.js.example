@@ -6,3 +6,4 @@
 // config.js is listed in .gitignore so your keys are never committed.
 window.AIRING_GEMINI_KEY = '';
 window.AIRING_GROK_KEY   = '';
+window.AIRING_CLAUDE_KEY = '';
