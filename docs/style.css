@@ -1128,6 +1128,30 @@ html, body {
   overflow-y: auto;
 }
 
+/* ── Win narrative ──────────────────────────────────────────── */
+.win-narrative {
+  background: var(--surface2);
+  border: 3px solid var(--mako);
+  box-shadow: inset 0 0 0 1px var(--mako-dim), var(--shadow);
+  padding: 14px 18px;
+  font-family: var(--mono-font);
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  animation: slide-in .35s ease;
+}
+.win-narrative::before {
+  content: '◆ BATTLE REPORT';
+  display: block;
+  font-family: var(--pixel-font);
+  font-size: 7px;
+  color: var(--mako);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
 /* ── Battle Log accordion ───────────────────────────────────── */
 .accordion-toggle {
   width: 100%;

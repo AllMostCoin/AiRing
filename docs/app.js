@@ -1466,6 +1466,104 @@ async function playIntroAnimation() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Win narrative
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Compose a short FF7-flavoured narrative explaining why the winner won.
+ * Works purely from the aggregated match data — no extra API calls needed.
+ */
+function generateWinNarrative(data) {
+  const { results, prompt, totalRounds } = data;
+  const sorted    = [...results].sort((a, b) => b.score - a.score);
+  const winner    = sorted[0];
+  const runnerUp  = sorted[1];
+
+  if (!winner) return '';
+
+  const lines = [];
+
+  // ── Opening: who won? ───────────────────────────────────────────────────────
+  const character = AI_MODELS_DATA.find((m) => m.id === winner.modelId)?.character || winner.name;
+  lines.push(`${winner.emoji} ${character} (${winner.name}) claimed victory in the arena.`);
+
+  // ── Score margin ────────────────────────────────────────────────────────────
+  if (runnerUp) {
+    const margin = winner.score - runnerUp.score;
+    if (margin === 0) {
+      lines.push(`A razor-thin tie on points — the tiebreaker round decided the outcome.`);
+    } else if (margin <= 5) {
+      lines.push(`A narrow ${margin}-point edge over ${runnerUp.name} sealed the match.`);
+    } else if (margin <= 20) {
+      lines.push(`${winner.name} pulled ahead by ${margin} points, outclassing ${runnerUp.name} in the process.`);
+    } else {
+      lines.push(`${winner.name} dominated with a ${margin}-point lead over ${runnerUp.name} — an overwhelming victory.`);
+    }
+  }
+
+  // ── Response quality signals ─────────────────────────────────────────────
+  const resp      = winner.response || '';
+  const hasLists  = /\d+[.)]\s/.test(resp);
+  const hasSections = (resp.match(/\n/g) || []).length >= 2;
+  const hasColons = resp.includes(':');
+  const wordCount = resp.split(/\s+/).filter(Boolean).length;
+
+  const factors = [];
+  if (wordCount > 200)  factors.push('a thorough, detailed response');
+  else if (wordCount > 80) factors.push('a concise but complete answer');
+  else                  factors.push('a focused reply');
+  if (hasLists)         factors.push('numbered structure');
+  if (hasSections)      factors.push('well-organised paragraphs');
+  if (hasColons)        factors.push('clear key-value formatting');
+
+  // Keyword relevance check (mirrors server-side scoring heuristic)
+  const MIN_KEYWORD_LENGTH = 3;  // minimum word length to count as a scored keyword
+  const promptWords = new Set(
+    prompt.toLowerCase().split(/\W+/).filter((w) => w.length > MIN_KEYWORD_LENGTH),
+  );
+  const respWords   = resp.toLowerCase().split(/\W+/);
+  const kwHits      = respWords.filter((w) => promptWords.has(w)).length;
+  if (kwHits >= 5)  factors.push('strong on-topic keyword coverage');
+  else if (kwHits >= 2) factors.push('solid keyword relevance');
+
+  if (factors.length) {
+    lines.push(`Victory was built on: ${factors.join(', ')}.`);
+  }
+
+  // ── Speed ────────────────────────────────────────────────────────────────
+  if (winner.latencyMs > 0) {
+    if (winner.latencyMs < 500) {
+      lines.push(`${character} also struck fast — response delivered in just ${winner.latencyMs} ms.`);
+    } else if (winner.latencyMs < 2000) {
+      lines.push(`Response time was solid at ${winner.latencyMs} ms.`);
+    } else {
+      lines.push(`The deliberate ${winner.latencyMs} ms response time paid off in depth.`);
+    }
+  }
+
+  // ── Multi-round performance ──────────────────────────────────────────────
+  if (totalRounds && totalRounds > 1 && winner.roundWins !== undefined) {
+    const losses = totalRounds - winner.roundWins;
+    if (winner.roundWins === totalRounds) {
+      lines.push(`A flawless ${totalRounds}-round sweep — ${character} was untouchable today.`);
+    } else {
+      lines.push(`${character} took ${winner.roundWins} of ${totalRounds} rounds, despite ${losses} ${losses === 1 ? 'loss' : 'losses'}, to claim the title.`);
+    }
+  }
+
+  // ── Closing flavour ─────────────────────────────────────────────────────
+  const closings = [
+    `The Limit Break has been activated — ${character} stands supreme.`,
+    `Midgar bows to the champion.`,
+    `${character}'s Materia burns brightest today.`,
+    `Another battle etched into the Quest Log.`,
+  ];
+  lines.push(closings[Math.floor(Math.random() * closings.length)]);
+
+  return lines.join('\n');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Render results
 // ─────────────────────────────────────────────────────────────────────────────
 function renderResults(data) {
@@ -1518,6 +1616,13 @@ function renderResults(data) {
   winnerName.textContent = `${winnerResult?.emoji || ''} ${wName}${winsStr}`;
   winnerResponse.textContent = winnerResult?.response || '';
   winnerPanel.classList.remove('hidden');
+
+  // Win narrative
+  const narrativeEl = document.getElementById('win-narrative');
+  if (narrativeEl) {
+    narrativeEl.textContent = generateWinNarrative(data);
+    narrativeEl.classList.remove('hidden');
+  }
 
   // All-responses accordion
   accordionContent.innerHTML = '';
@@ -1846,6 +1951,8 @@ submitBtn.addEventListener('click', async () => {
   submitBtn.querySelector('.btn-icon').textContent = '⌛';
   winnerPanel.classList.add('hidden');
   allResponses.classList.add('hidden');
+  const narrativeReset = document.getElementById('win-narrative');
+  if (narrativeReset) narrativeReset.classList.add('hidden');
 
   resetAgents();
   resetRoundPips();
