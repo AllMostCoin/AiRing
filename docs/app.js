@@ -263,8 +263,6 @@ async function runHybridCompetition(prompt) {
         }
       } catch (err) {
         text = null;
-        // Flip the character badge back to DEMO — the stored key didn't work
-        setModelBadge(model.id, false);
         // Surface a clear error with a hint to remove the bad key
         if (settingsStatus) {
           const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
@@ -274,8 +272,9 @@ async function runHybridCompetition(prompt) {
           settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}${hint}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
-          // On auth/quota errors clear the bad key so the next checkServerMode()
-          // doesn't re-mark this model LIVE with a key we already know is broken.
+          // On auth/quota errors clear the bad key and refresh badges — the key is
+          // confirmed invalid so demoting to DEMO is correct. For transient errors
+          // (network, timeout, rate-limit) the key is still valid so keep LIVE badge.
           if (isAuthError) {
             clearModelKey(model.id);
             checkServerMode();
