@@ -679,6 +679,7 @@
     const STORAGE_RING_GROK_MDL   = 'airing_ring_grok_model';
     const STORAGE_RING_ROUNDS     = 'airing_ring_rounds';
     const STORAGE_GROK_PROXY      = 'airing_grok_proxy';
+    const STORAGE_API_KEY         = 'airing_api_key';
 
     // Ring Protocol — forces both AIs into a terse, abbreviated debate style
     const CHAT_SYSTEM =
@@ -728,6 +729,7 @@
           { value: 'claude-3-5-haiku-20241022',  label: 'claude-3-5-haiku' },
         ]
       }
+    };
 
     // ── State ────────────────────────────────────────────────────────────────
     // Each entry: { role: 'user'|'model', text: string, ts: number }
@@ -799,9 +801,11 @@
         if (m.selected) opt.selected = true;
         modelSelect.appendChild(opt);
       });
-      // Restore saved model for this provider
+      // Restore saved model and API key for this provider
       const savedModel = localStorage.getItem(`${STORAGE_MODEL}_${providerSelect.value}`);
       if (savedModel) modelSelect.value = savedModel;
+      const savedKey = localStorage.getItem(`${STORAGE_API_KEY}_${providerSelect.value}`);
+      apiKeyInput.value = savedKey || '';
       localStorage.setItem(STORAGE_PROVIDER, providerSelect.value);
     }
 
@@ -819,6 +823,10 @@
 
     modelSelect.addEventListener('change', () =>
       localStorage.setItem(`${STORAGE_MODEL}_${providerSelect.value}`, modelSelect.value)
+    );
+
+    apiKeyInput.addEventListener('input', () =>
+      localStorage.setItem(`${STORAGE_API_KEY}_${providerSelect.value}`, apiKeyInput.value.trim())
     );
 
     // Restore ring model + rounds preferences
