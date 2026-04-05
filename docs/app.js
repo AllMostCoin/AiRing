@@ -122,7 +122,7 @@ async function callClaudeDirect(prompt, key) {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-6',
       max_tokens: 512,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -1209,7 +1209,7 @@ async function fetchOneRound(prompt) {
     return res.json();
   }
   // Static / GitHub Pages mode
-  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey());
+  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey());
   await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
   return runHybridCompetition(prompt);
 }
