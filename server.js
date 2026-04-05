@@ -109,7 +109,7 @@ async function callAnthropic(prompt) {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-6',
       max_tokens: 512,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -170,13 +170,14 @@ async function callCopilot(prompt) {
   return data.choices[0].message.content.trim();
 }
 
-async function callXAI(prompt) {
+async function callXAI(prompt, key) {
   // xAI Grok — OpenAI-compatible endpoint
-  const key = process.env.XAI_API_KEY;
-  if (!key) return null;
+  // key may be supplied by the caller (proxy route) or read from the environment.
+  const resolvedKey = key || process.env.XAI_API_KEY;
+  if (!resolvedKey) return null;
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resolvedKey}` },
     body: JSON.stringify({
       model: 'grok-3-mini',
       messages: [{ role: 'user', content: prompt }],
@@ -286,8 +287,16 @@ function scoreResponse(prompt, response, model) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rate limiter — protect the competition endpoint from abuse
+// Rate limiters
 // ─────────────────────────────────────────────────────────────────────────────
+const grokProxyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+});
+
 const competeLimiter = rateLimit({
   windowMs: 60 * 1000,   // 1 minute window
   max: 20,               // max 20 requests per IP per window
@@ -309,6 +318,35 @@ app.get('/api/models', (_req, res) => {
     grok:    !!process.env.XAI_API_KEY,
   };
   res.json({ models: AI_MODELS, configured, demoMode: Object.values(configured).every((v) => !v) });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: POST /api/grok-proxy — proxy a user-supplied xAI key through the backend
+// Browsers cannot call api.x.ai directly (no CORS headers). This endpoint
+// accepts the user's personal key in the request body, forwards the call
+// server-side (CORS-free), and returns the text response.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/grok-proxy', grokProxyLimiter, async (req, res) => {
+  const { prompt, key } = req.body;
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return res.status(400).json({ error: 'prompt is required' });
+  }
+  if (prompt.trim().length > 2000) {
+    return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
+  }
+  if (!key || typeof key !== 'string' || !key.trim().startsWith('xai-')) {
+    return res.status(400).json({ error: 'valid xAI API key is required (must start with xai-)' });
+  }
+  const trimmedKey = key.trim();
+  try {
+    const text = await callXAI(prompt.trim(), trimmedKey);
+    if (text === null) {
+      return res.status(502).json({ error: 'xAI API did not return a response' });
+    }
+    res.json({ text });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

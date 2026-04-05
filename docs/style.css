@@ -1002,6 +1002,46 @@ html, body {
   align-items: center;
   margin-top: 10px;
 }
+.rounds-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.rounds-label {
+  font-family: var(--pixel-font);
+  font-size: 7px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.rounds-btns {
+  display: flex;
+  gap: 6px;
+}
+.rounds-btn {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 2px solid var(--border);
+  padding: 6px 14px;
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  cursor: pointer;
+  transition: all .1s;
+  box-shadow: 2px 2px 0 #000;
+}
+.rounds-btn:hover:not(.active) {
+  background: var(--surface2);
+  color: var(--border-gold);
+  border-color: var(--border-gold);
+}
+.rounds-btn.active {
+  background: #002060;
+  color: var(--border-gold);
+  border-color: var(--border-gold);
+  box-shadow: none;
+  transform: translate(2px, 2px);
+}
 .char-count {
   font-family: var(--mono-font);
   font-size: 11px;

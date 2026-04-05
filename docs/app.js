@@ -92,23 +92,21 @@ async function callGeminiDirect(prompt, key) {
   return textPart.text.trim();
 }
 
-async function callGrokDirect(prompt, key) {
-  // xAI Grok — OpenAI-compatible endpoint, called directly from the browser
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+async function callGrokProxy(prompt, key) {
+  // Route the xAI call through the backend to avoid browser CORS restrictions on api.x.ai.
+  // The backend /api/grok-proxy endpoint accepts the user's key in the request body and
+  // forwards the call server-side (CORS-free), then returns { text }.
+  const res = await fetch(`${API_BASE}/api/grok-proxy`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: 'grok-3-mini',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 512,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, key }),
   });
   const data = await res.json();
   if (!res.ok) {
-    const msg = data.error?.message || res.statusText;
-    throw new Error(`Grok API error: ${msg}`);
+    const msg = data.error || res.statusText;
+    throw new Error(`Grok proxy error: ${msg}`);
   }
-  return data.choices[0].message.content.trim();
+  return data.text;
 }
 
 async function callClaudeDirect(prompt, key) {
@@ -122,7 +120,7 @@ async function callClaudeDirect(prompt, key) {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-6',
       max_tokens: 512,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -257,7 +255,7 @@ async function runHybridCompetition(prompt) {
           text = await callGeminiDirect(prompt, geminiKey);
           isDemo = false;
         } else if (model.id === 'grok' && grokKey) {
-          text = await callGrokDirect(prompt, grokKey);
+          text = await callGrokProxy(prompt, grokKey);
           isDemo = false;
         } else if (model.id === 'claude' && claudeKey) {
           text = await callClaudeDirect(prompt, claudeKey);
@@ -265,8 +263,6 @@ async function runHybridCompetition(prompt) {
         }
       } catch (err) {
         text = null;
-        // Flip the character badge back to DEMO — the stored key didn't work
-        setModelBadge(model.id, false);
         // Surface a clear error with a hint to remove the bad key
         if (settingsStatus) {
           const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
@@ -276,8 +272,9 @@ async function runHybridCompetition(prompt) {
           settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}${hint}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
-          // On auth/quota errors clear the bad key so the next checkServerMode()
-          // doesn't re-mark this model LIVE with a key we already know is broken.
+          // On auth/quota errors clear the bad key and refresh badges — the key is
+          // confirmed invalid so demoting to DEMO is correct. For transient errors
+          // (network, timeout, rate-limit) the key is still valid so keep LIVE badge.
           if (isAuthError) {
             clearModelKey(model.id);
             checkServerMode();
@@ -1172,7 +1169,18 @@ function renderHistory() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Round system helpers
 // ─────────────────────────────────────────────────────────────────────────────
-const TOTAL_ROUNDS = 3;
+let TOTAL_ROUNDS = 1;
+
+// Wire up rounds selector buttons
+document.querySelectorAll('.rounds-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    TOTAL_ROUNDS = Number(btn.dataset.rounds);
+    document.querySelectorAll('.rounds-btn').forEach((b) => {
+      b.classList.toggle('active', b === btn);
+    });
+    resetRoundPips();
+  });
+});
 
 function showRoundBanner(roundNum) {
   roundLabel.textContent = `ROUND ${roundNum}`;
@@ -1185,13 +1193,17 @@ function showRoundBanner(roundNum) {
 function updateRoundPips(completedRounds) {
   roundPips.forEach((pip, i) => {
     pip.classList.remove('done', 'current');
+    if (i >= TOTAL_ROUNDS) return;  // hide pips beyond the configured round count
     if (i < completedRounds) pip.classList.add('done');
     else if (i === completedRounds) pip.classList.add('current');
   });
 }
 
 function resetRoundPips() {
-  roundPips.forEach((pip) => pip.classList.remove('done', 'current'));
+  roundPips.forEach((pip, i) => {
+    pip.classList.remove('done', 'current');
+    pip.classList.toggle('hidden', i >= TOTAL_ROUNDS);
+  });
 }
 
 // Fetch one round of competition results
@@ -1206,10 +1218,65 @@ async function fetchOneRound(prompt) {
       const err = await res.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    return res.json();
+    const data = await res.json();
+
+    // If the backend doesn't have XAI_API_KEY but the user saved a personal Grok
+    // key, overlay the Grok result via the proxy endpoint (server-side, CORS-free).
+    const grokKey = getLocalGrokKey();
+    if (grokKey && !backendGrokConfigured) {
+      const grokResult = data.results.find((r) => r.modelId === 'grok');
+      if (grokResult && grokResult.isDemo) {
+        try {
+          const proxyStart = Date.now();
+          const text = await callGrokProxy(prompt, grokKey);
+          grokResult.response = text;
+          grokResult.isDemo = false;
+          grokResult.latencyMs = Date.now() - proxyStart;
+          const grokModel = AI_MODELS_DATA.find((m) => m.id === 'grok');
+          grokResult.score = scoreResponse(prompt, text, grokModel);
+          // Re-sort and refresh winner flags
+          data.results.sort((a, b) => b.score - a.score);
+          const newWinner = data.results[0];
+          data.winnerId = newWinner.modelId;
+          data.winnerName = newWinner.name;
+          data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
+        } catch (_) {
+          // Proxy call failed — keep the demo response for Grok
+        }
+      }
+    }
+
+    // If the backend doesn't have ANTHROPIC_API_KEY but the user saved a personal Claude
+    // key, call Claude directly from the browser (Anthropic supports CORS with the
+    // anthropic-dangerous-direct-browser-access header) and overlay the demo result.
+    const claudeKey = getLocalClaudeKey();
+    if (claudeKey && !backendClaudeConfigured) {
+      const claudeResult = data.results.find((r) => r.modelId === 'claude');
+      if (claudeResult && claudeResult.isDemo) {
+        try {
+          const claudeStart = Date.now();
+          const text = await callClaudeDirect(prompt, claudeKey);
+          claudeResult.response = text;
+          claudeResult.isDemo = false;
+          claudeResult.latencyMs = Date.now() - claudeStart;
+          const claudeModel = AI_MODELS_DATA.find((m) => m.id === 'claude');
+          claudeResult.score = scoreResponse(prompt, text, claudeModel);
+          // Re-sort and refresh winner flags
+          data.results.sort((a, b) => b.score - a.score);
+          const newWinner = data.results[0];
+          data.winnerId = newWinner.modelId;
+          data.winnerName = newWinner.name;
+          data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
+        } catch (_) {
+          // Direct call failed — keep the demo response for Claude
+        }
+      }
+    }
+
+    return data;
   }
   // Static / GitHub Pages mode
-  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey());
+  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey());
   await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
   return runHybridCompetition(prompt);
 }
@@ -1339,7 +1406,7 @@ submitBtn.addEventListener('click', async () => {
       results:    aggregated,
       winnerId:   matchWinnerId,
       winnerName: matchWinnerModel ? matchWinnerModel.name : matchWinnerId,
-      totalRounds: TOTAL_ROUNDS,
+      totalRounds: TOTAL_ROUNDS > 1 ? TOTAL_ROUNDS : null,
     };
 
     // Highlight the overall match winner / losers
@@ -1348,7 +1415,7 @@ submitBtn.addEventListener('click', async () => {
       el.classList.remove('winner', 'loser');
       if (id === matchWinnerId) {
         el.classList.add('winner');
-        showBubble(id, `★ MATCH WIN! (${wins[id]}W-${TOTAL_ROUNDS - wins[id]}L)`);
+        showBubble(id, TOTAL_ROUNDS > 1 ? `★ MATCH WIN! (${wins[id]}W-${TOTAL_ROUNDS - wins[id]}L)` : '★ WIN!');
       } else {
         el.classList.add('loser');
       }
