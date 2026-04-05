@@ -1,8 +1,8 @@
-// This file is generated at deploy time by the GitHub Actions workflow.
-// It injects API key repository secrets so the static site can call
-// Gemini and Grok directly from the browser.
-//
-// To use locally: copy this file to config.js and fill in your key(s).
+// Optional: copy this file to config.js and fill in your key(s) for local use.
 // config.js is listed in .gitignore so your keys are never committed.
+//
+// In production the site loads without this file — users enter their own
+// API keys directly on the page and they are stored in localStorage only.
 window.AIRING_GEMINI_KEY = '';
 window.AIRING_GROK_KEY   = '';
+window.AIRING_CLAUDE_KEY = '';
