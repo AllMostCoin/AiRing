@@ -65,6 +65,16 @@ function clearLocalClaudeKey() {
   window.AIRING_CLAUDE_KEY = '';
 }
 
+// Clear the stored key for a given model id and reset its settings input.
+function clearModelKey(modelId) {
+  const actions = {
+    gemini: () => { clearLocalGeminiKey(); if (geminiKeyInput) geminiKeyInput.value = ''; },
+    grok:   () => { clearLocalGrokKey();   if (grokKeyInput)   grokKeyInput.value   = ''; },
+    claude: () => { clearLocalClaudeKey(); if (claudeKeyInput) claudeKeyInput.value = ''; },
+  };
+  if (actions[modelId]) actions[modelId]();
+}
+
 async function callGeminiDirect(prompt, key) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   const res = await fetch(url, {
@@ -269,9 +279,7 @@ async function runHybridCompetition(prompt) {
           // On auth/quota errors clear the bad key so the next checkServerMode()
           // doesn't re-mark this model LIVE with a key we already know is broken.
           if (isAuthError) {
-            if (model.id === 'gemini') { clearLocalGeminiKey(); if (geminiKeyInput) geminiKeyInput.value = ''; }
-            if (model.id === 'grok')   { clearLocalGrokKey();   if (grokKeyInput)   grokKeyInput.value   = ''; }
-            if (model.id === 'claude') { clearLocalClaudeKey(); if (claudeKeyInput) claudeKeyInput.value = ''; }
+            clearModelKey(model.id);
             checkServerMode();
           }
         }
