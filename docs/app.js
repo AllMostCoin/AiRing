@@ -50,9 +50,9 @@ function clearLocalGrokKey() {
 
 function getLocalClaudeKey() {
   try {
-    return localStorage.getItem(LS_CLAUDE_KEY) || '';
+    return localStorage.getItem(LS_CLAUDE_KEY) || window.AIRING_CLAUDE_KEY || '';
   } catch {
-    return '';
+    return window.AIRING_CLAUDE_KEY || '';
   }
 }
 

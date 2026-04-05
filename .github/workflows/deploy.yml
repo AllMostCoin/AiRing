@@ -34,10 +34,12 @@ jobs:
           {
             echo "window.AIRING_GEMINI_KEY = '${GEMINI_API_KEY}';"
             echo "window.AIRING_GROK_KEY   = '${GROK_API_KEY}';"
+            echo "window.AIRING_CLAUDE_KEY = '${CLAUDE_API_KEY}';"
           } > docs/config.js
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
