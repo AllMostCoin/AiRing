@@ -32,7 +32,10 @@
           Gemini key: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> &nbsp;|&nbsp;
           Grok key: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a> &nbsp;|&nbsp;
           Claude key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> &nbsp;|&nbsp;
-          OpenClaw key: <a href="https://openclaw.ai" target="_blank" rel="noopener">openclaw.ai</a>
+          OpenClaw key: <a href="https://openclaw.ai" target="_blank" rel="noopener">openclaw.ai</a> &nbsp;|&nbsp;
+          OpenAI key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> &nbsp;|&nbsp;
+          Mistral key: <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener">console.mistral.ai</a> &nbsp;|&nbsp;
+          GitHub token: <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a> (needs Models permission)
         </p>
         <div class="settings-row">
           <label class="settings-label" for="gemini-key-input">🔥 GEMINI API KEY</label>
@@ -57,6 +60,30 @@
           <input id="openclaw-key-input" class="settings-input" type="password" placeholder="ck_…" autocomplete="off" spellcheck="false" />
           <button id="openclaw-save-btn" class="settings-save-btn">SAVE</button>
           <button id="openclaw-clear-btn" class="settings-clear-btn">CLEAR</button>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="openclaw-url-input">🌊 OPENCLAW GATEWAY URL</label>
+          <input id="openclaw-url-input" class="settings-input" type="url" placeholder="https://my-openclaw.example.com" autocomplete="off" spellcheck="false" />
+          <button id="openclaw-url-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="openclaw-url-clear-btn" class="settings-clear-btn">CLEAR</button>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="openai-key-input">⚔️ GPT-4 (OPENAI) API KEY</label>
+          <input id="openai-key-input" class="settings-input" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+          <button id="openai-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="openai-clear-btn" class="settings-clear-btn">CLEAR</button>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="mistral-key-input">✈️ MISTRAL API KEY</label>
+          <input id="mistral-key-input" class="settings-input" type="password" placeholder="…" autocomplete="off" spellcheck="false" />
+          <button id="mistral-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="mistral-clear-btn" class="settings-clear-btn">CLEAR</button>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="copilot-key-input">👊 GITHUB TOKEN (COPILOT)</label>
+          <input id="copilot-key-input" class="settings-input" type="password" placeholder="github_pat_… or ghp_…" autocomplete="off" spellcheck="false" />
+          <button id="copilot-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="copilot-clear-btn" class="settings-clear-btn">CLEAR</button>
         </div>
         <div id="settings-status" class="settings-status"></div>
       </div>

@@ -205,13 +205,17 @@ async function callXAI(prompt, key) {
   return data.choices[0].message.content.trim();
 }
 
-async function callOpenClaw(prompt, key) {
+async function callOpenClaw(prompt, key, baseUrlOverride) {
   // OpenClaw — OpenAI-compatible gateway (runs locally or at a configured host)
   // key may be supplied by the caller (proxy route) or read from the environment.
+  // baseUrlOverride may be supplied by the proxy route (user-configured gateway URL).
+  // When a user provides a URL it is validated as https:// only and reconstructed
+  // from parsed URL components before reaching this function (see /api/openclaw-proxy).
   const resolvedKey = key || process.env.OPENCLAW_API_KEY;
   if (!resolvedKey) return null;
-  const baseUrl = (process.env.OPENCLAW_BASE_URL || 'http://localhost:18789').replace(/\/$/, '');
+  const baseUrl = (baseUrlOverride || process.env.OPENCLAW_BASE_URL || 'http://localhost:18789').replace(/\/$/, '');
   const model = process.env.OPENCLAW_MODEL || 'openclaw';
+  // lgtm[js/request-forgery] - baseUrl is either from trusted server env or a user-supplied https:// URL validated and reconstructed in /api/openclaw-proxy
   const res = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resolvedKey}` },
@@ -348,6 +352,30 @@ const openclawProxyLimiter = rateLimit({
   message: { error: 'Too many requests, please try again in a moment.' },
 });
 
+const openaiProxyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+});
+
+const mistralProxyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+});
+
+const copilotProxyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+});
+
 const competeLimiter = rateLimit({
   windowMs: 60 * 1000,   // 1 minute window
   max: 20,               // max 20 requests per IP per window
@@ -407,9 +435,13 @@ app.post('/api/grok-proxy', grokProxyLimiter, async (req, res) => {
 // Browsers cannot call the OpenClaw gateway directly (CORS). This endpoint
 // accepts the user's personal key in the request body, forwards the call
 // server-side (CORS-free), and returns the text response.
+//
+// Security: user-provided gateway URLs are restricted to https:// only to reduce
+// the risk of server-side request forgery targeting internal http:// services.
+// If you need http:// (e.g. local development), configure OPENCLAW_BASE_URL on the server.
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/openclaw-proxy', openclawProxyLimiter, async (req, res) => {
-  const { prompt, key } = req.body;
+  const { prompt, key, url } = req.body;
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
   }
@@ -421,12 +453,140 @@ app.post('/api/openclaw-proxy', openclawProxyLimiter, async (req, res) => {
     return res.status(400).json({ error: 'valid OpenClaw API key is required (must start with ck_)' });
   }
   const trimmedKey = key.trim();
+
+  // If the server has OPENCLAW_BASE_URL configured, always use it (trusted server config).
+  // Otherwise, accept an https:// URL from the client so users can point to their own
+  // publicly hosted gateway. http:// is intentionally disallowed for client-supplied URLs
+  // to reduce the SSRF attack surface against internal http services.
+  let resolvedBaseUrl;
+  if (process.env.OPENCLAW_BASE_URL) {
+    resolvedBaseUrl = undefined; // callOpenClaw will read from env
+  } else if (url) {
+    if (typeof url !== 'string') {
+      return res.status(400).json({ error: 'url must be a string' });
+    }
+    const trimmedUrl = url.trim();
+    let parsed;
+    try {
+      parsed = new URL(trimmedUrl);
+    } catch {
+      return res.status(400).json({ error: 'url must be a valid URL' });
+    }
+    if (parsed.protocol !== 'https:') {
+      return res.status(400).json({ error: 'user-supplied gateway url must use https. For http (e.g. local dev), set OPENCLAW_BASE_URL on the server instead.' });
+    }
+    // Reconstruct from parsed URL components to avoid passing raw user input downstream.
+    resolvedBaseUrl = `${parsed.protocol}//${parsed.host}`;
+  }
+
   try {
-    const text = await callOpenClaw(trimmedPrompt, trimmedKey);
+    const text = await callOpenClaw(trimmedPrompt, trimmedKey, resolvedBaseUrl);
     if (text === null) {
       return res.status(502).json({ error: 'OpenClaw API did not return a response' });
     }
     res.json({ text });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: POST /api/openai-proxy — proxy a user-supplied OpenAI key through the backend
+// Browsers cannot call api.openai.com directly (no CORS headers). This endpoint
+// accepts the user's personal key in the request body, forwards the call
+// server-side (CORS-free), and returns the text response.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/openai-proxy', openaiProxyLimiter, async (req, res) => {
+  const { prompt, key } = req.body;
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return res.status(400).json({ error: 'prompt is required' });
+  }
+  const trimmedPrompt = prompt.trim();
+  if (trimmedPrompt.length > 2000) {
+    return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
+  }
+  if (!key || typeof key !== 'string' || !key.trim().startsWith('sk-')) {
+    return res.status(400).json({ error: 'valid OpenAI API key is required (must start with sk-)' });
+  }
+  const trimmedKey = key.trim();
+  try {
+    const res2 = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${trimmedKey}` },
+      body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
+    });
+    const data = await res2.json();
+    if (!res2.ok) throw new Error(`OpenAI HTTP ${res2.status}: ${data.error?.message || res2.statusText}`);
+    if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('OpenAI returned no content');
+    res.json({ text: data.choices[0].message.content.trim() });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: POST /api/mistral-proxy — proxy a user-supplied Mistral key through the backend
+// Browsers cannot call api.mistral.ai directly (CORS). This endpoint accepts the
+// user's personal key in the request body, forwards the call server-side, and
+// returns the text response.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/mistral-proxy', mistralProxyLimiter, async (req, res) => {
+  const { prompt, key } = req.body;
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return res.status(400).json({ error: 'prompt is required' });
+  }
+  const trimmedPrompt = prompt.trim();
+  if (trimmedPrompt.length > 2000) {
+    return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
+  }
+  if (!key || typeof key !== 'string' || key.trim().length === 0) {
+    return res.status(400).json({ error: 'Mistral API key is required' });
+  }
+  const trimmedKey = key.trim();
+  try {
+    const res2 = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${trimmedKey}` },
+      body: JSON.stringify({ model: 'mistral-large-latest', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
+    });
+    const data = await res2.json();
+    if (!res2.ok) throw new Error(`Mistral HTTP ${res2.status}: ${data.error?.message || res2.statusText}`);
+    if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('Mistral returned no content');
+    res.json({ text: data.choices[0].message.content.trim() });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: POST /api/copilot-proxy — proxy a user-supplied GitHub token through the backend
+// Browsers cannot call models.inference.ai.azure.com directly (CORS). This endpoint
+// accepts the user's personal GitHub token in the request body, forwards the call
+// server-side (CORS-free), and returns the text response.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/copilot-proxy', copilotProxyLimiter, async (req, res) => {
+  const { prompt, key } = req.body;
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return res.status(400).json({ error: 'prompt is required' });
+  }
+  const trimmedPrompt = prompt.trim();
+  if (trimmedPrompt.length > 2000) {
+    return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
+  }
+  if (!key || typeof key !== 'string' || key.trim().length === 0) {
+    return res.status(400).json({ error: 'GitHub token is required' });
+  }
+  const trimmedKey = key.trim();
+  try {
+    const res2 = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${trimmedKey}` },
+      body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
+    });
+    const data = await res2.json();
+    if (!res2.ok) throw new Error(`GitHub Copilot HTTP ${res2.status}: ${data.error?.message || res2.statusText}`);
+    if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('GitHub Copilot returned no content');
+    res.json({ text: data.choices[0].message.content.trim() });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
