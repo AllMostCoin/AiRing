@@ -50,16 +50,20 @@ jobs:
         #                   run live on GitHub Pages.  With it the backend handles
         #                   GPT-4, Claude, Mistral, Copilot, Grok, and Ollama.
         #
-        # Claude (Anthropic) keys are intentionally NOT injected here — they
-        # would be publicly readable in the static Pages output.  The backend
-        # uses its own ANTHROPIC_API_KEY env var; users can also supply a
-        # personal Claude key in the in-app settings panel for direct calls.
+        # CLAUDE_API_KEY — injected directly as window.AIRING_CLAUDE_KEY;
+        #                  Anthropic's API supports browser CORS via the
+        #                  anthropic-dangerous-direct-browser-access header,
+        #                  so Claude can be called straight from the browser
+        #                  just like Gemini.  Without this secret Claude runs
+        #                  in demo mode on GitHub Pages (users can still supply
+        #                  their own key via the in-app settings panel).
         run: |
           node -e '
             const fs = require("fs");
             const lines = [
               `window.AIRING_GEMINI_KEY = ${JSON.stringify(process.env.GEMINI_API_KEY || "")};`,
               `window.AIRING_GROK_KEY   = ${JSON.stringify(process.env.GROK_API_KEY || "")};`,
+              `window.AIRING_CLAUDE_KEY = ${JSON.stringify(process.env.CLAUDE_API_KEY || "")};`,
               `window.AIRING_API_BASE   = ${JSON.stringify(process.env.BACKEND_URL || "")};`,
             ];
             fs.writeFileSync("docs/config.js", lines.join("\n") + "\n");
@@ -67,6 +71,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
       - name: Setup Pages
