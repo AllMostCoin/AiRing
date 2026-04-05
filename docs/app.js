@@ -1232,6 +1232,33 @@ async function fetchOneRound(prompt) {
       }
     }
 
+    // If the backend doesn't have ANTHROPIC_API_KEY but the user saved a personal Claude
+    // key, call Claude directly from the browser (Anthropic supports CORS with the
+    // anthropic-dangerous-direct-browser-access header) and overlay the demo result.
+    const claudeKey = getLocalClaudeKey();
+    if (claudeKey && !backendClaudeConfigured) {
+      const claudeResult = data.results.find((r) => r.modelId === 'claude');
+      if (claudeResult && claudeResult.isDemo) {
+        try {
+          const claudeStart = Date.now();
+          const text = await callClaudeDirect(prompt, claudeKey);
+          claudeResult.response = text;
+          claudeResult.isDemo = false;
+          claudeResult.latencyMs = Date.now() - claudeStart;
+          const claudeModel = AI_MODELS_DATA.find((m) => m.id === 'claude');
+          claudeResult.score = scoreResponse(prompt, text, claudeModel);
+          // Re-sort and refresh winner flags
+          data.results.sort((a, b) => b.score - a.score);
+          const newWinner = data.results[0];
+          data.winnerId = newWinner.modelId;
+          data.winnerName = newWinner.name;
+          data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
+        } catch (_) {
+          // Direct call failed — keep the demo response for Claude
+        }
+      }
+    }
+
     return data;
   }
   // Static / GitHub Pages mode
