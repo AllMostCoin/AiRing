@@ -284,7 +284,8 @@ async function callOpenAIDirect(prompt, key) {
 }
 
 async function callOpenAIProxy(prompt, key) {
-  // Route the OpenAI call through the backend to avoid browser CORS restrictions on api.openai.com.
+  // Route the OpenAI call through the backend proxy (used when a backend is available
+  // and the user's personal key needs to be forwarded server-side).
   const res = await fetch(`${API_BASE}/api/openai-proxy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1724,31 +1725,31 @@ async function fetchOneRound(prompt) {
       }
     }
 
-    // If the backend doesn't have OPENAI_API_KEY but the user saved a personal OpenAI
-    // key, overlay the GPT-4 result via the proxy endpoint (server-side, CORS-free).
+    // If the backend doesn't have OPENAI_API_KEY (or has one that is failing),
+    // and the user saved a personal OpenAI key, overlay the GPT-4 result via
+    // the proxy endpoint (server-side, CORS-free).
     const openaiKey = getLocalOpenAIKey();
-    if (openaiKey && !backendGpt4Configured) {
-      const gpt4Result = data.results.find((r) => r.modelId === 'gpt4');
-      if (gpt4Result && gpt4Result.isDemo) {
-        try {
-          const gpt4Start = Date.now();
-          const text = await callOpenAIProxy(prompt, openaiKey);
-          gpt4Result.response = text;
-          gpt4Result.isDemo = false;
-          gpt4Result.latencyMs = Date.now() - gpt4Start;
-          const gpt4Model = AI_MODELS_DATA.find((m) => m.id === 'gpt4');
-          gpt4Result.score = scoreResponse(prompt, text, gpt4Model);
-          data.results.sort((a, b) => b.score - a.score);
-          const newWinner = data.results[0];
-          data.winnerId = newWinner.modelId;
-          data.winnerName = newWinner.name;
-          data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
-        } catch (err) {
-          settingsStatus.textContent = `✗ GPT-4 live call failed: ${err.message}${liveCallHint(err.message)}`;
-          settingsStatus.className = 'settings-status err';
-          settingsPanel.classList.remove('hidden');
-          if (isInvalidKeyError(err.message)) { clearModelKey('gpt4'); checkServerMode(); }
-        }
+    const gpt4Result = data.results.find((r) => r.modelId === 'gpt4');
+    if (openaiKey && gpt4Result && gpt4Result.isDemo && (!backendGpt4Configured || gpt4Result.error)) {
+      try {
+        const gpt4Start = Date.now();
+        const text = await callOpenAIProxy(prompt, openaiKey);
+        gpt4Result.response = text;
+        gpt4Result.isDemo = false;
+        gpt4Result.error = null;
+        gpt4Result.latencyMs = Date.now() - gpt4Start;
+        const gpt4Model = AI_MODELS_DATA.find((m) => m.id === 'gpt4');
+        gpt4Result.score = scoreResponse(prompt, text, gpt4Model);
+        data.results.sort((a, b) => b.score - a.score);
+        const newWinner = data.results[0];
+        data.winnerId = newWinner.modelId;
+        data.winnerName = newWinner.name;
+        data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
+      } catch (err) {
+        settingsStatus.textContent = `✗ GPT-4 live call failed: ${err.message}${liveCallHint(err.message)}`;
+        settingsStatus.className = 'settings-status err';
+        settingsPanel.classList.remove('hidden');
+        if (isInvalidKeyError(err.message)) { clearModelKey('gpt4'); checkServerMode(); }
       }
     }
 

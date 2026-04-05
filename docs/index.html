@@ -530,11 +530,12 @@
     </footer>
 
     <!-- config.js is generated at deploy time (GitHub Actions) and injects    -->
-    <!-- window.AIRING_GEMINI_KEY and window.AIRING_GROK_KEY.                 -->
+    <!-- per-model API keys and the backend URL.                               -->
     <!-- It is absent in local dev — that is fine.                             -->
     <script>window.AIRING_GEMINI_KEY = window.AIRING_GEMINI_KEY || '';</script>
     <script>window.AIRING_GROK_KEY = window.AIRING_GROK_KEY || '';</script>
     <script>window.AIRING_CLAUDE_KEY = window.AIRING_CLAUDE_KEY || '';</script>
+    <script>window.AIRING_OPENAI_KEY = window.AIRING_OPENAI_KEY || '';</script>
     <script>window.AIRING_OLLAMA_MODEL = window.AIRING_OLLAMA_MODEL || '';</script>
     <script>window.AIRING_API_BASE = window.AIRING_API_BASE || '';</script>
     <script src="config.js" onerror="void 0"></script>
