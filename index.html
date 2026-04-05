@@ -491,25 +491,25 @@
   <!-- Settings panel -->
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-inner">
-      <div class="full">
-        <label for="apiKey">Google AI API Key</label>
-        <input type="password" id="apiKey" placeholder="AIza…" autocomplete="off" />
-        <p class="key-hint">
-          Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.
-        </p>
+      <div>
+        <label for="provider">Provider</label>
+        <select id="provider" onchange="updateProviderUI()">
+          <option value="gemini">Google Gemini</option>
+          <option value="grok">xAI Grok</option>
+        </select>
       </div>
       <div>
         <label for="model">Model</label>
-        <select id="model">
-          <option value="gemini-2.0-flash">gemini-2.0-flash (fast)</option>
-          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          <option value="gemini-1.5-pro" selected>gemini-1.5-pro (smart)</option>
-          <option value="gemini-2.0-pro-exp">gemini-2.0-pro-exp (experimental)</option>
-        </select>
+        <select id="model"></select>
+      </div>
+      <div class="full">
+        <label for="apiKey" id="apiKeyLabel">API Key</label>
+        <input type="password" id="apiKey" placeholder="" autocomplete="off" />
+        <p class="key-hint" id="apiKeyHint"></p>
       </div>
       <p class="key-warn full">
-        ⚠️ Your key is sent directly to Google from your browser and visible in DevTools.
-        Use a key with <a href="https://cloud.google.com/docs/authentication/api-keys#securing_an_api_key" target="_blank" rel="noopener">API restrictions</a> set.
+        ⚠️ Your key is sent directly to the AI provider from your browser and visible in DevTools.
+        Never share this page with your key pre-filled.
       </p>
     </div>
   </div>
@@ -534,8 +534,36 @@
 
   <script>
     // ── Constants ────────────────────────────────────────────────────────────
-    const STORAGE_MODEL   = 'airing_model';
-    const STORAGE_HISTORY = 'airing_history';
+    const STORAGE_MODEL    = 'airing_model';
+    const STORAGE_HISTORY  = 'airing_history';
+    const STORAGE_PROVIDER = 'airing_provider';
+
+    // Per-provider config: models, key placeholder, hint HTML
+    const PROVIDERS = {
+      gemini: {
+        label:       'Google AI API Key',
+        placeholder: 'AIza…',
+        hint:        'Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.',
+        models: [
+          { value: 'gemini-2.0-flash',    label: 'gemini-2.0-flash (fast)' },
+          { value: 'gemini-1.5-flash',    label: 'gemini-1.5-flash' },
+          { value: 'gemini-1.5-pro',      label: 'gemini-1.5-pro (smart)', selected: true },
+          { value: 'gemini-2.0-pro-exp',  label: 'gemini-2.0-pro-exp (experimental)' },
+        ]
+      },
+      grok: {
+        label:       'xAI API Key',
+        placeholder: 'xai-…',
+        hint:        'Get a key at <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a>.',
+        models: [
+          { value: 'grok-3',          label: 'grok-3' },
+          { value: 'grok-3-fast',     label: 'grok-3-fast (faster)', selected: true },
+          { value: 'grok-3-mini',     label: 'grok-3-mini (lightweight)' },
+          { value: 'grok-3-mini-fast',label: 'grok-3-mini-fast' },
+          { value: 'grok-2-1212',     label: 'grok-2-1212' },
+        ]
+      }
+    };
 
     // ── State ────────────────────────────────────────────────────────────────
     // Each entry: { role: 'user'|'model', text: string, ts: number }
@@ -545,6 +573,9 @@
 
     // ── DOM refs ─────────────────────────────────────────────────────────────
     const apiKeyInput    = document.getElementById('apiKey');
+    const apiKeyLabel    = document.getElementById('apiKeyLabel');
+    const apiKeyHint     = document.getElementById('apiKeyHint');
+    const providerSelect = document.getElementById('provider');
     const modelSelect    = document.getElementById('model');
     const questionEl     = document.getElementById('question');
     const sendBtn        = document.getElementById('sendBtn');
@@ -554,12 +585,34 @@
     const settingsToggle = document.getElementById('settingsToggle');
     const charCountEl    = document.getElementById('charCount');
 
+    // ── Provider UI ───────────────────────────────────────────────────────────
+    function updateProviderUI() {
+      const cfg = PROVIDERS[providerSelect.value] || PROVIDERS.gemini;
+      apiKeyLabel.textContent = cfg.label;
+      apiKeyInput.placeholder = cfg.placeholder;
+      apiKeyHint.innerHTML    = cfg.hint;
+      // Rebuild model options
+      modelSelect.innerHTML = '';
+      cfg.models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value       = m.value;
+        opt.textContent = m.label;
+        if (m.selected) opt.selected = true;
+        modelSelect.appendChild(opt);
+      });
+      // Restore saved model for this provider
+      const savedModel = localStorage.getItem(`${STORAGE_MODEL}_${providerSelect.value}`);
+      if (savedModel) modelSelect.value = savedModel;
+      localStorage.setItem(STORAGE_PROVIDER, providerSelect.value);
+    }
+
     // ── Restore saved state ──────────────────────────────────────────────────
-    const savedModel = localStorage.getItem(STORAGE_MODEL);
-    if (savedModel) modelSelect.value = savedModel;
+    const savedProvider = localStorage.getItem(STORAGE_PROVIDER);
+    if (savedProvider && PROVIDERS[savedProvider]) providerSelect.value = savedProvider;
+    updateProviderUI();
 
     modelSelect.addEventListener('change', () =>
-      localStorage.setItem(STORAGE_MODEL, modelSelect.value)
+      localStorage.setItem(`${STORAGE_MODEL}_${providerSelect.value}`, modelSelect.value)
     );
 
     try {
@@ -599,6 +652,7 @@
     async function fight() {
       const apiKey   = apiKeyInput.value.trim();
       const model    = modelSelect.value;
+      const provider = providerSelect.value;
       const question = questionEl.value.trim();
 
       if (!apiKey) {
@@ -622,46 +676,15 @@
       setLoading(true);
       const typingEl = showTyping();
 
-      // Build Gemini multi-turn contents array.
-      // Each entry is { role: 'user'|'model', parts: [{text}] }
-      // alternating user → model → user … as required by the API.
-      const contents = chatHistory.map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }));
-
-      // API key is sent as a request header to keep it out of the URL
-      // (avoids browser history, server access logs, and referrer leakage).
-      const url =
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-
       try {
-        const res  = await fetch(url, {
-          method:  'POST',
-          headers: {
-            'Content-Type':   'application/json',
-            'x-goog-api-key': apiKey
-          },
-          body:    JSON.stringify({ contents })
-        });
+        let text;
+        if (provider === 'grok') {
+          text = await callGrok(apiKey, model);
+        } else {
+          text = await callGemini(apiKey, model);
+        }
 
-        const data = await res.json();
         removeTyping(typingEl);
-
-        if (!res.ok) {
-          const msg = data?.error?.message || `HTTP ${res.status}`;
-          renderError(`❌ API error: ${msg}`);
-          chatHistory.pop();
-          return;
-        }
-
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) {
-          renderError('❌ Gemini returned an empty response.');
-          chatHistory.pop();
-          return;
-        }
-
         const aiTs = Date.now();
         chatHistory.push({ role: 'model', text, ts: aiTs });
         renderMessage('model', text, aiTs, true);
@@ -669,11 +692,61 @@
 
       } catch (err) {
         removeTyping(typingEl);
-        renderError(`❌ Network error: ${err.message}`);
+        renderError(`❌ ${err.message}`);
         chatHistory.pop();
       } finally {
         setLoading(false);
       }
+    }
+
+    // ── Gemini REST API ───────────────────────────────────────────────────────
+    // chatHistory entries use role 'user'|'model' matching Gemini's schema.
+    async function callGemini(apiKey, model) {
+      const contents = chatHistory.map(m => ({
+        role:  m.role,
+        parts: [{ text: m.text }]
+      }));
+
+      // Key sent as header to keep it out of the URL / server logs.
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+      const res  = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body:    JSON.stringify({ contents })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Gemini API error: ${data?.error?.message || `HTTP ${res.status}`}`);
+
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error('Gemini returned an empty response.');
+      return text;
+    }
+
+    // ── xAI Grok API (OpenAI-compatible) ─────────────────────────────────────
+    // chatHistory entries use role 'user'|'model'; we map 'model' → 'assistant'
+    // for the OpenAI-compatible messages array.
+    async function callGrok(apiKey, model) {
+      const messages = chatHistory.map(m => ({
+        role:    m.role === 'model' ? 'assistant' : 'user',
+        content: m.text
+      }));
+
+      const res = await fetch('https://api.x.ai/v1/chat/completions', {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ model, messages })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Grok API error: ${data?.error?.message || `HTTP ${res.status}`}`);
+
+      const text = data?.choices?.[0]?.message?.content;
+      if (!text) throw new Error('Grok returned an empty response.');
+      return text;
     }
 
     // ── Render helpers ────────────────────────────────────────────────────────
