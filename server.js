@@ -405,8 +405,8 @@ app.post('/api/deepseek-proxy', deepseekProxyLimiter, async (req, res) => {
   if (prompt.trim().length > 2000) {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
-  if (!key || typeof key !== 'string' || !key.trim().startsWith('sk-')) {
-    return res.status(400).json({ error: 'valid DeepSeek API key is required (must start with sk-)' });
+  if (!key || typeof key !== 'string' || !key.trim().startsWith('ck_')) {
+    return res.status(400).json({ error: 'valid DeepSeek API key is required (must start with ck_)' });
   }
   const trimmedKey = key.trim();
   try {
