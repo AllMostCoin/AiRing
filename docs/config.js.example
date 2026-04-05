@@ -1,14 +1,17 @@
 // This file is generated at deploy time by the GitHub Actions workflow.
 // It injects API key repository secrets so the static site can call
-// Gemini, Claude, and Grok directly from the browser.
+// Gemini, Claude, and GPT-4 directly from the browser (all three APIs
+// support browser CORS).  Grok, Mistral, Copilot, and Ollama still
+// require the Node.js backend proxy.
 //
 // AIRING_API_BASE points GitHub Pages at the Render.com backend so that
-// all proxy-dependent models (GPT-4, Mistral, Copilot, Grok, Ollama)
-// also work on the static site.
+// proxy-dependent models (Grok, Mistral, Copilot, Ollama) also work on
+// the static site.
 //
 // To use locally: copy this file to config.js and fill in your key(s).
 // config.js is listed in .gitignore so your keys are never committed.
-window.AIRING_GEMINI_KEY = '';
-window.AIRING_GROK_KEY   = '';
-window.AIRING_CLAUDE_KEY = '';
-window.AIRING_API_BASE   = ''; // e.g. 'https://airing-ago1.onrender.com'
+window.AIRING_GEMINI_KEY  = '';
+window.AIRING_GROK_KEY    = '';
+window.AIRING_CLAUDE_KEY  = '';
+window.AIRING_OPENAI_KEY  = ''; // enables GPT-4 direct browser calls without a backend
+window.AIRING_API_BASE    = ''; // e.g. 'https://airing-ago1.onrender.com'
