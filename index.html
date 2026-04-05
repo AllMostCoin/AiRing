@@ -578,6 +578,7 @@
         <select id="provider" onchange="updateProviderUI()">
           <option value="gemini">Google Gemini</option>
           <option value="grok">xAI Grok</option>
+          <option value="claude">Anthropic Claude</option>
         </select>
       </div>
       <div id="chatModelRow">
@@ -714,8 +715,19 @@
           { value: 'grok-3-mini-fast',label: 'grok-3-mini-fast' },
           { value: 'grok-2-1212',     label: 'grok-2-1212' },
         ]
+      },
+      claude: {
+        label:       'Anthropic API Key',
+        placeholder: 'sk-ant-…',
+        hint:        'Get a key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.',
+        models: [
+          { value: 'claude-opus-4-5',           label: 'claude-opus-4-5 (most capable)' },
+          { value: 'claude-sonnet-4-5',         label: 'claude-sonnet-4-5 (smart)', selected: true },
+          { value: 'claude-haiku-4-5',          label: 'claude-haiku-4-5 (fast)' },
+          { value: 'claude-3-5-sonnet-20241022', label: 'claude-3-5-sonnet' },
+          { value: 'claude-3-5-haiku-20241022',  label: 'claude-3-5-haiku' },
+        ]
       }
-    };
 
     // ── State ────────────────────────────────────────────────────────────────
     // Each entry: { role: 'user'|'model', text: string, ts: number }
@@ -941,7 +953,9 @@
       try {
         const text = provider === 'grok'
           ? await callGrok(apiKey, model)
-          : await callGemini(apiKey, model);
+          : provider === 'claude'
+            ? await callClaude(apiKey, model)
+            : await callGemini(apiKey, model);
 
         removeTyping(typingEl);
         const aiTs = Date.now();
@@ -1125,6 +1139,46 @@
         }))
       ];
       return callGrokRaw(apiKey, model, messages);
+    }
+
+    // ── Anthropic Claude API ──────────────────────────────────────────────────
+    async function callClaudeRaw(apiKey, model, messages, systemPrompt) {
+      const url  = 'https://api.anthropic.com/v1/messages';
+      const body = { model, max_tokens: 1024, messages };
+      if (systemPrompt) body.system = systemPrompt;
+
+      let res;
+      try {
+        res = await fetch(url, {
+          method:  'POST',
+          headers: {
+            'Content-Type':    'application/json',
+            'x-api-key':       apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify(body)
+        });
+      } catch (netErr) {
+        throw new Error(`Cannot reach Claude API — network/CORS error: ${netErr.message}`);
+      }
+
+      let data;
+      try { data = await res.json(); } catch (_) { data = null; }
+      if (!res.ok) throw new Error(`Claude API error (${res.status}): ${data?.error?.message || res.statusText}`);
+
+      const text = data?.content?.[0]?.text;
+      if (!text) throw new Error('Claude returned an empty response.');
+      return text;
+    }
+
+    // Chat-mode wrapper: builds messages from the shared chatHistory
+    async function callClaude(apiKey, model) {
+      const messages = chatHistory.map(m => ({
+        role:    m.role === 'model' ? 'assistant' : 'user',
+        content: m.text
+      }));
+      return callClaudeRaw(apiKey, model, messages, CHAT_SYSTEM);
     }
 
     // ── Render helpers ────────────────────────────────────────────────────────
