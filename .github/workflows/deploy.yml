@@ -99,6 +99,21 @@ jobs:
           COPILOT_API_KEY: ${{ secrets.COPILOT_API_KEY }}
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
+      - name: Warn if backend required but BACKEND_URL not set
+        # Copilot, Grok, and Mistral all need the Node.js backend to handle CORS.
+        # If any of their keys are configured but BACKEND_URL is absent, the models
+        # will silently stay in DEMO mode on GitHub Pages.  Surface a clear warning
+        # in the workflow log so the deployer knows what to do next.
+        env:
+          COPILOT_API_KEY: ${{ secrets.COPILOT_API_KEY }}
+          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          if ([ -n "$COPILOT_API_KEY" ] || [ -n "$GROK_API_KEY" ] || [ -n "$MISTRAL_API_KEY" ]) && [ -z "$BACKEND_URL" ]; then
+            echo "::warning::BACKEND_URL is not set. Copilot, Grok, and Mistral will run in DEMO mode on GitHub Pages because their APIs block browser CORS. Deploy the Node.js backend (see render.yaml or Dockerfile) and add BACKEND_URL to your repository secrets to enable live mode for these models."
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

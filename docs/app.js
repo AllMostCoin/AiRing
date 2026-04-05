@@ -1109,8 +1109,17 @@ async function checkServerMode() {
     if (!geminiKey && !claudeKey && !openaiKey && !sessionStorage.getItem('airing_settings_shown')) {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
-      settingsStatus.textContent = '⚡ Paste your Gemini, Claude, or OpenAI key and hit SAVE to go LIVE! (Grok, Mistral, Copilot, and Ollama require the Node.js backend.)';
-      settingsStatus.className = 'settings-status info';
+      // If backend-only keys were injected at deploy time (COPILOT_API_KEY, GROK_API_KEY, or
+      // MISTRAL_API_KEY set in GitHub Secrets) but BACKEND_URL was not set, surface a targeted
+      // hint so the deployer understands why those models stay in DEMO mode.
+      const backendKeyInjected = !!(window.AIRING_COPILOT_KEY || window.AIRING_GROK_KEY || window.AIRING_MISTRAL_KEY);
+      if (backendKeyInjected) {
+        settingsStatus.textContent = '⚠ API key configured but no backend available — Copilot, Grok, and Mistral require the Node.js backend. Set the BACKEND_URL secret and redeploy to go LIVE.';
+        settingsStatus.className = 'settings-status err';
+      } else {
+        settingsStatus.textContent = '⚡ Paste your Gemini, Claude, or OpenAI key and hit SAVE to go LIVE! (Grok, Mistral, Copilot, and Ollama require the Node.js backend.)';
+        settingsStatus.className = 'settings-status info';
+      }
     }
   }
 
