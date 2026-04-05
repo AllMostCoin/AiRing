@@ -75,6 +75,15 @@ const AI_MODELS = [
     emoji: '🦇',
     strengths: ['reasoning', 'speed', 'creative', 'search'],
   },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    character: 'Yuffie',
+    provider: 'deepseek',
+    color: '#0a84c8',
+    emoji: '🌊',
+    strengths: ['reasoning', 'coding', 'math', 'efficiency'],
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,6 +198,25 @@ async function callXAI(prompt, key) {
   return data.choices[0].message.content.trim();
 }
 
+async function callDeepSeek(prompt, key) {
+  // DeepSeek — OpenAI-compatible endpoint
+  // key may be supplied by the caller (proxy route) or read from the environment.
+  const resolvedKey = key || process.env.DEEPSEEK_API_KEY;
+  if (!resolvedKey) return null;
+  const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resolvedKey}` },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 512,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  return data.choices[0].message.content.trim();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Demo mode responses (used when no API keys are set)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -223,6 +251,11 @@ const DEMO_TEMPLATES = {
     "Cutting straight to {topic}: the answer is simpler than most pretend. Strip the noise, follow first principles, and you get a clean solution. My reasoning chain is short but airtight — here's what actually matters.",
     "On {topic} — interesting problem. Most AI would hedge, but I'll tell you directly: the key insight is counterintuitive. The conventional wisdom here is wrong in at least two ways, and here's why the unconventional approach wins.",
     "Real-time analysis of {topic}: speed and clarity over verbosity. The creative angle nobody mentions is: what if the premise itself needs rethinking? My search-augmented reasoning surfaces a perspective that reframes the entire question.",
+  ],
+  deepseek: [
+    "Deeply analyzing {topic}: reasoning from first principles reveals a clear, efficient path forward. My chain-of-thought process identifies the key variables, eliminates noise, and surfaces the optimal solution — elegant in its simplicity.",
+    "On {topic}, open-source reasoning engaged. The mathematical structure here is tractable: decompose into sub-problems, apply learned patterns, and synthesize with confidence. Here is the distilled, high-quality answer.",
+    "Addressing {topic} with deep precision: the underlying logic is sound, the approach is transparent, and the answer is reproducible. Open knowledge deserves an open, verifiable response — so here it is, step by step.",
   ],
 };
 
@@ -297,6 +330,14 @@ const grokProxyLimiter = rateLimit({
   message: { error: 'Too many requests, please try again in a moment.' },
 });
 
+const deepseekProxyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+});
+
 const competeLimiter = rateLimit({
   windowMs: 60 * 1000,   // 1 minute window
   max: 20,               // max 20 requests per IP per window
@@ -310,12 +351,13 @@ const competeLimiter = rateLimit({
 // ─────────────────────────────────────────────────────────────────────────────
 app.get('/api/models', (_req, res) => {
   const configured = {
-    gpt4:    !!process.env.OPENAI_API_KEY,
-    claude:  !!process.env.ANTHROPIC_API_KEY,
-    gemini:  !!process.env.GOOGLE_API_KEY,
-    mistral: !!process.env.MISTRAL_API_KEY,
-    copilot: !!process.env.GITHUB_TOKEN,
-    grok:    !!process.env.XAI_API_KEY,
+    gpt4:     !!process.env.OPENAI_API_KEY,
+    claude:   !!process.env.ANTHROPIC_API_KEY,
+    gemini:   !!process.env.GOOGLE_API_KEY,
+    mistral:  !!process.env.MISTRAL_API_KEY,
+    copilot:  !!process.env.GITHUB_TOKEN,
+    grok:     !!process.env.XAI_API_KEY,
+    deepseek: !!process.env.DEEPSEEK_API_KEY,
   };
   res.json({ models: AI_MODELS, configured, demoMode: Object.values(configured).every((v) => !v) });
 });
@@ -350,6 +392,35 @@ app.post('/api/grok-proxy', grokProxyLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Route: POST /api/deepseek-proxy — proxy a user-supplied DeepSeek key through the backend
+// Browsers cannot call api.deepseek.com directly (no CORS headers). This endpoint
+// accepts the user's personal key in the request body, forwards the call
+// server-side (CORS-free), and returns the text response.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/deepseek-proxy', deepseekProxyLimiter, async (req, res) => {
+  const { prompt, key } = req.body;
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return res.status(400).json({ error: 'prompt is required' });
+  }
+  if (prompt.trim().length > 2000) {
+    return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
+  }
+  if (!key || typeof key !== 'string' || !key.trim().startsWith('sk-')) {
+    return res.status(400).json({ error: 'valid DeepSeek API key is required (must start with sk-)' });
+  }
+  const trimmedKey = key.trim();
+  try {
+    const text = await callDeepSeek(prompt.trim(), trimmedKey);
+    if (text === null) {
+      return res.status(502).json({ error: 'DeepSeek API did not return a response' });
+    }
+    res.json({ text });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Route: POST /api/compete — run the competition
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/compete', competeLimiter, async (req, res) => {
@@ -362,7 +433,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
   }
   const trimmed = prompt.trim();
 
-  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI };
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, deepseek: callDeepSeek };
 
   // Call all models in parallel
   const results = await Promise.all(

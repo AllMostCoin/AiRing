@@ -31,7 +31,8 @@
           <strong>Node.js server:</strong> add keys to your <code>.env</code> file instead — no key entry here needed.<br />
           Gemini key: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> &nbsp;|&nbsp;
           Grok key: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a> &nbsp;|&nbsp;
-          Claude key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>
+          Claude key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> &nbsp;|&nbsp;
+          DeepSeek key: <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a>
         </p>
         <div class="settings-row">
           <label class="settings-label" for="gemini-key-input">🔥 GEMINI API KEY</label>
@@ -50,6 +51,12 @@
           <input id="claude-key-input" class="settings-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
           <button id="claude-save-btn" class="settings-save-btn">SAVE</button>
           <button id="claude-clear-btn" class="settings-clear-btn">CLEAR</button>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="deepseek-key-input">🌊 DEEPSEEK API KEY</label>
+          <input id="deepseek-key-input" class="settings-input" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+          <button id="deepseek-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="deepseek-clear-btn" class="settings-clear-btn">CLEAR</button>
         </div>
         <div id="settings-status" class="settings-status"></div>
       </div>
@@ -350,6 +357,56 @@
               <div class="agent-bubble" id="bubble-grok"></div>
             </div>
 
+            <!-- ── Yuffie · DeepSeek ─── back-right ── -->
+            <div class="agent-wrapper" id="agent-deepseek" data-model="deepseek" data-depth="far"
+                 style="right:26%;top:55%;--color:#0a84c8;--glow:#0a84c855;">
+              <div class="agent">
+                <div class="agent-sprite">
+                  <!-- Yuffie Kisaragi FF7-style pixel sprite (12×16) — DeepSeek -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
+                    <!-- Short dark hair (bob cut) -->
+                    <rect x="2" y="0" width="8" height="3" fill="#282010"/>
+                    <rect x="1" y="1" width="1" height="3" fill="#282010"/>
+                    <rect x="10" y="1" width="1" height="3" fill="#282010"/>
+                    <!-- Blue/teal Wutai headband -->
+                    <rect x="2" y="2" width="8" height="1" fill="#1848a0"/>
+                    <!-- Light skin face -->
+                    <rect x="2" y="3" width="8" height="4" fill="#e8c49a"/>
+                    <!-- Bright green eyes -->
+                    <rect x="3" y="5" width="2" height="1" fill="#209040"/>
+                    <rect x="7" y="5" width="2" height="1" fill="#209040"/>
+                    <!-- White short-sleeved top -->
+                    <rect x="1" y="7" width="10" height="4" fill="#e0e0d8"/>
+                    <!-- Green trim (Wutai style) -->
+                    <rect x="1" y="7" width="1" height="4" fill="#284818"/>
+                    <rect x="10" y="7" width="1" height="4" fill="#284818"/>
+                    <!-- Bare arms (skin) -->
+                    <rect x="0" y="8" width="1" height="3" fill="#e8c49a"/>
+                    <rect x="11" y="8" width="1" height="3" fill="#e8c49a"/>
+                    <!-- Dark green shorts -->
+                    <rect x="2" y="11" width="8" height="2" fill="#304828"/>
+                    <!-- Legs (skin) -->
+                    <rect x="2" y="13" width="3" height="1" fill="#e8c49a"/>
+                    <rect x="7" y="13" width="3" height="1" fill="#e8c49a"/>
+                    <!-- Dark boots (ninja-style) -->
+                    <rect x="2" y="14" width="3" height="2" fill="#302808"/>
+                    <rect x="7" y="14" width="3" height="2" fill="#302808"/>
+                    <!-- Conformer shuriken (right side, golden star) -->
+                    <rect x="10" y="4" width="2" height="7" fill="#c8b018"/>
+                    <rect x="9" y="6" width="1" height="1" fill="#c8b018"/>
+                    <rect x="10" y="3" width="2" height="1" fill="#e0d030"/>
+                    <rect x="10" y="11" width="2" height="1" fill="#e0d030"/>
+                    <rect x="11" y="7" width="1" height="1" fill="#f0e840"/>
+                  </svg>
+                </div>
+                <div class="agent-ring"></div>
+                <div class="agent-pulse"></div>
+              </div>
+              <div class="agent-label">YUFFIE · DEEPSEEK</div>
+              <div class="agent-score" id="score-deepseek">—</div>
+              <div class="agent-bubble" id="bubble-deepseek"></div>
+            </div>
+
             <!-- Thinking overlay (ATB-style) -->
             <div class="thinking-overlay" id="thinking-overlay">
               <div class="thinking-dots">
@@ -451,7 +508,8 @@
     <script>window.AIRING_GEMINI_KEY = window.AIRING_GEMINI_KEY || '';</script>
     <script>window.AIRING_GROK_KEY = window.AIRING_GROK_KEY || '';</script>
     <script>window.AIRING_CLAUDE_KEY = window.AIRING_CLAUDE_KEY || '';</script>
+    <script>window.AIRING_DEEPSEEK_KEY = window.AIRING_DEEPSEEK_KEY || '';</script>
     <script src="config.js" onerror="void 0"></script>
-    <script src="app.js?v=12"></script>
+    <script src="app.js?v=13"></script>
   </body>
 </html>

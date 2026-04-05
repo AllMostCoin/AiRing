@@ -9,9 +9,10 @@ const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 // ─────────────────────────────────────────────────────────────────────────────
 // Local API key storage (Gemini + Grok + Claude — browser ↔ API directly, no backend)
 // ─────────────────────────────────────────────────────────────────────────────
-const LS_GEMINI_KEY = 'airing_gemini_key';
-const LS_GROK_KEY   = 'airing_grok_key';
-const LS_CLAUDE_KEY = 'airing_claude_key';
+const LS_GEMINI_KEY   = 'airing_gemini_key';
+const LS_GROK_KEY     = 'airing_grok_key';
+const LS_CLAUDE_KEY   = 'airing_claude_key';
+const LS_DEEPSEEK_KEY = 'airing_deepseek_key';
 
 function getLocalGeminiKey() {
   // Priority: user-supplied key in localStorage → site-wide key injected at deploy time
@@ -65,12 +66,30 @@ function clearLocalClaudeKey() {
   window.AIRING_CLAUDE_KEY = '';
 }
 
+function getLocalDeepSeekKey() {
+  try {
+    return localStorage.getItem(LS_DEEPSEEK_KEY) || window.AIRING_DEEPSEEK_KEY || '';
+  } catch {
+    return window.AIRING_DEEPSEEK_KEY || '';
+  }
+}
+
+function setLocalDeepSeekKey(key) {
+  try { localStorage.setItem(LS_DEEPSEEK_KEY, key); } catch { /* ignore */ }
+}
+
+function clearLocalDeepSeekKey() {
+  try { localStorage.removeItem(LS_DEEPSEEK_KEY); } catch { /* ignore */ }
+  window.AIRING_DEEPSEEK_KEY = '';
+}
+
 // Clear the stored key for a given model id and reset its settings input.
 function clearModelKey(modelId) {
   const actions = {
-    gemini: () => { clearLocalGeminiKey(); if (geminiKeyInput) geminiKeyInput.value = ''; },
-    grok:   () => { clearLocalGrokKey();   if (grokKeyInput)   grokKeyInput.value   = ''; },
-    claude: () => { clearLocalClaudeKey(); if (claudeKeyInput) claudeKeyInput.value = ''; },
+    gemini:   () => { clearLocalGeminiKey();   if (geminiKeyInput)   geminiKeyInput.value   = ''; },
+    grok:     () => { clearLocalGrokKey();     if (grokKeyInput)     grokKeyInput.value     = ''; },
+    claude:   () => { clearLocalClaudeKey();   if (claudeKeyInput)   claudeKeyInput.value   = ''; },
+    deepseek: () => { clearLocalDeepSeekKey(); if (deepseekKeyInput) deepseekKeyInput.value = ''; },
   };
   if (actions[modelId]) actions[modelId]();
 }
@@ -133,6 +152,24 @@ async function callGrokProxy(prompt, key) {
   return data.text;
 }
 
+async function callDeepSeekProxy(prompt, key) {
+  // Route the DeepSeek call through the backend to avoid browser CORS restrictions.
+  // The backend /api/deepseek-proxy endpoint accepts the user's key in the request body and
+  // forwards the call server-side (CORS-free), then returns { text }.
+  const res = await fetch(`${API_BASE}/api/deepseek-proxy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, key }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const msg = data.error || res.statusText;
+    throw new Error(`DeepSeek proxy error: ${msg}`);
+  }
+  const data = await res.json();
+  return data.text;
+}
+
 async function callClaudeDirect(prompt, key) {
   // Anthropic Claude — called directly from the browser using the messages API
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -165,12 +202,13 @@ async function callClaudeDirect(prompt, key) {
 // Client-side demo engine (mirrors server.js — used when no backend is present)
 // ─────────────────────────────────────────────────────────────────────────────
 const AI_MODELS_DATA = [
-  { id: 'gpt4',    name: 'GPT-4',   character: 'Cloud',   color: '#4888d8', emoji: '⚔️', strengths: ['reasoning', 'coding', 'analysis', 'general'] },
-  { id: 'claude',  name: 'Claude',  character: 'Barret',  color: '#d84020', emoji: '🔫', strengths: ['writing', 'analysis', 'safety', 'nuance'] },
-  { id: 'gemini',  name: 'Gemini',  character: 'Red XIII',color: '#e04010', emoji: '🔥', strengths: ['multimodal', 'search', 'factual', 'math'] },
-  { id: 'mistral', name: 'Mistral', character: 'Cid',     color: '#20a8c0', emoji: '✈️', strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
-  { id: 'copilot', name: 'Copilot', character: 'Tifa',    color: '#e03860', emoji: '👊', strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
-  { id: 'grok',    name: 'Grok',    character: 'Vincent', color: '#7030c8', emoji: '🦇', strengths: ['reasoning', 'speed', 'creative', 'search'] },
+  { id: 'gpt4',     name: 'GPT-4',    character: 'Cloud',    color: '#4888d8', emoji: '⚔️',  strengths: ['reasoning', 'coding', 'analysis', 'general'] },
+  { id: 'claude',   name: 'Claude',   character: 'Barret',   color: '#d84020', emoji: '🔫',  strengths: ['writing', 'analysis', 'safety', 'nuance'] },
+  { id: 'gemini',   name: 'Gemini',   character: 'Red XIII', color: '#e04010', emoji: '🔥',  strengths: ['multimodal', 'search', 'factual', 'math'] },
+  { id: 'mistral',  name: 'Mistral',  character: 'Cid',      color: '#20a8c0', emoji: '✈️',  strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
+  { id: 'copilot',  name: 'Copilot',  character: 'Tifa',     color: '#e03860', emoji: '👊',  strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
+  { id: 'grok',     name: 'Grok',     character: 'Vincent',  color: '#7030c8', emoji: '🦇',  strengths: ['reasoning', 'speed', 'creative', 'search'] },
+  { id: 'deepseek', name: 'DeepSeek', character: 'Yuffie',   color: '#0a84c8', emoji: '🌊',  strengths: ['reasoning', 'coding', 'math', 'efficiency'] },
 ];
 
 const DEMO_TEMPLATES = {
@@ -203,6 +241,11 @@ const DEMO_TEMPLATES = {
     "Cutting straight to {topic}: the answer is simpler than most pretend. Strip the noise, follow first principles, and you get a clean solution. My reasoning chain is short but airtight — here's what actually matters.",
     "On {topic} — interesting problem. Most AI would hedge, but I'll tell you directly: the key insight is counterintuitive. The conventional wisdom here is wrong in at least two ways, and here's why the unconventional approach wins.",
     "Real-time analysis of {topic}: speed and clarity over verbosity. The creative angle nobody mentions is: what if the premise itself needs rethinking? My search-augmented reasoning surfaces a perspective that reframes the entire question.",
+  ],
+  deepseek: [
+    "Deeply analyzing {topic}: reasoning from first principles reveals a clear, efficient path forward. My chain-of-thought process identifies the key variables, eliminates noise, and surfaces the optimal solution — elegant in its simplicity.",
+    "On {topic}, open-source reasoning engaged. The mathematical structure here is tractable: decompose into sub-problems, apply learned patterns, and synthesize with confidence. Here is the distilled, high-quality answer.",
+    "Addressing {topic} with deep precision: the underlying logic is sound, the approach is transparent, and the answer is reproducible. Open knowledge deserves an open, verifiable response — so here it is, step by step.",
   ],
 };
 
@@ -270,9 +313,10 @@ function runLocalCompetition(prompt) {
 }
 
 async function runHybridCompetition(prompt) {
-  const geminiKey = getLocalGeminiKey();
-  const grokKey   = getLocalGrokKey();
-  const claudeKey = getLocalClaudeKey();
+  const geminiKey   = getLocalGeminiKey();
+  const grokKey     = getLocalGrokKey();
+  const claudeKey   = getLocalClaudeKey();
+  const deepseekKey = getLocalDeepSeekKey();
   const results = await Promise.all(
     AI_MODELS_DATA.map(async (model) => {
       const start = Date.now();
@@ -298,6 +342,16 @@ async function runHybridCompetition(prompt) {
         } else if (model.id === 'claude' && claudeKey) {
           text = await callClaudeDirect(prompt, claudeKey);
           isDemo = false;
+        } else if (model.id === 'deepseek' && deepseekKey && backendAvailable) {
+          // DeepSeek requires the backend proxy (api.deepseek.com blocks browser CORS).
+          text = await callDeepSeekProxy(prompt, deepseekKey);
+          isDemo = false;
+        } else if (model.id === 'deepseek' && deepseekKey && !backendAvailable) {
+          if (settingsStatus) {
+            settingsStatus.textContent = '⚠ DeepSeek key saved but no backend available — DeepSeek requires the Node.js server to proxy requests. Run the server locally or deploy it to go LIVE.';
+            settingsStatus.className = 'settings-status err';
+            settingsPanel.classList.remove('hidden');
+          }
         }
       } catch (err) {
         text = null;
@@ -375,6 +429,9 @@ const grokClearBtn    = document.getElementById('grok-clear-btn');
 const claudeKeyInput  = document.getElementById('claude-key-input');
 const claudeSaveBtn   = document.getElementById('claude-save-btn');
 const claudeClearBtn  = document.getElementById('claude-clear-btn');
+const deepseekKeyInput = document.getElementById('deepseek-key-input');
+const deepseekSaveBtn  = document.getElementById('deepseek-save-btn');
+const deepseekClearBtn = document.getElementById('deepseek-clear-btn');
 const settingsStatus  = document.getElementById('settings-status');
 const roundIndicator  = document.getElementById('round-indicator');
 const roundLabel      = document.getElementById('round-label');
@@ -403,9 +460,10 @@ settingsBtn.addEventListener('click', () => {
   const hidden = settingsPanel.classList.toggle('hidden');
   if (!hidden) {
     const serverMsgs = [];
-    if (backendGeminiConfigured) { geminiKeyInput.value = ''; serverMsgs.push('Gemini'); }
-    if (backendGrokConfigured)   { grokKeyInput.value   = ''; serverMsgs.push('Grok');   }
-    if (backendClaudeConfigured) { claudeKeyInput.value = ''; serverMsgs.push('Claude'); }
+    if (backendGeminiConfigured)   { geminiKeyInput.value   = ''; serverMsgs.push('Gemini');   }
+    if (backendGrokConfigured)     { grokKeyInput.value     = ''; serverMsgs.push('Grok');     }
+    if (backendClaudeConfigured)   { claudeKeyInput.value   = ''; serverMsgs.push('Claude');   }
+    if (backendDeepSeekConfigured) { deepseekKeyInput.value = ''; serverMsgs.push('DeepSeek'); }
 
     if (serverMsgs.length > 0) {
       settingsStatus.textContent = `✔ ${serverMsgs.join(', ')} key(s) active via server (.env)`;
@@ -417,7 +475,9 @@ settingsBtn.addEventListener('click', () => {
       grokKeyInput.value = grokStored;
       const claudeStored = getLocalClaudeKey();
       claudeKeyInput.value = claudeStored;
-      if (stored || grokStored || claudeStored) {
+      const deepseekStored = getLocalDeepSeekKey();
+      deepseekKeyInput.value = deepseekStored;
+      if (stored || grokStored || claudeStored || deepseekStored) {
         settingsStatus.textContent = '● Key(s) loaded from local storage';
         settingsStatus.className = 'settings-status ok';
       } else {
@@ -490,7 +550,28 @@ claudeClearBtn.addEventListener('click', () => {
   checkServerMode();
 });
 
-const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot', 'grok'];
+deepseekSaveBtn.addEventListener('click', () => {
+  const key = deepseekKeyInput.value.trim();
+  if (!key) {
+    settingsStatus.textContent = '✗ Please enter a DeepSeek key first.';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  setLocalDeepSeekKey(key);
+  settingsStatus.textContent = '✔ DeepSeek key saved! DeepSeek will run LIVE.';
+  settingsStatus.className = 'settings-status ok';
+  checkServerMode();
+});
+
+deepseekClearBtn.addEventListener('click', () => {
+  clearLocalDeepSeekKey();
+  deepseekKeyInput.value = '';
+  settingsStatus.textContent = '✔ DeepSeek key cleared. DeepSeek will run in DEMO mode.';
+  settingsStatus.className = 'settings-status ok';
+  checkServerMode();
+});
+
+const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot', 'grok', 'deepseek'];
 
 // Home positions — populated at runtime by initTeams() for a random split
 const AGENT_POSITIONS = {};
@@ -539,8 +620,8 @@ const SLOTS_4_R = [
 // Assign characters to random split floor slots and update their DOM state
 function initTeams() {
   const shuffled = [...MODEL_IDS].sort(() => Math.random() - 0.5);
-  const total = MODEL_IDS.length; // 6
-  const leftCount = Math.random() < 0.5 ? 2 : 3;
+  const total = MODEL_IDS.length; // 7
+  const leftCount = Math.random() < 0.5 ? 3 : 4;
   const rightCount = total - leftCount;
 
   const leftIds  = shuffled.slice(0, leftCount);
@@ -578,23 +659,25 @@ function initTeams() {
 
 // Battle positions — converged on floor; all below horizon (~52%)
 const CENTER_POSITIONS = {
-  gpt4:    { left: '22%',  right: '',     top: '54%',    bottom: '' },
-  claude:  { left: '',     right: '22%',  top: '54%',    bottom: '' },
-  gemini:  { left: '22%',  right: '',     top: '',       bottom: '22%' },
-  mistral: { left: '',     right: '22%',  top: '',       bottom: '22%' },
-  copilot: { left: '37%',  right: '',     top: '',       bottom: '22%' },
-  grok:    { left: '37%',  right: '',     top: '54%',    bottom: '' },
+  gpt4:     { left: '22%',  right: '',     top: '54%',    bottom: '' },
+  claude:   { left: '',     right: '22%',  top: '54%',    bottom: '' },
+  gemini:   { left: '22%',  right: '',     top: '',       bottom: '22%' },
+  mistral:  { left: '',     right: '22%',  top: '',       bottom: '22%' },
+  copilot:  { left: '37%',  right: '',     top: '',       bottom: '22%' },
+  grok:     { left: '37%',  right: '',     top: '54%',    bottom: '' },
+  deepseek: { left: '',     right: '37%',  top: '',       bottom: '22%' },
 };
 
 // Approximate pixel-center of each character when converged (% of room)
 // All positions are on the floor (y > 52 ensures below the horizon)
 const BATTLE_POS = {
-  gpt4:    { x: 28, y: 56 },
-  claude:  { x: 72, y: 56 },
-  gemini:  { x: 28, y: 66 },
-  mistral: { x: 72, y: 66 },
-  copilot: { x: 43, y: 70 },
-  grok:    { x: 43, y: 56 },
+  gpt4:     { x: 28, y: 56 },
+  claude:   { x: 72, y: 56 },
+  gemini:   { x: 28, y: 66 },
+  mistral:  { x: 72, y: 66 },
+  copilot:  { x: 43, y: 70 },
+  grok:     { x: 43, y: 56 },
+  deepseek: { x: 57, y: 70 },
 };
 
 // FF7-style damage number pool
@@ -683,9 +766,10 @@ window.addEventListener('load', () => {
 // Check server / demo mode — apply per-model LIVE/DEMO status badges
 // ─────────────────────────────────────────────────────────────────────────────
 let backendAvailable = false;
-let backendGeminiConfigured = false;  // true when GOOGLE_API_KEY is set in server .env
-let backendGrokConfigured   = false;  // true when XAI_API_KEY is set in server .env
-let backendClaudeConfigured = false;  // true when ANTHROPIC_API_KEY is set in server .env
+let backendGeminiConfigured   = false;  // true when GOOGLE_API_KEY is set in server .env
+let backendGrokConfigured     = false;  // true when XAI_API_KEY is set in server .env
+let backendClaudeConfigured   = false;  // true when ANTHROPIC_API_KEY is set in server .env
+let backendDeepSeekConfigured = false;  // true when DEEPSEEK_API_KEY is set in server .env
 
 // Append a small LIVE/DEMO status indicator below each character label
 function applyModelStatus(configured) {
@@ -718,17 +802,19 @@ function setModelBadge(modelId, isLive) {
 async function checkServerMode() {
   // Shared fallback used when no backend is reachable (static / GitHub Pages).
   function applyLocalOnly() {
-    backendGeminiConfigured = false;
-    backendGrokConfigured   = false;
-    backendClaudeConfigured = false;
-    const geminiKey = getLocalGeminiKey();
-    const grokKey   = getLocalGrokKey();
-    const claudeKey = getLocalClaudeKey();
+    backendGeminiConfigured   = false;
+    backendGrokConfigured     = false;
+    backendClaudeConfigured   = false;
+    backendDeepSeekConfigured = false;
+    const geminiKey   = getLocalGeminiKey();
+    const grokKey     = getLocalGrokKey();
+    const claudeKey   = getLocalClaudeKey();
+    const deepseekKey = getLocalDeepSeekKey();
     const localConfigured = {
       gpt4: false, claude: !!claudeKey, gemini: !!geminiKey, mistral: false, copilot: false,
-      // Grok requires the backend proxy (x.ai blocks browser CORS); without a backend it cannot
-      // run live even if a key is present, so keep it as DEMO to avoid a misleading LIVE badge.
-      grok: false,
+      // Grok and DeepSeek require the backend proxy; without a backend they cannot
+      // run live even if a key is present, so keep them as DEMO.
+      grok: false, deepseek: false,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
@@ -738,7 +824,7 @@ async function checkServerMode() {
     if (!geminiKey && !claudeKey && !sessionStorage.getItem('airing_settings_shown')) {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
-      settingsStatus.textContent = '⚡ Paste your Gemini or Claude key and hit SAVE to go LIVE! (Grok requires the Node.js backend.)';
+      settingsStatus.textContent = '⚡ Paste your Gemini or Claude key and hit SAVE to go LIVE! (Grok and DeepSeek require the Node.js backend.)';
       settingsStatus.className = 'settings-status info';
     }
   }
@@ -752,14 +838,16 @@ async function checkServerMode() {
     }
     const data = await res.json();
     backendAvailable = true;
-    backendGeminiConfigured = !!(data.configured && data.configured.gemini);
-    backendGrokConfigured   = !!(data.configured && data.configured.grok);
-    backendClaudeConfigured = !!(data.configured && data.configured.claude);
+    backendGeminiConfigured   = !!(data.configured && data.configured.gemini);
+    backendGrokConfigured     = !!(data.configured && data.configured.grok);
+    backendClaudeConfigured   = !!(data.configured && data.configured.claude);
+    backendDeepSeekConfigured = !!(data.configured && data.configured.deepseek);
     // Merge server-configured status with any locally-stored keys
     const configured = data.configured || {};
-    if (!configured.gemini && getLocalGeminiKey()) configured.gemini = true;
-    if (!configured.grok   && getLocalGrokKey())   configured.grok   = true;
-    if (!configured.claude && getLocalClaudeKey()) configured.claude = true;
+    if (!configured.gemini   && getLocalGeminiKey())   configured.gemini   = true;
+    if (!configured.grok     && getLocalGrokKey())     configured.grok     = true;
+    if (!configured.claude   && getLocalClaudeKey())   configured.claude   = true;
+    if (!configured.deepseek && getLocalDeepSeekKey()) configured.deepseek = true;
     const anyLive = Object.values(configured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(configured);
@@ -1043,11 +1131,12 @@ function disperseAgents() {
 // Intro animation — characters walk from corners and meet in the center
 // ─────────────────────────────────────────────────────────────────────────────
 const INTRO_GREETINGS = {
-  gpt4:    'Not interested.',
-  claude:  'Yo! AVALANCHE!',
-  gemini:  'Nanaki, ready.',
-  mistral: '#$%@! Let\'s go!',
-  copilot: 'For the Planet!',
+  gpt4:     'Not interested.',
+  claude:   'Yo! AVALANCHE!',
+  gemini:   'Nanaki, ready.',
+  mistral:  '#$%@! Let\'s go!',
+  copilot:  'For the Planet!',
+  deepseek: 'Gimme all your Materia!',
 };
 
 async function playIntroAnimation() {
@@ -1321,10 +1410,39 @@ async function fetchOneRound(prompt) {
       }
     }
 
+    // If the backend doesn't have DEEPSEEK_API_KEY but the user saved a personal DeepSeek
+    // key, overlay the DeepSeek result via the proxy endpoint (server-side, CORS-free).
+    const deepseekKey = getLocalDeepSeekKey();
+    if (deepseekKey && !backendDeepSeekConfigured) {
+      const deepseekResult = data.results.find((r) => r.modelId === 'deepseek');
+      if (deepseekResult && deepseekResult.isDemo) {
+        try {
+          const deepseekStart = Date.now();
+          const text = await callDeepSeekProxy(prompt, deepseekKey);
+          deepseekResult.response = text;
+          deepseekResult.isDemo = false;
+          deepseekResult.latencyMs = Date.now() - deepseekStart;
+          const deepseekModel = AI_MODELS_DATA.find((m) => m.id === 'deepseek');
+          deepseekResult.score = scoreResponse(prompt, text, deepseekModel);
+          // Re-sort and refresh winner flags
+          data.results.sort((a, b) => b.score - a.score);
+          const newWinner = data.results[0];
+          data.winnerId = newWinner.modelId;
+          data.winnerName = newWinner.name;
+          data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
+        } catch (err) {
+          settingsStatus.textContent = `✗ DeepSeek live call failed: ${err.message}${liveCallHint(err.message)}`;
+          settingsStatus.className = 'settings-status err';
+          settingsPanel.classList.remove('hidden');
+          if (isInvalidKeyError(err.message)) { clearModelKey('deepseek'); checkServerMode(); }
+        }
+      }
+    }
+
     return data;
   }
   // Static / GitHub Pages mode
-  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey());
+  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey() || getLocalDeepSeekKey());
   await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
   return runHybridCompetition(prompt);
 }
