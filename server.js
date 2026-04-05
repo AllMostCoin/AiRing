@@ -205,12 +205,13 @@ async function callXAI(prompt, key) {
   return data.choices[0].message.content.trim();
 }
 
-async function callOpenClaw(prompt, key) {
+async function callOpenClaw(prompt, key, baseUrlOverride) {
   // OpenClaw — OpenAI-compatible gateway (runs locally or at a configured host)
   // key may be supplied by the caller (proxy route) or read from the environment.
+  // baseUrlOverride may be supplied by the proxy route (user-configured gateway URL).
   const resolvedKey = key || process.env.OPENCLAW_API_KEY;
   if (!resolvedKey) return null;
-  const baseUrl = (process.env.OPENCLAW_BASE_URL || 'http://localhost:18789').replace(/\/$/, '');
+  const baseUrl = (baseUrlOverride || process.env.OPENCLAW_BASE_URL || 'http://localhost:18789').replace(/\/$/, '');
   const model = process.env.OPENCLAW_MODEL || 'openclaw';
   const res = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: 'POST',
@@ -407,9 +408,13 @@ app.post('/api/grok-proxy', grokProxyLimiter, async (req, res) => {
 // Browsers cannot call the OpenClaw gateway directly (CORS). This endpoint
 // accepts the user's personal key in the request body, forwards the call
 // server-side (CORS-free), and returns the text response.
+//
+// Security: user-provided gateway URLs are restricted to https:// only to reduce
+// the risk of server-side request forgery targeting internal http:// services.
+// If you need http:// (e.g. local development), configure OPENCLAW_BASE_URL on the server.
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/openclaw-proxy', openclawProxyLimiter, async (req, res) => {
-  const { prompt, key } = req.body;
+  const { prompt, key, url } = req.body;
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
   }
@@ -421,8 +426,33 @@ app.post('/api/openclaw-proxy', openclawProxyLimiter, async (req, res) => {
     return res.status(400).json({ error: 'valid OpenClaw API key is required (must start with ck_)' });
   }
   const trimmedKey = key.trim();
+
+  // If the server has OPENCLAW_BASE_URL configured, always use it (trusted server config).
+  // Otherwise, accept an https:// URL from the client so users can point to their own
+  // publicly hosted gateway. http:// is intentionally disallowed for client-supplied URLs
+  // to reduce the SSRF attack surface against internal http services.
+  let resolvedBaseUrl;
+  if (process.env.OPENCLAW_BASE_URL) {
+    resolvedBaseUrl = undefined; // callOpenClaw will read from env
+  } else if (url) {
+    if (typeof url !== 'string') {
+      return res.status(400).json({ error: 'url must be a string' });
+    }
+    const trimmedUrl = url.trim();
+    let parsed;
+    try {
+      parsed = new URL(trimmedUrl);
+    } catch {
+      return res.status(400).json({ error: 'url must be a valid URL' });
+    }
+    if (parsed.protocol !== 'https:') {
+      return res.status(400).json({ error: 'user-supplied gateway url must use https. For http (e.g. local dev), set OPENCLAW_BASE_URL on the server instead.' });
+    }
+    resolvedBaseUrl = trimmedUrl;
+  }
+
   try {
-    const text = await callOpenClaw(trimmedPrompt, trimmedKey);
+    const text = await callOpenClaw(trimmedPrompt, trimmedKey, resolvedBaseUrl);
     if (text === null) {
       return res.status(502).json({ error: 'OpenClaw API did not return a response' });
     }

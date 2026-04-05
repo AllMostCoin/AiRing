@@ -9,10 +9,11 @@ const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 // ─────────────────────────────────────────────────────────────────────────────
 // Local API key storage (Gemini + Grok + Claude — browser ↔ API directly, no backend)
 // ─────────────────────────────────────────────────────────────────────────────
-const LS_GEMINI_KEY   = 'airing_gemini_key';
-const LS_GROK_KEY     = 'airing_grok_key';
-const LS_CLAUDE_KEY   = 'airing_claude_key';
-const LS_OPENCLAW_KEY = 'airing_openclaw_key';
+const LS_GEMINI_KEY    = 'airing_gemini_key';
+const LS_GROK_KEY      = 'airing_grok_key';
+const LS_CLAUDE_KEY    = 'airing_claude_key';
+const LS_OPENCLAW_KEY  = 'airing_openclaw_key';
+const LS_OPENCLAW_URL  = 'airing_openclaw_url';
 
 function getLocalGeminiKey() {
   // Priority: user-supplied key in localStorage → site-wide key injected at deploy time
@@ -83,13 +84,29 @@ function clearLocalOpenClawKey() {
   window.AIRING_OPENCLAW_KEY = '';
 }
 
+function getLocalOpenClawUrl() {
+  try {
+    return localStorage.getItem(LS_OPENCLAW_URL) || '';
+  } catch {
+    return '';
+  }
+}
+
+function setLocalOpenClawUrl(url) {
+  try { localStorage.setItem(LS_OPENCLAW_URL, url); } catch { /* ignore */ }
+}
+
+function clearLocalOpenClawUrl() {
+  try { localStorage.removeItem(LS_OPENCLAW_URL); } catch { /* ignore */ }
+}
+
 // Clear the stored key for a given model id and reset its settings input.
 function clearModelKey(modelId) {
   const actions = {
     gemini:   () => { clearLocalGeminiKey();   if (geminiKeyInput)   geminiKeyInput.value   = ''; },
     grok:     () => { clearLocalGrokKey();     if (grokKeyInput)     grokKeyInput.value     = ''; },
     claude:   () => { clearLocalClaudeKey();   if (claudeKeyInput)   claudeKeyInput.value   = ''; },
-    openclaw: () => { clearLocalOpenClawKey(); if (openclawKeyInput) openclawKeyInput.value = ''; },
+    openclaw: () => { clearLocalOpenClawKey(); clearLocalOpenClawUrl(); if (openclawKeyInput) openclawKeyInput.value = ''; if (openclawUrlInput) openclawUrlInput.value = ''; },
   };
   if (actions[modelId]) actions[modelId]();
 }
@@ -156,12 +173,15 @@ async function callGrokProxy(prompt, key) {
 
 async function callOpenClawProxy(prompt, key) {
   // Route the OpenClaw call through the backend to avoid browser CORS restrictions.
-  // The backend /api/openclaw-proxy endpoint accepts the user's key in the request body and
-  // forwards the call server-side (CORS-free), then returns { text }.
+  // The backend /api/openclaw-proxy endpoint accepts the user's key and optional gateway
+  // URL in the request body, forwards the call server-side (CORS-free), and returns { text }.
+  const url = getLocalOpenClawUrl();
+  const body = { prompt, key };
+  if (url) body.url = url;
   const res = await fetch(`${API_BASE}/api/openclaw-proxy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, key }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -435,6 +455,9 @@ const claudeClearBtn  = document.getElementById('claude-clear-btn');
 const openclawKeyInput = document.getElementById('openclaw-key-input');
 const openclawSaveBtn  = document.getElementById('openclaw-save-btn');
 const openclawClearBtn = document.getElementById('openclaw-clear-btn');
+const openclawUrlInput = document.getElementById('openclaw-url-input');
+const openclawUrlSaveBtn = document.getElementById('openclaw-url-save-btn');
+const openclawUrlClearBtn = document.getElementById('openclaw-url-clear-btn');
 const settingsStatus  = document.getElementById('settings-status');
 const roundIndicator  = document.getElementById('round-indicator');
 const roundLabel      = document.getElementById('round-label');
@@ -480,6 +503,8 @@ settingsBtn.addEventListener('click', () => {
       claudeKeyInput.value = claudeStored;
       const openclawStored = getLocalOpenClawKey();
       openclawKeyInput.value = openclawStored;
+      const openclawUrlStored = getLocalOpenClawUrl();
+      openclawUrlInput.value = openclawUrlStored;
       if (stored || grokStored || claudeStored || openclawStored) {
         settingsStatus.textContent = '● Key(s) loaded from local storage';
         settingsStatus.className = 'settings-status ok';
@@ -572,6 +597,33 @@ openclawClearBtn.addEventListener('click', () => {
   settingsStatus.textContent = '✔ OpenClaw key cleared. OpenClaw will run in DEMO mode.';
   settingsStatus.className = 'settings-status ok';
   checkServerMode();
+});
+
+openclawUrlSaveBtn.addEventListener('click', () => {
+  const url = openclawUrlInput.value.trim();
+  if (!url) {
+    settingsStatus.textContent = '✗ Please enter an OpenClaw gateway URL first.';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') throw new Error('bad protocol');
+  } catch {
+    settingsStatus.textContent = '✗ Invalid URL — must start with https:// (for http, set OPENCLAW_BASE_URL on the server)';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  setLocalOpenClawUrl(url);
+  settingsStatus.textContent = '✔ OpenClaw gateway URL saved!';
+  settingsStatus.className = 'settings-status ok';
+});
+
+openclawUrlClearBtn.addEventListener('click', () => {
+  clearLocalOpenClawUrl();
+  openclawUrlInput.value = '';
+  settingsStatus.textContent = '✔ OpenClaw gateway URL cleared. Backend default will be used.';
+  settingsStatus.className = 'settings-status ok';
 });
 
 const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot', 'grok', 'openclaw'];
