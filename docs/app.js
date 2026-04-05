@@ -1169,7 +1169,18 @@ function renderHistory() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Round system helpers
 // ─────────────────────────────────────────────────────────────────────────────
-const TOTAL_ROUNDS = 1;
+let TOTAL_ROUNDS = 1;
+
+// Wire up rounds selector buttons
+document.querySelectorAll('.rounds-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    TOTAL_ROUNDS = Number(btn.dataset.rounds);
+    document.querySelectorAll('.rounds-btn').forEach((b) => {
+      b.classList.toggle('active', b === btn);
+    });
+    resetRoundPips();
+  });
+});
 
 function showRoundBanner(roundNum) {
   roundLabel.textContent = `ROUND ${roundNum}`;
