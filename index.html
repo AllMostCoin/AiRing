@@ -680,11 +680,15 @@
     const STORAGE_GROK_PROXY      = 'airing_grok_proxy';
 
     // Ring Protocol — forces both AIs into a terse, abbreviated debate style
+    const CHAT_SYSTEM =
+      'Be short and precise. Answer in as few words as needed — no filler, no preamble, no sign-off. ' +
+      'Only include a URL if it is absolutely necessary and directly requested or unavoidable.';
+
     const RING_SYSTEM =
       'Ring Protocol — you are in a live AI debate ring.\n' +
       'Rules: ≤60 words per reply. No greetings, no preamble, no sign-off.\n' +
       'Start your argument immediately. Use compact notation: → ≈ w/ b/c & + vs.\n' +
-      'Be incisive, sharp, and direct.';
+      'Be incisive, sharp, and direct. Only include URLs if absolutely unavoidable.';
 
     // Per-provider config: models, key placeholder, hint HTML
     const PROVIDERS = {
@@ -1078,7 +1082,7 @@
     // Chat-mode wrapper: builds contents from the shared chatHistory
     async function callGemini(apiKey, model) {
       const contents = chatHistory.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
-      return callGeminiRaw(apiKey, model, contents, null);
+      return callGeminiRaw(apiKey, model, contents, CHAT_SYSTEM);
     }
 
     // ── xAI Grok API (OpenAI-compatible) ─────────────────────────────────────
@@ -1113,10 +1117,13 @@
 
     // Chat-mode wrapper: builds messages from the shared chatHistory
     async function callGrok(apiKey, model) {
-      const messages = chatHistory.map(m => ({
-        role:    m.role === 'model' ? 'assistant' : 'user',
-        content: m.text
-      }));
+      const messages = [
+        { role: 'system', content: CHAT_SYSTEM },
+        ...chatHistory.map(m => ({
+          role:    m.role === 'model' ? 'assistant' : 'user',
+          content: m.text
+        }))
+      ];
       return callGrokRaw(apiKey, model, messages);
     }
 
