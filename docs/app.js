@@ -65,6 +65,16 @@ function clearLocalClaudeKey() {
   window.AIRING_CLAUDE_KEY = '';
 }
 
+// Clear the stored key for a given model id and reset its settings input.
+function clearModelKey(modelId) {
+  const actions = {
+    gemini: () => { clearLocalGeminiKey(); if (geminiKeyInput) geminiKeyInput.value = ''; },
+    grok:   () => { clearLocalGrokKey();   if (grokKeyInput)   grokKeyInput.value   = ''; },
+    claude: () => { clearLocalClaudeKey(); if (claudeKeyInput) claudeKeyInput.value = ''; },
+  };
+  if (actions[modelId]) actions[modelId]();
+}
+
 async function callGeminiDirect(prompt, key) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   const res = await fetch(url, {
@@ -259,12 +269,19 @@ async function runHybridCompetition(prompt) {
         setModelBadge(model.id, false);
         // Surface a clear error with a hint to remove the bad key
         if (settingsStatus) {
-          const hint = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message)
+          const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
+          const hint = isAuthError
             ? ' — key may be invalid or have no credits. Hit CLEAR to remove it.'
             : '';
           settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}${hint}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
+          // On auth/quota errors clear the bad key so the next checkServerMode()
+          // doesn't re-mark this model LIVE with a key we already know is broken.
+          if (isAuthError) {
+            clearModelKey(model.id);
+            checkServerMode();
+          }
         }
       }
       if (text === null) {
@@ -354,9 +371,13 @@ zoomBtn.addEventListener('click', () => {
 settingsBtn.addEventListener('click', () => {
   const hidden = settingsPanel.classList.toggle('hidden');
   if (!hidden) {
-    if (backendGeminiConfigured) {
-      geminiKeyInput.value = '';
-      settingsStatus.textContent = '✔ Gemini key active via server (.env)';
+    const serverMsgs = [];
+    if (backendGeminiConfigured) { geminiKeyInput.value = ''; serverMsgs.push('Gemini'); }
+    if (backendGrokConfigured)   { grokKeyInput.value   = ''; serverMsgs.push('Grok');   }
+    if (backendClaudeConfigured) { claudeKeyInput.value = ''; serverMsgs.push('Claude'); }
+
+    if (serverMsgs.length > 0) {
+      settingsStatus.textContent = `✔ ${serverMsgs.join(', ')} key(s) active via server (.env)`;
       settingsStatus.className = 'settings-status ok';
     } else {
       const stored = getLocalGeminiKey();

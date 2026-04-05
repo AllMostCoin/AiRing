@@ -436,8 +436,9 @@
       <p>AI Ring &mdash; Midgar Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
     </footer>
 
-    <!-- config.js is generated at deploy time (GitHub Actions) and injects   -->
-    <!-- window.AIRING_GEMINI_KEY. It is absent in local dev — that is fine.  -->
+    <!-- config.js is generated at deploy time (GitHub Actions) and injects    -->
+    <!-- window.AIRING_GEMINI_KEY and window.AIRING_GROK_KEY.                 -->
+    <!-- It is absent in local dev — that is fine.                             -->
     <script>window.AIRING_GEMINI_KEY = window.AIRING_GEMINI_KEY || '';</script>
     <script>window.AIRING_GROK_KEY = window.AIRING_GROK_KEY || '';</script>
     <script>window.AIRING_CLAUDE_KEY = window.AIRING_CLAUDE_KEY || '';</script>

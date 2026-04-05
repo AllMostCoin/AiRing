@@ -30,16 +30,22 @@ jobs:
         # Writes docs/config.js with keys from repository secrets.
         # If a secret is not set, the value is an empty string so the
         # app falls back to demo mode (or lets the user supply their own key).
+        # Keys are JSON-encoded to prevent injection from special characters.
+        # Claude (Anthropic) keys are intentionally NOT injected here — they
+        # would be publicly readable in the static Pages output.  Users supply
+        # their own Claude key directly in the settings panel instead.
         run: |
-          {
-            echo "window.AIRING_GEMINI_KEY = '${GEMINI_API_KEY}';"
-            echo "window.AIRING_GROK_KEY   = '${GROK_API_KEY}';"
-            echo "window.AIRING_CLAUDE_KEY = '${ANTHROPIC_API_KEY}';"
-          } > docs/config.js
+          node -e '
+            const fs = require("fs");
+            const lines = [
+              `window.AIRING_GEMINI_KEY = ${JSON.stringify(process.env.GEMINI_API_KEY || "")};`,
+              `window.AIRING_GROK_KEY   = ${JSON.stringify(process.env.GROK_API_KEY || "")};`,
+            ];
+            fs.writeFileSync("docs/config.js", lines.join("\n") + "\n");
+          '
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
