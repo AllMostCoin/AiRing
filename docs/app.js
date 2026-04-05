@@ -12,8 +12,8 @@ const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 const LS_GEMINI_KEY    = 'airing_gemini_key';
 const LS_GROK_KEY      = 'airing_grok_key';
 const LS_CLAUDE_KEY    = 'airing_claude_key';
-const LS_OPENCLAW_KEY  = 'airing_openclaw_key';
-const LS_OPENCLAW_URL  = 'airing_openclaw_url';
+const LS_OLLAMA_MODEL  = 'airing_ollama_model';
+const LS_OLLAMA_URL    = 'airing_ollama_url';
 const LS_OPENAI_KEY    = 'airing_openai_key';
 const LS_MISTRAL_KEY   = 'airing_mistral_key';
 const LS_COPILOT_KEY   = 'airing_copilot_key';
@@ -70,37 +70,37 @@ function clearLocalClaudeKey() {
   window.AIRING_CLAUDE_KEY = '';
 }
 
-function getLocalOpenClawKey() {
+function getLocalOllamaModel() {
   try {
-    return localStorage.getItem(LS_OPENCLAW_KEY) || window.AIRING_OPENCLAW_KEY || '';
+    return localStorage.getItem(LS_OLLAMA_MODEL) || window.AIRING_OLLAMA_MODEL || '';
   } catch {
-    return window.AIRING_OPENCLAW_KEY || '';
+    return window.AIRING_OLLAMA_MODEL || '';
   }
 }
 
-function setLocalOpenClawKey(key) {
-  try { localStorage.setItem(LS_OPENCLAW_KEY, key); } catch { /* ignore */ }
+function setLocalOllamaModel(model) {
+  try { localStorage.setItem(LS_OLLAMA_MODEL, model); } catch { /* ignore */ }
 }
 
-function clearLocalOpenClawKey() {
-  try { localStorage.removeItem(LS_OPENCLAW_KEY); } catch { /* ignore */ }
-  window.AIRING_OPENCLAW_KEY = '';
+function clearLocalOllamaModel() {
+  try { localStorage.removeItem(LS_OLLAMA_MODEL); } catch { /* ignore */ }
+  window.AIRING_OLLAMA_MODEL = '';
 }
 
-function getLocalOpenClawUrl() {
+function getLocalOllamaUrl() {
   try {
-    return localStorage.getItem(LS_OPENCLAW_URL) || '';
+    return localStorage.getItem(LS_OLLAMA_URL) || '';
   } catch {
     return '';
   }
 }
 
-function setLocalOpenClawUrl(url) {
-  try { localStorage.setItem(LS_OPENCLAW_URL, url); } catch { /* ignore */ }
+function setLocalOllamaUrl(url) {
+  try { localStorage.setItem(LS_OLLAMA_URL, url); } catch { /* ignore */ }
 }
 
-function clearLocalOpenClawUrl() {
-  try { localStorage.removeItem(LS_OPENCLAW_URL); } catch { /* ignore */ }
+function clearLocalOllamaUrl() {
+  try { localStorage.removeItem(LS_OLLAMA_URL); } catch { /* ignore */ }
 }
 
 function getLocalOpenAIKey() {
@@ -160,7 +160,7 @@ function clearModelKey(modelId) {
     gemini:   () => { clearLocalGeminiKey();   if (geminiKeyInput)   geminiKeyInput.value   = ''; },
     grok:     () => { clearLocalGrokKey();     if (grokKeyInput)     grokKeyInput.value     = ''; },
     claude:   () => { clearLocalClaudeKey();   if (claudeKeyInput)   claudeKeyInput.value   = ''; },
-    openclaw: () => { clearLocalOpenClawKey(); clearLocalOpenClawUrl(); if (openclawKeyInput) openclawKeyInput.value = ''; if (openclawUrlInput) openclawUrlInput.value = ''; },
+    ollama: () => { clearLocalOllamaModel(); clearLocalOllamaUrl(); if (ollamaModelInput) ollamaModelInput.value = ''; if (ollamaUrlInput) ollamaUrlInput.value = ''; },
     gpt4:     () => { clearLocalOpenAIKey();   if (openaiKeyInput)   openaiKeyInput.value   = ''; },
     mistral:  () => { clearLocalMistralKey();  if (mistralKeyInput)  mistralKeyInput.value  = ''; },
     copilot:  () => { clearLocalCopilotKey();  if (copilotKeyInput)  copilotKeyInput.value  = ''; },
@@ -228,14 +228,14 @@ async function callGrokProxy(prompt, key) {
   return data.text;
 }
 
-async function callOpenClawProxy(prompt, key) {
-  // Route the OpenClaw call through the backend to avoid browser CORS restrictions.
-  // The backend /api/openclaw-proxy endpoint accepts the user's key and optional gateway
+async function callOllamaProxy(prompt, model) {
+  // Route the Ollama call through the backend to avoid browser CORS restrictions.
+  // The backend /api/ollama-proxy endpoint accepts the model name and optional base
   // URL in the request body, forwards the call server-side (CORS-free), and returns { text }.
-  const url = getLocalOpenClawUrl();
-  const body = { prompt, key };
+  const url = getLocalOllamaUrl();
+  const body = { prompt, key: model };
   if (url) body.url = url;
-  const res = await fetch(`${API_BASE}/api/openclaw-proxy`, {
+  const res = await fetch(`${API_BASE}/api/ollama-proxy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -243,7 +243,7 @@ async function callOpenClawProxy(prompt, key) {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     const msg = data.error || res.statusText;
-    throw new Error(`OpenClaw proxy error: ${msg}`);
+    throw new Error(`Ollama proxy error: ${msg}`);
   }
   const data = await res.json();
   return data.text;
@@ -336,7 +336,7 @@ const AI_MODELS_DATA = [
   { id: 'mistral',  name: 'Mistral',  character: 'Cid',      color: '#20a8c0', emoji: '✈️',  strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
   { id: 'copilot',  name: 'Copilot',  character: 'Tifa',     color: '#e03860', emoji: '👊',  strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
   { id: 'grok',     name: 'Grok',     character: 'Vincent',  color: '#7030c8', emoji: '🦇',  strengths: ['reasoning', 'speed', 'creative', 'search'] },
-  { id: 'openclaw', name: 'OpenClaw', character: 'Yuffie',   color: '#0a84c8', emoji: '🌊',  strengths: ['reasoning', 'coding', 'math', 'efficiency'] },
+  { id: 'ollama',   name: 'Ollama',   character: 'Yuffie',   color: '#0a84c8', emoji: '🌊',  strengths: ['reasoning', 'coding', 'math', 'efficiency'] },
 ];
 
 const DEMO_TEMPLATES = {
@@ -370,7 +370,7 @@ const DEMO_TEMPLATES = {
     "On {topic} — interesting problem. Most AI would hedge, but I'll tell you directly: the key insight is counterintuitive. The conventional wisdom here is wrong in at least two ways, and here's why the unconventional approach wins.",
     "Real-time analysis of {topic}: speed and clarity over verbosity. The creative angle nobody mentions is: what if the premise itself needs rethinking? My search-augmented reasoning surfaces a perspective that reframes the entire question.",
   ],
-  openclaw: [
+  ollama: [
     "Deeply analyzing {topic}: reasoning from first principles reveals a clear, efficient path forward. My chain-of-thought process identifies the key variables, eliminates noise, and surfaces the optimal solution — elegant in its simplicity.",
     "On {topic}, open-source reasoning engaged. The mathematical structure here is tractable: decompose into sub-problems, apply learned patterns, and synthesize with confidence. Here is the distilled, high-quality answer.",
     "Addressing {topic} with deep precision: the underlying logic is sound, the approach is transparent, and the answer is reproducible. Open knowledge deserves an open, verifiable response — so here it is, step by step.",
@@ -444,7 +444,7 @@ async function runHybridCompetition(prompt) {
   const geminiKey   = getLocalGeminiKey();
   const grokKey     = getLocalGrokKey();
   const claudeKey   = getLocalClaudeKey();
-  const openclawKey = getLocalOpenClawKey();
+  const ollamaModel = getLocalOllamaModel();
   const openaiKey   = getLocalOpenAIKey();
   const mistralKey  = getLocalMistralKey();
   const copilotKey  = getLocalCopilotKey();
@@ -473,13 +473,13 @@ async function runHybridCompetition(prompt) {
         } else if (model.id === 'claude' && claudeKey) {
           text = await callClaudeDirect(prompt, claudeKey);
           isDemo = false;
-        } else if (model.id === 'openclaw' && openclawKey && backendAvailable) {
-          // OpenClaw requires the backend proxy (gateway blocks browser CORS).
-          text = await callOpenClawProxy(prompt, openclawKey);
+        } else if (model.id === 'ollama' && ollamaModel && backendAvailable) {
+          // Ollama requires the backend proxy (local instance blocks browser CORS).
+          text = await callOllamaProxy(prompt, ollamaModel);
           isDemo = false;
-        } else if (model.id === 'openclaw' && openclawKey && !backendAvailable) {
+        } else if (model.id === 'ollama' && ollamaModel && !backendAvailable) {
           if (settingsStatus) {
-            settingsStatus.textContent = '⚠ OpenClaw key saved but no backend available — OpenClaw requires the Node.js server to proxy requests. Run the server locally or deploy it to go LIVE.';
+            settingsStatus.textContent = '⚠ Ollama model saved but no backend available — Ollama requires the Node.js server to proxy requests. Run the server locally or deploy it to go LIVE.';
             settingsStatus.className = 'settings-status err';
             settingsPanel.classList.remove('hidden');
           }
@@ -587,12 +587,12 @@ const grokClearBtn    = document.getElementById('grok-clear-btn');
 const claudeKeyInput  = document.getElementById('claude-key-input');
 const claudeSaveBtn   = document.getElementById('claude-save-btn');
 const claudeClearBtn  = document.getElementById('claude-clear-btn');
-const openclawKeyInput = document.getElementById('openclaw-key-input');
-const openclawSaveBtn  = document.getElementById('openclaw-save-btn');
-const openclawClearBtn = document.getElementById('openclaw-clear-btn');
-const openclawUrlInput = document.getElementById('openclaw-url-input');
-const openclawUrlSaveBtn = document.getElementById('openclaw-url-save-btn');
-const openclawUrlClearBtn = document.getElementById('openclaw-url-clear-btn');
+const ollamaModelInput = document.getElementById('ollama-model-input');
+const ollamaSaveBtn    = document.getElementById('ollama-save-btn');
+const ollamaClearBtn   = document.getElementById('ollama-clear-btn');
+const ollamaUrlInput   = document.getElementById('ollama-url-input');
+const ollamaUrlSaveBtn = document.getElementById('ollama-url-save-btn');
+const ollamaUrlClearBtn = document.getElementById('ollama-url-clear-btn');
 const openaiKeyInput  = document.getElementById('openai-key-input');
 const openaiSaveBtn   = document.getElementById('openai-save-btn');
 const openaiClearBtn  = document.getElementById('openai-clear-btn');
@@ -633,7 +633,7 @@ settingsBtn.addEventListener('click', () => {
     if (backendGeminiConfigured)   { geminiKeyInput.value   = ''; serverMsgs.push('Gemini');   }
     if (backendGrokConfigured)     { grokKeyInput.value     = ''; serverMsgs.push('Grok');     }
     if (backendClaudeConfigured)   { claudeKeyInput.value   = ''; serverMsgs.push('Claude');   }
-    if (backendOpenClawConfigured) { openclawKeyInput.value = ''; serverMsgs.push('OpenClaw'); }
+    if (backendOllamaConfigured)   { ollamaModelInput.value = ''; serverMsgs.push('Ollama');    }
     if (backendGpt4Configured)     { openaiKeyInput.value   = ''; serverMsgs.push('GPT-4');    }
     if (backendMistralConfigured)  { mistralKeyInput.value  = ''; serverMsgs.push('Mistral');  }
     if (backendCopilotConfigured)  { copilotKeyInput.value  = ''; serverMsgs.push('Copilot');  }
@@ -648,17 +648,17 @@ settingsBtn.addEventListener('click', () => {
       grokKeyInput.value = grokStored;
       const claudeStored = getLocalClaudeKey();
       claudeKeyInput.value = claudeStored;
-      const openclawStored = getLocalOpenClawKey();
-      openclawKeyInput.value = openclawStored;
-      const openclawUrlStored = getLocalOpenClawUrl();
-      openclawUrlInput.value = openclawUrlStored;
+      const ollamaStored = getLocalOllamaModel();
+      ollamaModelInput.value = ollamaStored;
+      const ollamaUrlStored = getLocalOllamaUrl();
+      ollamaUrlInput.value = ollamaUrlStored;
       const openaiStored = getLocalOpenAIKey();
       openaiKeyInput.value = openaiStored;
       const mistralStored = getLocalMistralKey();
       mistralKeyInput.value = mistralStored;
       const copilotStored = getLocalCopilotKey();
       copilotKeyInput.value = copilotStored;
-      if (stored || grokStored || claudeStored || openclawStored || openaiStored || mistralStored || copilotStored) {
+      if (stored || grokStored || claudeStored || ollamaStored || openaiStored || mistralStored || copilotStored) {
         settingsStatus.textContent = '● Key(s) loaded from local storage';
         settingsStatus.className = 'settings-status ok';
       } else {
@@ -731,31 +731,31 @@ claudeClearBtn.addEventListener('click', () => {
   checkServerMode();
 });
 
-openclawSaveBtn.addEventListener('click', () => {
-  const key = openclawKeyInput.value.trim();
-  if (!key) {
-    settingsStatus.textContent = '✗ Please enter an OpenClaw key first.';
+ollamaSaveBtn.addEventListener('click', () => {
+  const model = ollamaModelInput.value.trim();
+  if (!model) {
+    settingsStatus.textContent = '✗ Please enter an Ollama model name first (e.g. llama3.2).';
     settingsStatus.className = 'settings-status err';
     return;
   }
-  setLocalOpenClawKey(key);
-  settingsStatus.textContent = '✔ OpenClaw key saved! OpenClaw will run LIVE.';
+  setLocalOllamaModel(model);
+  settingsStatus.textContent = '✔ Ollama model saved! Ollama will run LIVE.';
   settingsStatus.className = 'settings-status ok';
   checkServerMode();
 });
 
-openclawClearBtn.addEventListener('click', () => {
-  clearLocalOpenClawKey();
-  openclawKeyInput.value = '';
-  settingsStatus.textContent = '✔ OpenClaw key cleared. OpenClaw will run in DEMO mode.';
+ollamaClearBtn.addEventListener('click', () => {
+  clearLocalOllamaModel();
+  ollamaModelInput.value = '';
+  settingsStatus.textContent = '✔ Ollama model cleared. Ollama will run in DEMO mode.';
   settingsStatus.className = 'settings-status ok';
   checkServerMode();
 });
 
-openclawUrlSaveBtn.addEventListener('click', () => {
-  const url = openclawUrlInput.value.trim();
+ollamaUrlSaveBtn.addEventListener('click', () => {
+  const url = ollamaUrlInput.value.trim();
   if (!url) {
-    settingsStatus.textContent = '✗ Please enter an OpenClaw gateway URL first.';
+    settingsStatus.textContent = '✗ Please enter an Ollama base URL first.';
     settingsStatus.className = 'settings-status err';
     return;
   }
@@ -763,19 +763,19 @@ openclawUrlSaveBtn.addEventListener('click', () => {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:') throw new Error('bad protocol');
   } catch {
-    settingsStatus.textContent = '✗ Invalid URL — must start with https:// (for http, set OPENCLAW_BASE_URL on the server)';
+    settingsStatus.textContent = '✗ Invalid URL — must start with https:// (for http, set OLLAMA_BASE_URL on the server)';
     settingsStatus.className = 'settings-status err';
     return;
   }
-  setLocalOpenClawUrl(url);
-  settingsStatus.textContent = '✔ OpenClaw gateway URL saved!';
+  setLocalOllamaUrl(url);
+  settingsStatus.textContent = '✔ Ollama base URL saved!';
   settingsStatus.className = 'settings-status ok';
 });
 
-openclawUrlClearBtn.addEventListener('click', () => {
-  clearLocalOpenClawUrl();
-  openclawUrlInput.value = '';
-  settingsStatus.textContent = '✔ OpenClaw gateway URL cleared. Backend default will be used.';
+ollamaUrlClearBtn.addEventListener('click', () => {
+  clearLocalOllamaUrl();
+  ollamaUrlInput.value = '';
+  settingsStatus.textContent = '✔ Ollama base URL cleared. Backend default will be used.';
   settingsStatus.className = 'settings-status ok';
 });
 
@@ -842,7 +842,7 @@ copilotClearBtn.addEventListener('click', () => {
   checkServerMode();
 });
 
-const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot', 'grok', 'openclaw'];
+const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot', 'grok', 'ollama'];
 
 // Unbiased Fisher-Yates shuffle — returns a new shuffled array
 function shuffleArray(arr) {
@@ -946,7 +946,7 @@ const CENTER_POSITIONS = {
   mistral:  { left: '',     right: '22%',  top: '',       bottom: '22%' },
   copilot:  { left: '37%',  right: '',     top: '',       bottom: '22%' },
   grok:     { left: '37%',  right: '',     top: '54%',    bottom: '' },
-  openclaw: { left: '',     right: '37%',  top: '',       bottom: '22%' },
+  ollama:   { left: '',     right: '37%',  top: '',       bottom: '22%' },
 };
 
 // Approximate pixel-center of each character when converged (% of room)
@@ -958,7 +958,7 @@ const BATTLE_POS = {
   mistral:  { x: 72, y: 66 },
   copilot:  { x: 43, y: 70 },
   grok:     { x: 43, y: 56 },
-  openclaw: { x: 57, y: 70 },
+  ollama:   { x: 57, y: 70 },
 };
 
 // FF7-style damage number pool
@@ -1050,7 +1050,7 @@ let backendAvailable = false;
 let backendGeminiConfigured   = false;  // true when GOOGLE_API_KEY is set in server .env
 let backendGrokConfigured     = false;  // true when XAI_API_KEY is set in server .env
 let backendClaudeConfigured   = false;  // true when ANTHROPIC_API_KEY is set in server .env
-let backendOpenClawConfigured = false;  // true when OPENCLAW_API_KEY is set in server .env
+let backendOllamaConfigured   = false;  // true when OLLAMA_MODEL or OLLAMA_BASE_URL is set in server .env
 let backendGpt4Configured     = false;  // true when OPENAI_API_KEY is set in server .env
 let backendMistralConfigured  = false;  // true when MISTRAL_API_KEY is set in server .env
 let backendCopilotConfigured  = false;  // true when GITHUB_TOKEN is set in server .env
@@ -1089,20 +1089,20 @@ async function checkServerMode() {
     backendGeminiConfigured   = false;
     backendGrokConfigured     = false;
     backendClaudeConfigured   = false;
-    backendOpenClawConfigured = false;
+    backendOllamaConfigured   = false;
     backendGpt4Configured     = false;
     backendMistralConfigured  = false;
     backendCopilotConfigured  = false;
     const geminiKey   = getLocalGeminiKey();
     const grokKey     = getLocalGrokKey();
     const claudeKey   = getLocalClaudeKey();
-    const openclawKey = getLocalOpenClawKey();
+    const ollamaModel = getLocalOllamaModel();
     const localConfigured = {
       // Gemini and Claude support direct browser calls; show them as live if a key is stored.
       claude: !!claudeKey, gemini: !!geminiKey,
       // All other models require the backend proxy; without a backend they cannot
       // run live even if a key is present, so keep them as DEMO.
-      gpt4: false, mistral: false, copilot: false, grok: false, openclaw: false,
+      gpt4: false, mistral: false, copilot: false, grok: false, ollama: false,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
@@ -1129,7 +1129,7 @@ async function checkServerMode() {
     backendGeminiConfigured   = !!(data.configured && data.configured.gemini);
     backendGrokConfigured     = !!(data.configured && data.configured.grok);
     backendClaudeConfigured   = !!(data.configured && data.configured.claude);
-    backendOpenClawConfigured = !!(data.configured && data.configured.openclaw);
+    backendOllamaConfigured   = !!(data.configured && data.configured.ollama);
     backendGpt4Configured     = !!(data.configured && data.configured.gpt4);
     backendMistralConfigured  = !!(data.configured && data.configured.mistral);
     backendCopilotConfigured  = !!(data.configured && data.configured.copilot);
@@ -1138,7 +1138,7 @@ async function checkServerMode() {
     if (!configured.gemini   && getLocalGeminiKey())   configured.gemini   = true;
     if (!configured.grok     && getLocalGrokKey())     configured.grok     = true;
     if (!configured.claude   && getLocalClaudeKey())   configured.claude   = true;
-    if (!configured.openclaw && getLocalOpenClawKey()) configured.openclaw = true;
+    if (!configured.ollama   && getLocalOllamaModel()) configured.ollama   = true;
     if (!configured.gpt4     && getLocalOpenAIKey())   configured.gpt4     = true;
     if (!configured.mistral  && getLocalMistralKey())  configured.mistral  = true;
     if (!configured.copilot  && getLocalCopilotKey())  configured.copilot  = true;
@@ -1432,7 +1432,7 @@ const INTRO_GREETINGS = {
   mistral:  '#$%@! Let\'s go!',
   copilot:  'For the Planet!',
   grok:     "Hmph. Let's get this over with.",
-  openclaw: 'Gimme all your Materia!',
+  ollama:   'Gimme all your Materia!',
 };
 
 async function playIntroAnimation() {
@@ -1706,20 +1706,20 @@ async function fetchOneRound(prompt) {
       }
     }
 
-    // If the backend doesn't have OPENCLAW_API_KEY but the user saved a personal OpenClaw
-    // key, overlay the OpenClaw result via the proxy endpoint (server-side, CORS-free).
-    const openclawKey = getLocalOpenClawKey();
-    if (openclawKey && !backendOpenClawConfigured) {
-      const openclawResult = data.results.find((r) => r.modelId === 'openclaw');
-      if (openclawResult && openclawResult.isDemo) {
+    // If the backend doesn't have OLLAMA_MODEL but the user saved a model name,
+    // overlay the Ollama result via the proxy endpoint (server-side, CORS-free).
+    const ollamaModel = getLocalOllamaModel();
+    if (ollamaModel && !backendOllamaConfigured) {
+      const ollamaResult = data.results.find((r) => r.modelId === 'ollama');
+      if (ollamaResult && ollamaResult.isDemo) {
         try {
-          const openclawStart = Date.now();
-          const text = await callOpenClawProxy(prompt, openclawKey);
-          openclawResult.response = text;
-          openclawResult.isDemo = false;
-          openclawResult.latencyMs = Date.now() - openclawStart;
-          const openclawModel = AI_MODELS_DATA.find((m) => m.id === 'openclaw');
-          openclawResult.score = scoreResponse(prompt, text, openclawModel);
+          const ollamaStart = Date.now();
+          const text = await callOllamaProxy(prompt, ollamaModel);
+          ollamaResult.response = text;
+          ollamaResult.isDemo = false;
+          ollamaResult.latencyMs = Date.now() - ollamaStart;
+          const ollamaModelData = AI_MODELS_DATA.find((m) => m.id === 'ollama');
+          ollamaResult.score = scoreResponse(prompt, text, ollamaModelData);
           // Re-sort and refresh winner flags
           data.results.sort((a, b) => b.score - a.score);
           const newWinner = data.results[0];
@@ -1727,10 +1727,10 @@ async function fetchOneRound(prompt) {
           data.winnerName = newWinner.name;
           data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
         } catch (err) {
-          settingsStatus.textContent = `✗ OpenClaw live call failed: ${err.message}${liveCallHint(err.message)}`;
+          settingsStatus.textContent = `✗ Ollama live call failed: ${err.message}${liveCallHint(err.message)}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
-          if (isInvalidKeyError(err.message)) { clearModelKey('openclaw'); checkServerMode(); }
+          if (isInvalidKeyError(err.message)) { clearModelKey('ollama'); checkServerMode(); }
         }
       }
     }
@@ -1822,7 +1822,7 @@ async function fetchOneRound(prompt) {
     return data;
   }
   // Static / GitHub Pages mode
-  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey() || getLocalOpenClawKey() || getLocalOpenAIKey() || getLocalMistralKey() || getLocalCopilotKey());
+  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey() || getLocalOllamaModel() || getLocalOpenAIKey() || getLocalMistralKey() || getLocalCopilotKey());
   await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
   return runHybridCompetition(prompt);
 }
