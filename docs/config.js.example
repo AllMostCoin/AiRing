@@ -1,6 +1,6 @@
 // This file is generated at deploy time by the GitHub Actions workflow.
 // It injects API key repository secrets so the static site can call
-// Gemini and Grok directly from the browser.
+// Gemini, Claude, and Grok directly from the browser.
 //
 // AIRING_API_BASE points GitHub Pages at the Render.com backend so that
 // all proxy-dependent models (GPT-4, Mistral, Copilot, Grok, Ollama)
