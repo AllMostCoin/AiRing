@@ -30,11 +30,30 @@ jobs:
         # If a secret is not set, the value is an empty string so the
         # app falls back to demo mode (or lets the user supply their own key).
         # Keys are JSON-encoded to prevent injection from special characters.
+        #
+        # ── What each secret does ────────────────────────────────────────────────
+        # GEMINI_API_KEY  — injected directly; Gemini is called from the browser
+        #                   (Google's API supports browser CORS).  Without this
+        #                   Gemini runs in demo mode on GitHub Pages.
+        #
+        # GROK_API_KEY    — stored in the browser as window.AIRING_GROK_KEY and
+        #                   sent to the backend proxy (/api/grok-proxy) at request
+        #                   time; the backend then forwards it server-side to xAI.
+        #                   xAI's API does not support browser CORS, so a working
+        #                   BACKEND_URL is also required for Grok to go LIVE.
+        #
+        # BACKEND_URL     — URL of the self-hosted Node.js backend (e.g. the
+        #                   Render.com service).  **This is the single most
+        #                   important secret for getting all seven models LIVE.**
+        #                   Without it only Gemini (and Claude, if the user
+        #                   provides their own key in the settings panel) will
+        #                   run live on GitHub Pages.  With it the backend handles
+        #                   GPT-4, Claude, Mistral, Copilot, Grok, and Ollama.
+        #
         # Claude (Anthropic) keys are intentionally NOT injected here — they
-        # would be publicly readable in the static Pages output.  Users supply
-        # their own Claude key directly in the settings panel instead.
-        # AIRING_API_BASE points the static site at the Render.com backend so
-        # that all seven models can run live on GitHub Pages.
+        # would be publicly readable in the static Pages output.  The backend
+        # uses its own ANTHROPIC_API_KEY env var; users can also supply a
+        # personal Claude key in the in-app settings panel for direct calls.
         run: |
           node -e '
             const fs = require("fs");
