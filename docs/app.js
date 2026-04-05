@@ -75,6 +75,26 @@ function clearModelKey(modelId) {
   if (actions[modelId]) actions[modelId]();
 }
 
+// Returns a user-facing hint string for a failed live-call error.
+// Credit/quota errors preserve the key (the key is valid; user needs to top up).
+// Invalid/revoked key errors suggest using CLEAR.
+function liveCallHint(errMessage) {
+  if (/credit|quota/i.test(errMessage)) {
+    return ' — credit balance low or quota exceeded. Top up your account to restore live mode.';
+  }
+  if (/401|403|unauthorized|invalid|forbidden/i.test(errMessage)) {
+    return ' — key may be invalid or revoked. Hit CLEAR to remove it.';
+  }
+  return '';
+}
+
+// Returns true only when the error indicates the key itself is invalid/revoked
+// (i.e., auto-clearing it is appropriate). Credit/quota errors are NOT included
+// because the key is valid — the user just needs to fund their account.
+function isInvalidKeyError(errMessage) {
+  return /401|403|unauthorized|invalid|forbidden/i.test(errMessage);
+}
+
 async function callGeminiDirect(prompt, key) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   const res = await fetch(url, {
@@ -265,17 +285,13 @@ async function runHybridCompetition(prompt) {
         text = null;
         // Surface a clear error with a hint to remove the bad key
         if (settingsStatus) {
-          const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
-          const hint = isAuthError
-            ? ' — key may be invalid or have no credits. Hit CLEAR to remove it.'
-            : '';
-          settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}${hint}`;
+          settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}${liveCallHint(err.message)}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
-          // On auth/quota errors clear the bad key and refresh badges — the key is
-          // confirmed invalid so demoting to DEMO is correct. For transient errors
-          // (network, timeout, rate-limit) the key is still valid so keep LIVE badge.
-          if (isAuthError) {
+          // Only auto-clear keys that are confirmed invalid/revoked. Credit/quota errors mean
+          // the key itself is valid — preserve it so the model stays LIVE once the account is
+          // topped up. For transient errors (network, timeout) the key is also kept.
+          if (isInvalidKeyError(err.message)) {
             clearModelKey(model.id);
             checkServerMode();
           }
@@ -1248,12 +1264,10 @@ async function fetchOneRound(prompt) {
           data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
         } catch (err) {
           // Proxy call failed — surface the error so the user knows why Grok is in demo mode
-          const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
-          const hint = isAuthError ? ' — key may be invalid or have no credits. Hit CLEAR to remove it.' : '';
-          settingsStatus.textContent = `✗ Grok live call failed: ${err.message}${hint}`;
+          settingsStatus.textContent = `✗ Grok live call failed: ${err.message}${liveCallHint(err.message)}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
-          if (isAuthError) { clearModelKey('grok'); checkServerMode(); }
+          if (isInvalidKeyError(err.message)) { clearModelKey('grok'); checkServerMode(); }
         }
       }
     }
@@ -1281,12 +1295,10 @@ async function fetchOneRound(prompt) {
           data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
         } catch (err) {
           // Direct call failed — surface the error so the user knows why Claude is in demo mode
-          const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
-          const hint = isAuthError ? ' — key may be invalid or have no credits. Hit CLEAR to remove it.' : '';
-          settingsStatus.textContent = `✗ Claude live call failed: ${err.message}${hint}`;
+          settingsStatus.textContent = `✗ Claude live call failed: ${err.message}${liveCallHint(err.message)}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
-          if (isAuthError) { clearModelKey('claude'); checkServerMode(); }
+          if (isInvalidKeyError(err.message)) { clearModelKey('claude'); checkServerMode(); }
         }
       }
     }
