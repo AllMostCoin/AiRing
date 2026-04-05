@@ -337,8 +337,12 @@ app.post('/api/grok-proxy', grokProxyLimiter, async (req, res) => {
   if (!key || typeof key !== 'string' || !key.trim().startsWith('xai-')) {
     return res.status(400).json({ error: 'valid xAI API key is required (must start with xai-)' });
   }
+  const trimmedKey = key.trim();
   try {
-    const text = await callXAI(prompt.trim(), key.trim());
+    const text = await callXAI(prompt.trim(), trimmedKey);
+    if (text === null) {
+      return res.status(502).json({ error: 'xAI API did not return a response' });
+    }
     res.json({ text });
   } catch (err) {
     res.status(502).json({ error: err.message });
