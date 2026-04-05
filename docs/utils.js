@@ -10,11 +10,20 @@
 // Credit/quota errors preserve the key (the key is valid; user needs to top up).
 // Invalid/revoked key errors suggest using CLEAR.
 function liveCallHint(errMessage) {
+  if (/429|rate.?limit|too many requests/i.test(errMessage)) {
+    return ' — rate limit hit. Wait a moment and try again.';
+  }
   if (/credit|quota/i.test(errMessage)) {
     return ' — credit balance low or quota exceeded. Top up your account to restore live mode.';
   }
   if (/401|403|unauthorized|invalid|forbidden/i.test(errMessage)) {
     return ' — key may be invalid or revoked. Hit CLEAR to remove it.';
+  }
+  if (/model.*not.*found|no.*model|model.*access/i.test(errMessage)) {
+    return ' — model not accessible with this token. Ensure the token has the required model permissions.';
+  }
+  if (/failed to fetch|ECONNREFUSED|ETIMEDOUT/i.test(errMessage)) {
+    return ' — network error. Check your connection and try again.';
   }
   return '';
 }

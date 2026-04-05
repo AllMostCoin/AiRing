@@ -582,17 +582,25 @@ app.post('/api/copilot-proxy', copilotProxyLimiter, async (req, res) => {
     return res.status(400).json({ error: 'GitHub token is required' });
   }
   const trimmedKey = key.trim();
+  if (!trimmedKey.startsWith('ghp_') && !trimmedKey.startsWith('github_pat_') && !trimmedKey.startsWith('ghs_')) {
+    return res.status(400).json({ error: 'GitHub token must start with ghp_, github_pat_, or ghs_. Generate one at github.com/settings/tokens with models:read permission.' });
+  }
   try {
     const res2 = await fetch('https://models.inference.ai.azure.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${trimmedKey}` },
       body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
     });
-    const data = await res2.json();
-    if (!res2.ok) throw new Error(`GitHub Copilot HTTP ${res2.status}: ${data.error?.message || res2.statusText}`);
+    const data = await res2.json().catch(() => ({}));
+    if (!res2.ok) {
+      const msg = data.error?.message || data.message || res2.statusText;
+      console.error(`[copilot] GitHub Models API HTTP ${res2.status}: ${msg}`);
+      throw new Error(`GitHub Copilot HTTP ${res2.status}: ${msg}`);
+    }
     if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('GitHub Copilot returned no content');
     res.json({ text: data.choices[0].message.content.trim() });
   } catch (err) {
+    console.error(`[copilot] proxy error: ${err.message}`);
     res.status(502).json({ error: err.message });
   }
 });

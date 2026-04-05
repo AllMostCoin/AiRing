@@ -14,4 +14,6 @@ window.AIRING_GEMINI_KEY  = '';
 window.AIRING_GROK_KEY    = '';
 window.AIRING_CLAUDE_KEY  = '';
 window.AIRING_OPENAI_KEY  = ''; // enables GPT-4 direct browser calls without a backend
+window.AIRING_MISTRAL_KEY = ''; // requires backend proxy (BACKEND_URL must also be set)
+window.AIRING_COPILOT_KEY = ''; // GitHub PAT with models:read; requires backend proxy
 window.AIRING_API_BASE    = ''; // e.g. 'https://airing-ago1.onrender.com'

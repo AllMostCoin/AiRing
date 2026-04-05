@@ -62,6 +62,20 @@ jobs:
         #                  just like Gemini.  Without this secret Claude runs
         #                  in demo mode on GitHub Pages (users can still supply
         #                  their own key via the in-app settings panel).
+        #
+        # MISTRAL_API_KEY — stored as window.AIRING_MISTRAL_KEY and sent to
+        #                   the backend proxy (/api/mistral-proxy) at request
+        #                   time; the backend forwards it to api.mistral.ai.
+        #                   Mistral's API does not support browser CORS, so a
+        #                   working BACKEND_URL is also required to go LIVE.
+        #
+        # COPILOT_API_KEY — a GitHub PAT with models:read permission; stored
+        #                   as window.AIRING_COPILOT_KEY and sent to the backend
+        #                   proxy (/api/copilot-proxy) at request time.  The
+        #                   GitHub Models inference endpoint does not support
+        #                   browser CORS, so a working BACKEND_URL is also
+        #                   required for Copilot to go LIVE.  Token formats:
+        #                   github_pat_… (fine-grained) or ghp_… (classic).
         run: |
           node -e '
             const fs = require("fs");
@@ -70,6 +84,8 @@ jobs:
               `window.AIRING_GROK_KEY    = ${JSON.stringify(process.env.GROK_API_KEY || "")};`,
               `window.AIRING_CLAUDE_KEY  = ${JSON.stringify(process.env.CLAUDE_API_KEY || "")};`,
               `window.AIRING_OPENAI_KEY  = ${JSON.stringify(process.env.OPENAI_API_KEY || "")};`,
+              `window.AIRING_MISTRAL_KEY = ${JSON.stringify(process.env.MISTRAL_API_KEY || "")};`,
+              `window.AIRING_COPILOT_KEY = ${JSON.stringify(process.env.COPILOT_API_KEY || "")};`,
               `window.AIRING_API_BASE    = ${JSON.stringify(process.env.BACKEND_URL || "")};`,
             ];
             fs.writeFileSync("docs/config.js", lines.join("\n") + "\n");
@@ -79,6 +95,8 @@ jobs:
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          COPILOT_API_KEY: ${{ secrets.COPILOT_API_KEY }}
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
       - name: Setup Pages

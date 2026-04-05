@@ -124,8 +124,7 @@ function getLocalMistralKey() {
   try {
     return localStorage.getItem(LS_MISTRAL_KEY) || window.AIRING_MISTRAL_KEY || '';
   } catch {
-    window.AIRING_MISTRAL_KEY = '';
-    return '';
+    return window.AIRING_MISTRAL_KEY || '';
   }
 }
 
@@ -135,14 +134,14 @@ function setLocalMistralKey(key) {
 
 function clearLocalMistralKey() {
   try { localStorage.removeItem(LS_MISTRAL_KEY); } catch { /* ignore */ }
+  window.AIRING_MISTRAL_KEY = '';
 }
 
 function getLocalCopilotKey() {
   try {
     return localStorage.getItem(LS_COPILOT_KEY) || window.AIRING_COPILOT_KEY || '';
   } catch {
-    window.AIRING_COPILOT_KEY = '';
-    return '';
+    return window.AIRING_COPILOT_KEY || '';
   }
 }
 
@@ -152,6 +151,7 @@ function setLocalCopilotKey(key) {
 
 function clearLocalCopilotKey() {
   try { localStorage.removeItem(LS_COPILOT_KEY); } catch { /* ignore */ }
+  window.AIRING_COPILOT_KEY = '';
 }
 
 // Clear the stored key for a given model id and reset its settings input.
@@ -829,8 +829,15 @@ copilotSaveBtn.addEventListener('click', () => {
     settingsStatus.className = 'settings-status err';
     return;
   }
+  if (!key.startsWith('ghp_') && !key.startsWith('github_pat_') && !key.startsWith('ghs_')) {
+    settingsStatus.textContent = '✗ GitHub token must start with ghp_, github_pat_, or ghs_. Generate one at github.com/settings/tokens with models:read permission.';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
   setLocalCopilotKey(key);
-  settingsStatus.textContent = '✔ GitHub token saved! Copilot will run LIVE.';
+  settingsStatus.textContent = backendAvailable
+    ? '✔ GitHub token saved! Copilot will run LIVE.'
+    : '✔ GitHub token saved! Copilot requires the Node.js backend — set BACKEND_URL to go LIVE.';
   settingsStatus.className = 'settings-status ok';
   checkServerMode();
 });
