@@ -30,7 +30,8 @@
           <strong>GitHub Pages / static hosting:</strong> paste your API key(s) below and hit SAVE — that model goes LIVE instantly (stored in browser local storage only, never sent anywhere except the model's own API).<br />
           <strong>Node.js server:</strong> add keys to your <code>.env</code> file instead — no key entry here needed.<br />
           Gemini key: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> &nbsp;|&nbsp;
-          Grok key: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a>
+          Grok key: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a> &nbsp;|&nbsp;
+          Claude key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>
         </p>
         <div class="settings-row">
           <label class="settings-label" for="gemini-key-input">🔥 GEMINI API KEY</label>
@@ -43,6 +44,12 @@
           <input id="grok-key-input" class="settings-input" type="password" placeholder="xai-…" autocomplete="off" spellcheck="false" />
           <button id="grok-save-btn" class="settings-save-btn">SAVE</button>
           <button id="grok-clear-btn" class="settings-clear-btn">CLEAR</button>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="claude-key-input">🔫 CLAUDE API KEY</label>
+          <input id="claude-key-input" class="settings-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
+          <button id="claude-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="claude-clear-btn" class="settings-clear-btn">CLEAR</button>
         </div>
         <div id="settings-status" class="settings-status"></div>
       </div>
@@ -433,6 +440,7 @@
     <!-- window.AIRING_GEMINI_KEY. It is absent in local dev — that is fine.  -->
     <script>window.AIRING_GEMINI_KEY = window.AIRING_GEMINI_KEY || '';</script>
     <script>window.AIRING_GROK_KEY = window.AIRING_GROK_KEY || '';</script>
+    <script>window.AIRING_CLAUDE_KEY = window.AIRING_CLAUDE_KEY || '';</script>
     <script src="config.js" onerror="void 0"></script>
     <script src="app.js?v=12"></script>
   </body>
