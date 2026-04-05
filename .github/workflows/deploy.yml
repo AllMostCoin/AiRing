@@ -33,18 +33,22 @@ jobs:
         # Claude (Anthropic) keys are intentionally NOT injected here — they
         # would be publicly readable in the static Pages output.  Users supply
         # their own Claude key directly in the settings panel instead.
+        # AIRING_API_BASE points the static site at the Render.com backend so
+        # that all seven models can run live on GitHub Pages.
         run: |
           node -e '
             const fs = require("fs");
             const lines = [
               `window.AIRING_GEMINI_KEY = ${JSON.stringify(process.env.GEMINI_API_KEY || "")};`,
               `window.AIRING_GROK_KEY   = ${JSON.stringify(process.env.GROK_API_KEY || "")};`,
+              `window.AIRING_API_BASE   = ${JSON.stringify(process.env.BACKEND_URL || "")};`,
             ];
             fs.writeFileSync("docs/config.js", lines.join("\n") + "\n");
           '
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

@@ -341,6 +341,7 @@ const grokProxyLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
 });
 
 const ollamaProxyLimiter = rateLimit({
@@ -349,6 +350,7 @@ const ollamaProxyLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
 });
 
 const openaiProxyLimiter = rateLimit({
@@ -357,6 +359,7 @@ const openaiProxyLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
 });
 
 const mistralProxyLimiter = rateLimit({
@@ -365,6 +368,7 @@ const mistralProxyLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
 });
 
 const copilotProxyLimiter = rateLimit({
@@ -373,6 +377,7 @@ const copilotProxyLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
 });
 
 const competeLimiter = rateLimit({
@@ -381,6 +386,7 @@ const competeLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -660,6 +666,7 @@ const pageLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -669,6 +676,10 @@ app.get('*', pageLimiter, (_req, res) => {
   res.sendFile(path.join(__dirname, 'docs', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`AI Ring server running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`AI Ring server running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { app, scoreResponse, generateDemoResponse, AI_MODELS, DEMO_TEMPLATES };
