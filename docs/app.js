@@ -75,6 +75,26 @@ function clearModelKey(modelId) {
   if (actions[modelId]) actions[modelId]();
 }
 
+// Returns a user-facing hint string for a failed live-call error.
+// Credit/quota errors preserve the key (the key is valid; user needs to top up).
+// Invalid/revoked key errors suggest using CLEAR.
+function liveCallHint(errMessage) {
+  if (/credit|quota/i.test(errMessage)) {
+    return ' — credit balance low or quota exceeded. Top up your account to restore live mode.';
+  }
+  if (/401|403|unauthorized|invalid|forbidden/i.test(errMessage)) {
+    return ' — key may be invalid or revoked. Hit CLEAR to remove it.';
+  }
+  return '';
+}
+
+// Returns true only when the error indicates the key itself is invalid/revoked
+// (i.e., auto-clearing it is appropriate). Credit/quota errors are NOT included
+// because the key is valid — the user just needs to fund their account.
+function isInvalidKeyError(errMessage) {
+  return /401|403|unauthorized|invalid|forbidden/i.test(errMessage);
+}
+
 async function callGeminiDirect(prompt, key) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   const res = await fetch(url, {
@@ -101,11 +121,15 @@ async function callGrokProxy(prompt, key) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, key }),
   });
-  const data = await res.json();
+  // Parse JSON only after confirming the server returned a JSON response.
+  // A non-2xx response from a reverse proxy or static host returns HTML, which
+  // would cause "Unexpected token '<'" if parsed unconditionally.
   if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
     const msg = data.error || res.statusText;
     throw new Error(`Grok proxy error: ${msg}`);
   }
+  const data = await res.json();
   return data.text;
 }
 
@@ -125,11 +149,15 @@ async function callClaudeDirect(prompt, key) {
       messages: [{ role: 'user', content: prompt }],
     }),
   });
-  const data = await res.json();
+  // Parse JSON only after confirming the server returned a JSON response.
+  // A non-2xx response from a WAF or rate-limiter may return HTML, which would
+  // cause "Unexpected token '<'" if parsed unconditionally.
   if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
     const msg = data.error?.message || res.statusText;
     throw new Error(`Claude API error: ${msg}`);
   }
+  const data = await res.json();
   return data.content[0].text.trim();
 }
 
@@ -254,9 +282,19 @@ async function runHybridCompetition(prompt) {
         if (model.id === 'gemini' && geminiKey) {
           text = await callGeminiDirect(prompt, geminiKey);
           isDemo = false;
-        } else if (model.id === 'grok' && grokKey) {
+        } else if (model.id === 'grok' && grokKey && backendAvailable) {
+          // Grok requires the backend proxy (x.ai blocks browser CORS).
+          // Skip on static/GitHub Pages hosting where backendAvailable is false.
           text = await callGrokProxy(prompt, grokKey);
           isDemo = false;
+        } else if (model.id === 'grok' && grokKey && !backendAvailable) {
+          // User has a Grok key but there is no backend to proxy through — show a
+          // one-time hint so the user understands why Grok stays in demo mode.
+          if (settingsStatus) {
+            settingsStatus.textContent = '⚠ Grok key saved but no backend available — Grok requires the Node.js server to proxy requests (x.ai blocks browser CORS). Run the server locally or deploy it to go LIVE.';
+            settingsStatus.className = 'settings-status err';
+            settingsPanel.classList.remove('hidden');
+          }
         } else if (model.id === 'claude' && claudeKey) {
           text = await callClaudeDirect(prompt, claudeKey);
           isDemo = false;
@@ -265,17 +303,13 @@ async function runHybridCompetition(prompt) {
         text = null;
         // Surface a clear error with a hint to remove the bad key
         if (settingsStatus) {
-          const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
-          const hint = isAuthError
-            ? ' — key may be invalid or have no credits. Hit CLEAR to remove it.'
-            : '';
-          settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}${hint}`;
+          settingsStatus.textContent = `✗ ${model.name} live call failed: ${err.message}${liveCallHint(err.message)}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
-          // On auth/quota errors clear the bad key and refresh badges — the key is
-          // confirmed invalid so demoting to DEMO is correct. For transient errors
-          // (network, timeout, rate-limit) the key is still valid so keep LIVE badge.
-          if (isAuthError) {
+          // Only auto-clear keys that are confirmed invalid/revoked. Credit/quota errors mean
+          // the key itself is valid — preserve it so the model stays LIVE once the account is
+          // topped up. For transient errors (network, timeout) the key is also kept.
+          if (isInvalidKeyError(err.message)) {
             clearModelKey(model.id);
             checkServerMode();
           }
@@ -691,17 +725,20 @@ async function checkServerMode() {
     const grokKey   = getLocalGrokKey();
     const claudeKey = getLocalClaudeKey();
     const localConfigured = {
-      gpt4: false, claude: !!claudeKey, gemini: !!geminiKey, mistral: false, copilot: false, grok: !!grokKey,
+      gpt4: false, claude: !!claudeKey, gemini: !!geminiKey, mistral: false, copilot: false,
+      // Grok requires the backend proxy (x.ai blocks browser CORS); without a backend it cannot
+      // run live even if a key is present, so keep it as DEMO to avoid a misleading LIVE badge.
+      grok: false,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(localConfigured);
-    // Auto-open settings panel once per session when no keys are present
-    // so users know exactly how to activate live mode.
-    if (!geminiKey && !grokKey && !claudeKey && !sessionStorage.getItem('airing_settings_shown')) {
+    // Auto-open settings panel once per session when no keys that work on static hosting
+    // are present, so users know exactly how to activate live mode.
+    if (!geminiKey && !claudeKey && !sessionStorage.getItem('airing_settings_shown')) {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
-      settingsStatus.textContent = '⚡ Paste your Gemini, Grok, or Claude key and hit SAVE to go LIVE!';
+      settingsStatus.textContent = '⚡ Paste your Gemini or Claude key and hit SAVE to go LIVE! (Grok requires the Node.js backend.)';
       settingsStatus.className = 'settings-status info';
     }
   }
@@ -1182,6 +1219,9 @@ document.querySelectorAll('.rounds-btn').forEach((btn) => {
   });
 });
 
+// Initialise pip visibility for the default round count (TOTAL_ROUNDS = 1)
+resetRoundPips();
+
 function showRoundBanner(roundNum) {
   roundLabel.textContent = `ROUND ${roundNum}`;
   roundIndicator.classList.remove('hidden', 'stamp');
@@ -1240,8 +1280,12 @@ async function fetchOneRound(prompt) {
           data.winnerId = newWinner.modelId;
           data.winnerName = newWinner.name;
           data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
-        } catch (_) {
-          // Proxy call failed — keep the demo response for Grok
+        } catch (err) {
+          // Proxy call failed — surface the error so the user knows why Grok is in demo mode
+          settingsStatus.textContent = `✗ Grok live call failed: ${err.message}${liveCallHint(err.message)}`;
+          settingsStatus.className = 'settings-status err';
+          settingsPanel.classList.remove('hidden');
+          if (isInvalidKeyError(err.message)) { clearModelKey('grok'); checkServerMode(); }
         }
       }
     }
@@ -1267,8 +1311,12 @@ async function fetchOneRound(prompt) {
           data.winnerId = newWinner.modelId;
           data.winnerName = newWinner.name;
           data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
-        } catch (_) {
-          // Direct call failed — keep the demo response for Claude
+        } catch (err) {
+          // Direct call failed — surface the error so the user knows why Claude is in demo mode
+          settingsStatus.textContent = `✗ Claude live call failed: ${err.message}${liveCallHint(err.message)}`;
+          settingsStatus.className = 'settings-status err';
+          settingsPanel.classList.remove('hidden');
+          if (isInvalidKeyError(err.message)) { clearModelKey('claude'); checkServerMode(); }
         }
       }
     }
