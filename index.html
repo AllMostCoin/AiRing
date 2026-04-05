@@ -476,6 +476,77 @@
     @media (max-width: 560px) {
       .settings-inner { grid-template-columns: 1fr; }
     }
+
+    /* ── Mode tabs ── */
+    .mode-tabs { display: flex; gap: .4rem; }
+    .mode-tab {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      padding: .3rem .9rem;
+      border-radius: .5rem;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: .82rem;
+      font-weight: 700;
+      transition: color .15s, border-color .15s, background .15s;
+    }
+    .mode-tab.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(249,212,35,.06);
+    }
+    .mode-tab:hover:not(.active) { color: var(--text); border-color: #444; }
+
+    /* ── Ring settings layout ── */
+    .ring-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .7rem;
+    }
+    @media (max-width: 560px) { .ring-cols { grid-template-columns: 1fr; } }
+    .ring-sub-label { margin-top: .5rem; }
+
+    /* ── Ring message bubbles ── */
+    .msg.gemini .msg-avatar { background: linear-gradient(135deg, #1a73e8, #34a853); }
+    .msg.grok { flex-direction: row-reverse; }
+    .msg.grok .msg-content { align-items: flex-end; }
+    .msg.grok .msg-bubble  { background: #1a0d10; border: 1px solid #3d1520; }
+    .msg.grok .msg-avatar  { background: linear-gradient(135deg, #ff4e50, #c0392b); }
+
+    .msg-source {
+      font-size: .64rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .1rem;
+    }
+    .msg.gemini .msg-source { color: #4a9fe8; }
+    .msg.grok   .msg-source { color: #ff6b6b; }
+
+    /* ── Ring banners ── */
+    .ring-banner {
+      text-align: center;
+      font-size: .78rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: .5rem;
+      padding: .32rem .8rem;
+      margin: 0 auto;
+      max-width: 460px;
+      width: 100%;
+    }
+
+    /* ── Stop button ── */
+    #stopBtn {
+      background: #2e0a0a;
+      color: #ff6b6b;
+      border: 1px solid #5a1212;
+      padding: 0 .9rem;
+      font-size: .82rem;
+    }
+    #stopBtn:hover:not(:disabled) { background: #3d1010; }
   </style>
 </head>
 <body>
@@ -491,25 +562,81 @@
   <!-- Settings panel -->
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-inner">
-      <div>
+
+      <!-- Mode toggle -->
+      <div class="full">
+        <label>Mode</label>
+        <div class="mode-tabs">
+          <button class="mode-tab active" id="modeChatTab" onclick="setMode('chat')">💬 Chat</button>
+          <button class="mode-tab"        id="modeRingTab" onclick="setMode('ring')">⚔️ Ring</button>
+        </div>
+      </div>
+
+      <!-- Chat-mode rows -->
+      <div id="chatProviderRow">
         <label for="provider">Provider</label>
         <select id="provider" onchange="updateProviderUI()">
           <option value="gemini">Google Gemini</option>
           <option value="grok">xAI Grok</option>
         </select>
       </div>
-      <div>
+      <div id="chatModelRow">
         <label for="model">Model</label>
         <select id="model"></select>
       </div>
-      <div class="full">
+      <div class="full" id="chatKeyRow">
         <label for="apiKey" id="apiKeyLabel">API Key</label>
         <input type="password" id="apiKey" placeholder="" autocomplete="off" />
         <p class="key-hint" id="apiKeyHint"></p>
       </div>
+
+      <!-- Ring-mode section (hidden by default) -->
+      <div class="full" id="ringRows" style="display:none">
+        <div class="ring-cols">
+          <div>
+            <label for="geminiKeyRing">Gemini API Key</label>
+            <input type="password" id="geminiKeyRing" placeholder="AIza…" autocomplete="off" />
+            <p class="key-hint">
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>
+            </p>
+            <label for="geminiModelRing" class="ring-sub-label">Gemini Model</label>
+            <select id="geminiModelRing">
+              <option value="gemini-2.0-flash">gemini-2.0-flash (fast)</option>
+              <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+              <option value="gemini-1.5-pro" selected>gemini-1.5-pro</option>
+              <option value="gemini-2.0-pro-exp">gemini-2.0-pro-exp</option>
+            </select>
+          </div>
+          <div>
+            <label for="grokKeyRing">Grok API Key</label>
+            <input type="password" id="grokKeyRing" placeholder="xai-…" autocomplete="off" />
+            <p class="key-hint">
+              <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a>
+            </p>
+            <label for="grokModelRing" class="ring-sub-label">Grok Model</label>
+            <select id="grokModelRing">
+              <option value="grok-3-fast" selected>grok-3-fast (fast)</option>
+              <option value="grok-3">grok-3</option>
+              <option value="grok-3-mini">grok-3-mini</option>
+              <option value="grok-3-mini-fast">grok-3-mini-fast</option>
+              <option value="grok-2-1212">grok-2-1212</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:.6rem;max-width:200px">
+          <label for="ringRounds">Rounds</label>
+          <select id="ringRounds">
+            <option value="2">2 rounds</option>
+            <option value="3" selected>3 rounds</option>
+            <option value="5">5 rounds</option>
+            <option value="7">7 rounds</option>
+          </select>
+        </div>
+      </div>
+
       <p class="key-warn full">
-        ⚠️ Your key is sent directly to the AI provider from your browser and visible in DevTools.
-        Never share this page with your key pre-filled.
+        ⚠️ Your keys are sent directly to the AI providers from your browser and visible in DevTools.
+        Never share this page with keys pre-filled.
       </p>
     </div>
   </div>
@@ -529,14 +656,26 @@
       <textarea id="question" placeholder="Ask anything… (Ctrl+Enter to send)" rows="1"></textarea>
       <div class="input-hint" id="charCount"></div>
     </div>
+    <button class="btn" id="stopBtn" style="display:none" title="Stop ring" onclick="stopRing()">⏹</button>
     <button class="btn btn-send" id="sendBtn" title="Send (Ctrl+Enter)" onclick="fight()">⚔️</button>
   </div>
 
   <script>
     // ── Constants ────────────────────────────────────────────────────────────
-    const STORAGE_MODEL    = 'airing_model';
-    const STORAGE_HISTORY  = 'airing_history';
-    const STORAGE_PROVIDER = 'airing_provider';
+    const STORAGE_MODEL           = 'airing_model';
+    const STORAGE_HISTORY         = 'airing_history';
+    const STORAGE_PROVIDER        = 'airing_provider';
+    const STORAGE_MODE            = 'airing_mode';
+    const STORAGE_RING_GEMINI_MDL = 'airing_ring_gemini_model';
+    const STORAGE_RING_GROK_MDL   = 'airing_ring_grok_model';
+    const STORAGE_RING_ROUNDS     = 'airing_ring_rounds';
+
+    // Ring Protocol — forces both AIs into a terse, abbreviated debate style
+    const RING_SYSTEM =
+      'Ring Protocol — you are in a live AI debate ring.\n' +
+      'Rules: ≤60 words per reply. No greetings, no preamble, no sign-off.\n' +
+      'Start your argument immediately. Use compact notation: → ≈ w/ b/c & + vs.\n' +
+      'Be incisive, sharp, and direct.';
 
     // Per-provider config: models, key placeholder, hint HTML
     const PROVIDERS = {
@@ -570,22 +709,51 @@
     let chatHistory  = [];
     let isLoading    = false;
     let settingsOpen = true;
+    let ringMode     = false;
+    let ringAborted  = false;
 
     // ── DOM refs ─────────────────────────────────────────────────────────────
-    const apiKeyInput    = document.getElementById('apiKey');
-    const apiKeyLabel    = document.getElementById('apiKeyLabel');
-    const apiKeyHint     = document.getElementById('apiKeyHint');
-    const providerSelect = document.getElementById('provider');
-    const modelSelect    = document.getElementById('model');
-    const questionEl     = document.getElementById('question');
-    const sendBtn        = document.getElementById('sendBtn');
-    const chatArea       = document.getElementById('chatArea');
-    const emptyState     = document.getElementById('emptyState');
-    const settingsPanel  = document.getElementById('settingsPanel');
-    const settingsToggle = document.getElementById('settingsToggle');
-    const charCountEl    = document.getElementById('charCount');
+    const apiKeyInput         = document.getElementById('apiKey');
+    const apiKeyLabel         = document.getElementById('apiKeyLabel');
+    const apiKeyHint          = document.getElementById('apiKeyHint');
+    const providerSelect      = document.getElementById('provider');
+    const modelSelect         = document.getElementById('model');
+    const questionEl          = document.getElementById('question');
+    const sendBtn             = document.getElementById('sendBtn');
+    const stopBtn             = document.getElementById('stopBtn');
+    const chatArea            = document.getElementById('chatArea');
+    const emptyState          = document.getElementById('emptyState');
+    const settingsPanel       = document.getElementById('settingsPanel');
+    const settingsToggle      = document.getElementById('settingsToggle');
+    const charCountEl         = document.getElementById('charCount');
+    const modeChatTab         = document.getElementById('modeChatTab');
+    const modeRingTab         = document.getElementById('modeRingTab');
+    const chatProviderRow     = document.getElementById('chatProviderRow');
+    const chatModelRow        = document.getElementById('chatModelRow');
+    const chatKeyRow          = document.getElementById('chatKeyRow');
+    const ringRows            = document.getElementById('ringRows');
+    const geminiKeyRingInput  = document.getElementById('geminiKeyRing');
+    const geminiMdlRingSelect = document.getElementById('geminiModelRing');
+    const grokKeyRingInput    = document.getElementById('grokKeyRing');
+    const grokMdlRingSelect   = document.getElementById('grokModelRing');
+    const ringRoundsSelect    = document.getElementById('ringRounds');
 
-    // ── Provider UI ───────────────────────────────────────────────────────────
+    // ── Mode switching ────────────────────────────────────────────────────────
+    function setMode(mode) {
+      ringMode = mode === 'ring';
+      modeChatTab.classList.toggle('active', !ringMode);
+      modeRingTab.classList.toggle('active',  ringMode);
+      chatProviderRow.style.display = ringMode ? 'none' : '';
+      chatModelRow.style.display    = ringMode ? 'none' : '';
+      chatKeyRow.style.display      = ringMode ? 'none' : '';
+      ringRows.style.display        = ringMode ? '' : 'none';
+      questionEl.placeholder        = ringMode
+        ? 'Enter debate topic… (Ctrl+Enter to start the ring)'
+        : 'Ask anything… (Ctrl+Enter to send)';
+      localStorage.setItem(STORAGE_MODE, mode);
+    }
+
+    // ── Provider UI (Chat mode) ───────────────────────────────────────────────
     function updateProviderUI() {
       const cfg = PROVIDERS[providerSelect.value] || PROVIDERS.gemini;
       apiKeyLabel.textContent = cfg.label;
@@ -614,6 +782,27 @@
     modelSelect.addEventListener('change', () =>
       localStorage.setItem(`${STORAGE_MODEL}_${providerSelect.value}`, modelSelect.value)
     );
+
+    // Restore ring model + rounds preferences
+    const savedGeminiRingMdl = localStorage.getItem(STORAGE_RING_GEMINI_MDL);
+    if (savedGeminiRingMdl) geminiMdlRingSelect.value = savedGeminiRingMdl;
+    const savedGrokRingMdl = localStorage.getItem(STORAGE_RING_GROK_MDL);
+    if (savedGrokRingMdl) grokMdlRingSelect.value = savedGrokRingMdl;
+    const savedRingRounds = localStorage.getItem(STORAGE_RING_ROUNDS);
+    if (savedRingRounds) ringRoundsSelect.value = savedRingRounds;
+
+    geminiMdlRingSelect.addEventListener('change', () =>
+      localStorage.setItem(STORAGE_RING_GEMINI_MDL, geminiMdlRingSelect.value)
+    );
+    grokMdlRingSelect.addEventListener('change', () =>
+      localStorage.setItem(STORAGE_RING_GROK_MDL, grokMdlRingSelect.value)
+    );
+    ringRoundsSelect.addEventListener('change', () =>
+      localStorage.setItem(STORAGE_RING_ROUNDS, ringRoundsSelect.value)
+    );
+
+    // Restore mode (after DOM refs are ready)
+    if (localStorage.getItem(STORAGE_MODE) === 'ring') setMode('ring');
 
     try {
       const saved = localStorage.getItem(STORAGE_HISTORY);
@@ -644,23 +833,51 @@
           !confirm('Start a new conversation? The current history will be cleared.')) return;
       chatHistory = [];
       localStorage.removeItem(STORAGE_HISTORY);
-      chatArea.querySelectorAll('.msg, .typing-indicator').forEach(el => el.remove());
+      chatArea.querySelectorAll('.msg, .typing-indicator, .ring-banner').forEach(el => el.remove());
       showEmpty();
     }
 
     // ── Main send ─────────────────────────────────────────────────────────────
     async function fight() {
+      const question = questionEl.value.trim();
+      if (!question || isLoading) return;
+
+      // ── Ring mode ──
+      if (ringMode) {
+        const geminiKey = geminiKeyRingInput.value.trim();
+        const grokKey   = grokKeyRingInput.value.trim();
+        if (!geminiKey) {
+          if (!settingsOpen) toggleSettings();
+          flashInput(geminiKeyRingInput, 'Enter Gemini key');
+          return;
+        }
+        if (!grokKey) {
+          if (!settingsOpen) toggleSettings();
+          flashInput(grokKeyRingInput, 'Enter Grok key');
+          return;
+        }
+        questionEl.value = '';
+        autoResize();
+        charCountEl.textContent = '';
+        await ringFight(
+          question,
+          geminiKey, geminiMdlRingSelect.value,
+          grokKey,   grokMdlRingSelect.value,
+          parseInt(ringRoundsSelect.value, 10) || 3
+        );
+        return;
+      }
+
+      // ── Chat mode ──
       const apiKey   = apiKeyInput.value.trim();
       const model    = modelSelect.value;
       const provider = providerSelect.value;
-      const question = questionEl.value.trim();
 
       if (!apiKey) {
         if (!settingsOpen) toggleSettings();
         flashInput(apiKeyInput, 'Enter your API key here');
         return;
       }
-      if (!question || isLoading) return;
 
       const ts = Date.now();
       chatHistory.push({ role: 'user', text: question, ts });
@@ -677,12 +894,9 @@
       const typingEl = showTyping();
 
       try {
-        let text;
-        if (provider === 'grok') {
-          text = await callGrok(apiKey, model);
-        } else {
-          text = await callGemini(apiKey, model);
-        }
+        const text = provider === 'grok'
+          ? await callGrok(apiKey, model)
+          : await callGemini(apiKey, model);
 
         removeTyping(typingEl);
         const aiTs = Date.now();
@@ -699,20 +913,105 @@
       }
     }
 
-    // ── Gemini REST API ───────────────────────────────────────────────────────
-    // chatHistory entries use role 'user'|'model' matching Gemini's schema.
-    async function callGemini(apiKey, model) {
-      const contents = chatHistory.map(m => ({
-        role:  m.role,
-        parts: [{ text: m.text }]
-      }));
+    // ── Ring fight orchestration ──────────────────────────────────────────────
+    // Gemini and Grok alternate N rounds, each constrained to the RING_SYSTEM
+    // prompt (≤60 words, no preamble, compact notation).
+    //
+    // History framing (Gemini sees itself as "model", Grok as "user"):
+    //   Gemini contents: [topic→user, gemini1→model, grok1→user, gemini2→model, ...]
+    // History framing (Grok sees itself as "assistant", Gemini as "user"):
+    //   Grok messages:   [system, gemini1→user, grok1→assistant, gemini2→user, ...]
+    async function ringFight(topic, geminiKey, geminiModel, grokKey, grokModel, rounds) {
+      ringAborted  = false;
+      stopBtn.style.display = '';
+      setLoading(true);
+      hideEmpty();
+      if (settingsOpen) toggleSettings();
 
-      // Key sent as header to keep it out of the URL / server logs.
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+      renderRingBanner(`⚔️ Ring Topic: ${topic}`);
+
+      const ringHistory = []; // { source: 'gemini'|'grok', text, ts, round }
+
+      for (let round = 0; round < rounds && !ringAborted; round++) {
+        renderRingBanner(`— Round ${round + 1} of ${rounds} —`);
+
+        // ── Gemini turn ──────────────────────────────────────────────────────
+        const geminiTyping = showTypingFor('gemini');
+
+        const geminiContents = [{ role: 'user', parts: [{ text: topic }] }];
+        for (const entry of ringHistory) {
+          geminiContents.push({
+            role:  entry.source === 'gemini' ? 'model' : 'user',
+            parts: [{ text: entry.text }]
+          });
+        }
+
+        let geminiText;
+        try {
+          geminiText = await callGeminiRaw(geminiKey, geminiModel, geminiContents, RING_SYSTEM);
+        } catch (err) {
+          removeTyping(geminiTyping);
+          renderError(`❌ Gemini (round ${round + 1}): ${err.message}`);
+          ringAborted = true;
+          break;
+        }
+        if (ringAborted) { removeTyping(geminiTyping); break; }
+        removeTyping(geminiTyping);
+
+        const gts = Date.now();
+        ringHistory.push({ source: 'gemini', text: geminiText, ts: gts, round: round + 1 });
+        renderRingMessage('gemini', geminiText, gts, round + 1);
+
+        if (ringAborted) break;
+
+        // ── Grok turn ────────────────────────────────────────────────────────
+        const grokTyping = showTypingFor('grok');
+
+        const grokMessages = [{ role: 'system', content: RING_SYSTEM }];
+        for (const entry of ringHistory) {
+          grokMessages.push({
+            role:    entry.source === 'grok' ? 'assistant' : 'user',
+            content: entry.text
+          });
+        }
+
+        let grokText;
+        try {
+          grokText = await callGrokRaw(grokKey, grokModel, grokMessages);
+        } catch (err) {
+          removeTyping(grokTyping);
+          renderError(`❌ Grok (round ${round + 1}): ${err.message}`);
+          ringAborted = true;
+          break;
+        }
+        if (ringAborted) { removeTyping(grokTyping); break; }
+        removeTyping(grokTyping);
+
+        const xts = Date.now();
+        ringHistory.push({ source: 'grok', text: grokText, ts: xts, round: round + 1 });
+        renderRingMessage('grok', grokText, xts, round + 1);
+      }
+
+      if (!ringAborted) renderRingBanner('🏆 Fight concluded');
+      stopBtn.style.display = 'none';
+      setLoading(false);
+    }
+
+    function stopRing() {
+      ringAborted = true;
+      stopBtn.style.display = 'none';
+    }
+
+    // ── Gemini REST API ───────────────────────────────────────────────────────
+    async function callGeminiRaw(apiKey, model, contents, systemPrompt) {
+      const url  = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+      const body = { contents };
+      if (systemPrompt) body.system_instruction = { parts: [{ text: systemPrompt }] };
+
       const res  = await fetch(url, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body:    JSON.stringify({ contents })
+        body:    JSON.stringify(body)
       });
 
       const data = await res.json();
@@ -723,15 +1022,14 @@
       return text;
     }
 
-    // ── xAI Grok API (OpenAI-compatible) ─────────────────────────────────────
-    // chatHistory entries use role 'user'|'model'; we map 'model' → 'assistant'
-    // for the OpenAI-compatible messages array.
-    async function callGrok(apiKey, model) {
-      const messages = chatHistory.map(m => ({
-        role:    m.role === 'model' ? 'assistant' : 'user',
-        content: m.text
-      }));
+    // Chat-mode wrapper: builds contents from the shared chatHistory
+    async function callGemini(apiKey, model) {
+      const contents = chatHistory.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+      return callGeminiRaw(apiKey, model, contents, null);
+    }
 
+    // ── xAI Grok API (OpenAI-compatible) ─────────────────────────────────────
+    async function callGrokRaw(apiKey, model, messages) {
       const res = await fetch('https://api.x.ai/v1/chat/completions', {
         method:  'POST',
         headers: {
@@ -747,6 +1045,15 @@
       const text = data?.choices?.[0]?.message?.content;
       if (!text) throw new Error('Grok returned an empty response.');
       return text;
+    }
+
+    // Chat-mode wrapper: builds messages from the shared chatHistory
+    async function callGrok(apiKey, model) {
+      const messages = chatHistory.map(m => ({
+        role:    m.role === 'model' ? 'assistant' : 'user',
+        content: m.text
+      }));
+      return callGrokRaw(apiKey, model, messages);
     }
 
     // ── Render helpers ────────────────────────────────────────────────────────
@@ -795,6 +1102,69 @@
       wrap.appendChild(content);
       chatArea.appendChild(wrap);
       chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    // ── Ring render helpers ───────────────────────────────────────────────────
+    function renderRingMessage(source, text, ts, round) {
+      const wrap   = el('div', `msg ${source}`);
+      const avatar = el('div', 'msg-avatar');
+      avatar.textContent = source === 'gemini' ? 'G' : 'X';
+
+      const content  = el('div', 'msg-content');
+      const srcLabel = el('div', 'msg-source');
+      srcLabel.textContent = (source === 'gemini' ? 'Gemini' : 'Grok') + ` — Round ${round}`;
+
+      const bubble = el('div', 'msg-bubble');
+      bubble.innerHTML = renderMarkdown(text);
+      bubble.querySelectorAll('pre').forEach(pre => {
+        const btn = document.createElement('button');
+        btn.className   = 'pre-copy';
+        btn.textContent = 'Copy';
+        btn.onclick     = () => copyText(pre.querySelector('code')?.innerText ?? pre.innerText, btn);
+        pre.appendChild(btn);
+      });
+
+      const meta    = el('div', 'msg-meta');
+      const time    = el('span');
+      time.textContent = formatTime(ts);
+      meta.appendChild(time);
+      const copyBtn = document.createElement('button');
+      copyBtn.className   = 'copy-btn';
+      copyBtn.textContent = '⎘ Copy';
+      copyBtn.onclick     = () => copyText(text, copyBtn);
+      meta.appendChild(copyBtn);
+
+      content.appendChild(srcLabel);
+      content.appendChild(bubble);
+      content.appendChild(meta);
+      wrap.appendChild(avatar);
+      wrap.appendChild(content);
+      chatArea.appendChild(wrap);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function renderRingBanner(text) {
+      const banner = el('div', 'ring-banner');
+      banner.textContent = text;
+      chatArea.appendChild(banner);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function showTypingFor(source) {
+      const wrap   = el('div', 'typing-indicator');
+      const avatar = el('div', 'msg-avatar');
+      avatar.textContent      = source === 'gemini' ? 'G' : 'X';
+      avatar.style.background = source === 'gemini'
+        ? 'linear-gradient(135deg, #1a73e8, #34a853)'
+        : 'linear-gradient(135deg, #ff4e50, #c0392b)';
+      const dots = el('div', 'typing-dots');
+      dots.innerHTML = '<span></span><span></span><span></span>';
+      if (source === 'grok') wrap.style.flexDirection = 'row-reverse';
+      wrap.appendChild(avatar);
+      wrap.appendChild(dots);
+      chatArea.appendChild(wrap);
+      chatArea.scrollTop = chatArea.scrollHeight;
+      return wrap;
     }
 
     function renderError(text) {
