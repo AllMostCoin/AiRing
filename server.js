@@ -170,11 +170,11 @@ async function callCopilot(prompt) {
   // GitHub Models inference endpoint — requires a GitHub token with model permissions
   const key = process.env.GITHUB_TOKEN;
   if (!key) return null;
-  const res = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+  const res = await fetch('https://models.github.ai/inference/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'openai/gpt-4o',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 512,
     }),
@@ -565,7 +565,7 @@ app.post('/api/mistral-proxy', mistralProxyLimiter, async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Route: POST /api/copilot-proxy — proxy a user-supplied GitHub token through the backend
-// Browsers cannot call models.inference.ai.azure.com directly (CORS). This endpoint
+// Browsers cannot call models.github.ai directly (CORS). This endpoint
 // accepts the user's personal GitHub token in the request body, forwards the call
 // server-side (CORS-free), and returns the text response.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -586,10 +586,10 @@ app.post('/api/copilot-proxy', copilotProxyLimiter, async (req, res) => {
     return res.status(400).json({ error: 'GitHub token must start with ghp_, github_pat_, or ghs_. Generate one at github.com/settings/tokens with models:read permission.' });
   }
   try {
-    const res2 = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+    const res2 = await fetch('https://models.github.ai/inference/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${trimmedKey}` },
-      body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
+      body: JSON.stringify({ model: 'openai/gpt-4o', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
     });
     const data = await res2.json().catch(() => ({}));
     if (!res2.ok) {
