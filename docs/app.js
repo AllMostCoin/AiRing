@@ -7,10 +7,11 @@
 const API_BASE = '';          // same-origin; adjust if server runs elsewhere
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Local API key storage (Gemini + Grok — browser ↔ API directly, no backend)
+// Local API key storage (Gemini + Grok + Claude — browser ↔ API directly, no backend)
 // ─────────────────────────────────────────────────────────────────────────────
 const LS_GEMINI_KEY = 'airing_gemini_key';
 const LS_GROK_KEY   = 'airing_grok_key';
+const LS_CLAUDE_KEY = 'airing_claude_key';
 
 function getLocalGeminiKey() {
   // Priority: user-supplied key in localStorage → site-wide key injected at deploy time
@@ -47,6 +48,22 @@ function clearLocalGrokKey() {
   window.AIRING_GROK_KEY = '';
 }
 
+function getLocalClaudeKey() {
+  try {
+    return localStorage.getItem(LS_CLAUDE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function setLocalClaudeKey(key) {
+  try { localStorage.setItem(LS_CLAUDE_KEY, key); } catch { /* ignore */ }
+}
+
+function clearLocalClaudeKey() {
+  try { localStorage.removeItem(LS_CLAUDE_KEY); } catch { /* ignore */ }
+}
+
 async function callGeminiDirect(prompt, key) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
   const res = await fetch(url, {
@@ -81,6 +98,30 @@ async function callGrokDirect(prompt, key) {
     throw new Error(`Grok API error: ${msg}`);
   }
   return data.choices[0].message.content.trim();
+}
+
+async function callClaudeDirect(prompt, key) {
+  // Anthropic Claude — called directly from the browser
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 512,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const msg = data.error?.message || res.statusText;
+    throw new Error(`Claude API error: ${msg}`);
+  }
+  return data.content[0].text.trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,6 +235,7 @@ function runLocalCompetition(prompt) {
 async function runHybridCompetition(prompt) {
   const geminiKey = getLocalGeminiKey();
   const grokKey   = getLocalGrokKey();
+  const claudeKey = getLocalClaudeKey();
   const results = await Promise.all(
     AI_MODELS_DATA.map(async (model) => {
       const start = Date.now();
@@ -205,6 +247,9 @@ async function runHybridCompetition(prompt) {
           isDemo = false;
         } else if (model.id === 'grok' && grokKey) {
           text = await callGrokDirect(prompt, grokKey);
+          isDemo = false;
+        } else if (model.id === 'claude' && claudeKey) {
+          text = await callClaudeDirect(prompt, claudeKey);
           isDemo = false;
         }
       } catch (err) {
@@ -273,6 +318,9 @@ const geminiClearBtn  = document.getElementById('gemini-clear-btn');
 const grokKeyInput    = document.getElementById('grok-key-input');
 const grokSaveBtn     = document.getElementById('grok-save-btn');
 const grokClearBtn    = document.getElementById('grok-clear-btn');
+const claudeKeyInput  = document.getElementById('claude-key-input');
+const claudeSaveBtn   = document.getElementById('claude-save-btn');
+const claudeClearBtn  = document.getElementById('claude-clear-btn');
 const settingsStatus  = document.getElementById('settings-status');
 const roundIndicator  = document.getElementById('round-indicator');
 const roundLabel      = document.getElementById('round-label');
@@ -309,7 +357,9 @@ settingsBtn.addEventListener('click', () => {
       geminiKeyInput.value = stored;
       const grokStored = getLocalGrokKey();
       grokKeyInput.value = grokStored;
-      if (stored || grokStored) {
+      const claudeStored = getLocalClaudeKey();
+      claudeKeyInput.value = claudeStored;
+      if (stored || grokStored || claudeStored) {
         settingsStatus.textContent = '● Key(s) loaded from local storage';
         settingsStatus.className = 'settings-status ok';
       } else {
@@ -357,6 +407,27 @@ grokClearBtn.addEventListener('click', () => {
   clearLocalGrokKey();
   grokKeyInput.value = '';
   settingsStatus.textContent = '✔ Grok key cleared. Grok will run in DEMO mode.';
+  settingsStatus.className = 'settings-status ok';
+  checkServerMode();
+});
+
+claudeSaveBtn.addEventListener('click', () => {
+  const key = claudeKeyInput.value.trim();
+  if (!key) {
+    settingsStatus.textContent = '✗ Please enter a Claude key first.';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  setLocalClaudeKey(key);
+  settingsStatus.textContent = '✔ Claude key saved! Claude will run LIVE.';
+  settingsStatus.className = 'settings-status ok';
+  checkServerMode();
+});
+
+claudeClearBtn.addEventListener('click', () => {
+  clearLocalClaudeKey();
+  claudeKeyInput.value = '';
+  settingsStatus.textContent = '✔ Claude key cleared. Claude will run in DEMO mode.';
   settingsStatus.className = 'settings-status ok';
   checkServerMode();
 });
@@ -580,18 +651,19 @@ async function checkServerMode() {
     backendGrokConfigured   = false;
     const geminiKey = getLocalGeminiKey();
     const grokKey   = getLocalGrokKey();
+    const claudeKey = getLocalClaudeKey();
     const localConfigured = {
-      gpt4: false, claude: false, gemini: !!geminiKey, mistral: false, copilot: false, grok: !!grokKey,
+      gpt4: false, claude: !!claudeKey, gemini: !!geminiKey, mistral: false, copilot: false, grok: !!grokKey,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(localConfigured);
     // Auto-open settings panel once per session when no keys are present
     // so users know exactly how to activate live mode.
-    if (!geminiKey && !grokKey && !sessionStorage.getItem('airing_settings_shown')) {
+    if (!geminiKey && !grokKey && !claudeKey && !sessionStorage.getItem('airing_settings_shown')) {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
-      settingsStatus.textContent = '⚡ Paste your Gemini or Grok key and hit SAVE to go LIVE!';
+      settingsStatus.textContent = '⚡ Paste your Gemini, Grok, or Claude key and hit SAVE to go LIVE!';
       settingsStatus.className = 'settings-status info';
     }
   }
@@ -611,6 +683,7 @@ async function checkServerMode() {
     const configured = data.configured || {};
     if (!configured.gemini && getLocalGeminiKey()) configured.gemini = true;
     if (!configured.grok   && getLocalGrokKey())   configured.grok   = true;
+    if (!configured.claude && getLocalClaudeKey()) configured.claude = true;
     const anyLive = Object.values(configured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(configured);
