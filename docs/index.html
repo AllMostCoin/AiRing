@@ -32,7 +32,7 @@
           Gemini key: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> &nbsp;|&nbsp;
           Grok key: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a> &nbsp;|&nbsp;
           Claude key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> &nbsp;|&nbsp;
-          OpenClaw key: <a href="https://openclaw.ai" target="_blank" rel="noopener">openclaw.ai</a> &nbsp;|&nbsp;
+          Ollama model: <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a> &nbsp;|&nbsp;
           OpenAI key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> &nbsp;|&nbsp;
           Mistral key: <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener">console.mistral.ai</a> &nbsp;|&nbsp;
           GitHub token: <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a> (needs Models permission)
@@ -56,16 +56,16 @@
           <button id="claude-clear-btn" class="settings-clear-btn">CLEAR</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="openclaw-key-input">🌊 OPENCLAW API KEY</label>
-          <input id="openclaw-key-input" class="settings-input" type="password" placeholder="ck_…" autocomplete="off" spellcheck="false" />
-          <button id="openclaw-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="openclaw-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <label class="settings-label" for="ollama-model-input">🌊 OLLAMA MODEL</label>
+          <input id="ollama-model-input" class="settings-input" type="text" placeholder="llama3.2" autocomplete="off" spellcheck="false" />
+          <button id="ollama-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="ollama-clear-btn" class="settings-clear-btn">CLEAR</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="openclaw-url-input">🌊 OPENCLAW GATEWAY URL</label>
-          <input id="openclaw-url-input" class="settings-input" type="url" placeholder="https://my-openclaw.example.com" autocomplete="off" spellcheck="false" />
-          <button id="openclaw-url-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="openclaw-url-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <label class="settings-label" for="ollama-url-input">🌊 OLLAMA BASE URL (optional)</label>
+          <input id="ollama-url-input" class="settings-input" type="url" placeholder="https://my-ollama-server.com" autocomplete="off" spellcheck="false" />
+          <button id="ollama-url-save-btn" class="settings-save-btn">SAVE</button>
+          <button id="ollama-url-clear-btn" class="settings-clear-btn">CLEAR</button>
         </div>
         <div class="settings-row">
           <label class="settings-label" for="openai-key-input">⚔️ GPT-4 (OPENAI) API KEY</label>
@@ -384,12 +384,12 @@
               <div class="agent-bubble" id="bubble-grok"></div>
             </div>
 
-            <!-- ── Yuffie · OpenClaw ─── back-right ── -->
-            <div class="agent-wrapper" id="agent-openclaw" data-model="openclaw" data-depth="far"
+            <!-- ── Yuffie · Ollama ─── back-right ── -->
+            <div class="agent-wrapper" id="agent-ollama" data-model="ollama" data-depth="far"
                  style="right:26%;top:55%;--color:#0a84c8;--glow:#0a84c855;">
               <div class="agent">
                 <div class="agent-sprite">
-                  <!-- Yuffie Kisaragi FF7-style pixel sprite (12×16) — OpenClaw -->
+                  <!-- Yuffie Kisaragi FF7-style pixel sprite (12×16) — Ollama -->
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" class="pixel-sprite">
                     <!-- Short dark hair (bob cut) -->
                     <rect x="2" y="0" width="8" height="3" fill="#282010"/>
@@ -429,9 +429,9 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">YUFFIE · OPENCLAW</div>
-              <div class="agent-score" id="score-openclaw">—</div>
-              <div class="agent-bubble" id="bubble-openclaw"></div>
+              <div class="agent-label">YUFFIE · OLLAMA</div>
+              <div class="agent-score" id="score-ollama">—</div>
+              <div class="agent-bubble" id="bubble-ollama"></div>
             </div>
 
             <!-- Thinking overlay (ATB-style) -->
@@ -535,7 +535,7 @@
     <script>window.AIRING_GEMINI_KEY = window.AIRING_GEMINI_KEY || '';</script>
     <script>window.AIRING_GROK_KEY = window.AIRING_GROK_KEY || '';</script>
     <script>window.AIRING_CLAUDE_KEY = window.AIRING_CLAUDE_KEY || '';</script>
-    <script>window.AIRING_OPENCLAW_KEY = window.AIRING_OPENCLAW_KEY || '';</script>
+    <script>window.AIRING_OLLAMA_MODEL = window.AIRING_OLLAMA_MODEL || '';</script>
     <script src="config.js" onerror="void 0"></script>
     <script src="app.js?v=13"></script>
   </body>
