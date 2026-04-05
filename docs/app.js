@@ -7,7 +7,7 @@
 const API_BASE = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';  // same-origin by default; set window.AIRING_API_BASE to point to a remote backend
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Local API key storage (Gemini + Grok + Claude — browser ↔ API directly, no backend)
+// Local API key storage (Gemini + Claude + OpenAI — browser ↔ API directly, no backend needed)
 // ─────────────────────────────────────────────────────────────────────────────
 const LS_GEMINI_KEY    = 'airing_gemini_key';
 const LS_GROK_KEY      = 'airing_grok_key';
@@ -107,8 +107,7 @@ function getLocalOpenAIKey() {
   try {
     return localStorage.getItem(LS_OPENAI_KEY) || window.AIRING_OPENAI_KEY || '';
   } catch {
-    window.AIRING_OPENAI_KEY = '';
-    return '';
+    return window.AIRING_OPENAI_KEY || '';
   }
 }
 
@@ -118,6 +117,7 @@ function setLocalOpenAIKey(key) {
 
 function clearLocalOpenAIKey() {
   try { localStorage.removeItem(LS_OPENAI_KEY); } catch { /* ignore */ }
+  window.AIRING_OPENAI_KEY = '';
 }
 
 function getLocalMistralKey() {
@@ -256,6 +256,31 @@ async function callClaudeDirect(prompt, key) {
   const data = await res.json();
   if (!data.content?.length || !data.content[0]?.text) throw new Error('Claude returned no content');
   return data.content[0].text.trim();
+}
+
+async function callOpenAIDirect(prompt, key) {
+  // OpenAI chat completions API — called directly from the browser.
+  // OpenAI's API supports browser CORS; keep this in mind regarding key exposure.
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 512,
+    }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const msg = data.error?.message || res.statusText;
+    throw new Error(`OpenAI API error: ${msg}`);
+  }
+  const data = await res.json();
+  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('OpenAI returned no content');
+  return data.choices[0].message.content.trim();
 }
 
 async function callOpenAIProxy(prompt, key) {
@@ -463,15 +488,10 @@ async function runHybridCompetition(prompt) {
             settingsStatus.className = 'settings-status err';
             settingsPanel.classList.remove('hidden');
           }
-        } else if (model.id === 'gpt4' && openaiKey && backendAvailable) {
-          text = await callOpenAIProxy(prompt, openaiKey);
+        } else if (model.id === 'gpt4' && openaiKey) {
+          // OpenAI supports browser CORS — call directly like Gemini and Claude.
+          text = await callOpenAIDirect(prompt, openaiKey);
           isDemo = false;
-        } else if (model.id === 'gpt4' && openaiKey && !backendAvailable) {
-          if (settingsStatus) {
-            settingsStatus.textContent = '⚠ GPT-4 key saved but no backend available — GPT-4 requires the Node.js server to proxy requests (OpenAI blocks browser CORS). Run the server locally or deploy it to go LIVE.';
-            settingsStatus.className = 'settings-status err';
-            settingsPanel.classList.remove('hidden');
-          }
         } else if (model.id === 'mistral' && mistralKey && backendAvailable) {
           text = await callMistralProxy(prompt, mistralKey);
           isDemo = false;
@@ -1064,25 +1084,24 @@ async function checkServerMode() {
     backendMistralConfigured  = false;
     backendCopilotConfigured  = false;
     const geminiKey   = getLocalGeminiKey();
-    const grokKey     = getLocalGrokKey();
     const claudeKey   = getLocalClaudeKey();
-    const ollamaModel = getLocalOllamaModel();
+    const openaiKey   = getLocalOpenAIKey();
     const localConfigured = {
-      // Gemini and Claude support direct browser calls; show them as live if a key is stored.
-      claude: !!claudeKey, gemini: !!geminiKey,
+      // Gemini, Claude, and OpenAI support direct browser calls; show them as live if a key is stored.
+      claude: !!claudeKey, gemini: !!geminiKey, gpt4: !!openaiKey,
       // All other models require the backend proxy; without a backend they cannot
       // run live even if a key is present, so keep them as DEMO.
-      gpt4: false, mistral: false, copilot: false, grok: false, ollama: false,
+      mistral: false, copilot: false, grok: false, ollama: false,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(localConfigured);
     // Auto-open settings panel once per session when no keys that work on static hosting
     // are present, so users know exactly how to activate live mode.
-    if (!geminiKey && !claudeKey && !sessionStorage.getItem('airing_settings_shown')) {
+    if (!geminiKey && !claudeKey && !openaiKey && !sessionStorage.getItem('airing_settings_shown')) {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
-      settingsStatus.textContent = '⚡ Paste your Gemini or Claude key and hit SAVE to go LIVE! (All other models require the Node.js backend.)';
+      settingsStatus.textContent = '⚡ Paste your Gemini, Claude, or OpenAI key and hit SAVE to go LIVE! (Grok, Mistral, Copilot, and Ollama require the Node.js backend.)';
       settingsStatus.className = 'settings-status info';
     }
   }
