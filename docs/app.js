@@ -1169,7 +1169,7 @@ function renderHistory() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Round system helpers
 // ─────────────────────────────────────────────────────────────────────────────
-const TOTAL_ROUNDS = 3;
+const TOTAL_ROUNDS = 1;
 
 function showRoundBanner(roundNum) {
   roundLabel.textContent = `ROUND ${roundNum}`;
@@ -1182,13 +1182,17 @@ function showRoundBanner(roundNum) {
 function updateRoundPips(completedRounds) {
   roundPips.forEach((pip, i) => {
     pip.classList.remove('done', 'current');
+    if (i >= TOTAL_ROUNDS) return;  // hide pips beyond the configured round count
     if (i < completedRounds) pip.classList.add('done');
     else if (i === completedRounds) pip.classList.add('current');
   });
 }
 
 function resetRoundPips() {
-  roundPips.forEach((pip) => pip.classList.remove('done', 'current'));
+  roundPips.forEach((pip, i) => {
+    pip.classList.remove('done', 'current');
+    pip.classList.toggle('hidden', i >= TOTAL_ROUNDS);
+  });
 }
 
 // Fetch one round of competition results
@@ -1391,7 +1395,7 @@ submitBtn.addEventListener('click', async () => {
       results:    aggregated,
       winnerId:   matchWinnerId,
       winnerName: matchWinnerModel ? matchWinnerModel.name : matchWinnerId,
-      totalRounds: TOTAL_ROUNDS,
+      totalRounds: TOTAL_ROUNDS > 1 ? TOTAL_ROUNDS : null,
     };
 
     // Highlight the overall match winner / losers
@@ -1400,7 +1404,7 @@ submitBtn.addEventListener('click', async () => {
       el.classList.remove('winner', 'loser');
       if (id === matchWinnerId) {
         el.classList.add('winner');
-        showBubble(id, `★ MATCH WIN! (${wins[id]}W-${TOTAL_ROUNDS - wins[id]}L)`);
+        showBubble(id, TOTAL_ROUNDS > 1 ? `★ MATCH WIN! (${wins[id]}W-${TOTAL_ROUNDS - wins[id]}L)` : '★ WIN!');
       } else {
         el.classList.add('loser');
       }
