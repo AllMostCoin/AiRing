@@ -76,10 +76,10 @@ const AI_MODELS = [
     strengths: ['reasoning', 'speed', 'creative', 'search'],
   },
   {
-    id: 'deepseek',
-    name: 'DeepSeek',
+    id: 'openclaw',
+    name: 'OpenClaw',
     character: 'Yuffie',
-    provider: 'deepseek',
+    provider: 'openclaw',
     color: '#0a84c8',
     emoji: '🌊',
     strengths: ['reasoning', 'coding', 'math', 'efficiency'],
@@ -205,23 +205,25 @@ async function callXAI(prompt, key) {
   return data.choices[0].message.content.trim();
 }
 
-async function callDeepSeek(prompt, key) {
-  // DeepSeek — OpenAI-compatible endpoint
+async function callOpenClaw(prompt, key) {
+  // OpenClaw — OpenAI-compatible gateway (runs locally or at a configured host)
   // key may be supplied by the caller (proxy route) or read from the environment.
-  const resolvedKey = key || process.env.DEEPSEEK_API_KEY;
+  const resolvedKey = key || process.env.OPENCLAW_API_KEY;
   if (!resolvedKey) return null;
-  const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+  const baseUrl = (process.env.OPENCLAW_BASE_URL || 'http://localhost:18789').replace(/\/$/, '');
+  const model = process.env.OPENCLAW_MODEL || 'openclaw';
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resolvedKey}` },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model,
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 512,
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}: ${data.error?.message || res.statusText}`);
-  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('DeepSeek returned no content');
+  if (!res.ok) throw new Error(`OpenClaw HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('OpenClaw returned no content');
   return data.choices[0].message.content.trim();
 }
 
@@ -260,7 +262,7 @@ const DEMO_TEMPLATES = {
     "On {topic} — interesting problem. Most AI would hedge, but I'll tell you directly: the key insight is counterintuitive. The conventional wisdom here is wrong in at least two ways, and here's why the unconventional approach wins.",
     "Real-time analysis of {topic}: speed and clarity over verbosity. The creative angle nobody mentions is: what if the premise itself needs rethinking? My search-augmented reasoning surfaces a perspective that reframes the entire question.",
   ],
-  deepseek: [
+  openclaw: [
     "Deeply analyzing {topic}: reasoning from first principles reveals a clear, efficient path forward. My chain-of-thought process identifies the key variables, eliminates noise, and surfaces the optimal solution — elegant in its simplicity.",
     "On {topic}, open-source reasoning engaged. The mathematical structure here is tractable: decompose into sub-problems, apply learned patterns, and synthesize with confidence. Here is the distilled, high-quality answer.",
     "Addressing {topic} with deep precision: the underlying logic is sound, the approach is transparent, and the answer is reproducible. Open knowledge deserves an open, verifiable response — so here it is, step by step.",
@@ -338,7 +340,7 @@ const grokProxyLimiter = rateLimit({
   message: { error: 'Too many requests, please try again in a moment.' },
 });
 
-const deepseekProxyLimiter = rateLimit({
+const openclawProxyLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
   standardHeaders: true,
@@ -365,7 +367,7 @@ app.get('/api/models', (_req, res) => {
     mistral:  !!process.env.MISTRAL_API_KEY,
     copilot:  !!process.env.GITHUB_TOKEN,
     grok:     !!process.env.XAI_API_KEY,
-    deepseek: !!process.env.DEEPSEEK_API_KEY,
+    openclaw: !!process.env.OPENCLAW_API_KEY,
   };
   res.json({ models: AI_MODELS, configured, demoMode: Object.values(configured).every((v) => !v) });
 });
@@ -401,12 +403,12 @@ app.post('/api/grok-proxy', grokProxyLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Route: POST /api/deepseek-proxy — proxy a user-supplied DeepSeek key through the backend
-// Browsers cannot call api.deepseek.com directly (no CORS headers). This endpoint
+// Route: POST /api/openclaw-proxy — proxy a user-supplied OpenClaw key through the backend
+// Browsers cannot call the OpenClaw gateway directly (CORS). This endpoint
 // accepts the user's personal key in the request body, forwards the call
 // server-side (CORS-free), and returns the text response.
 // ─────────────────────────────────────────────────────────────────────────────
-app.post('/api/deepseek-proxy', deepseekProxyLimiter, async (req, res) => {
+app.post('/api/openclaw-proxy', openclawProxyLimiter, async (req, res) => {
   const { prompt, key } = req.body;
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
@@ -416,13 +418,13 @@ app.post('/api/deepseek-proxy', deepseekProxyLimiter, async (req, res) => {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
   if (!key || typeof key !== 'string' || !key.trim().startsWith('ck_')) {
-    return res.status(400).json({ error: 'valid DeepSeek API key is required (must start with ck_)' });
+    return res.status(400).json({ error: 'valid OpenClaw API key is required (must start with ck_)' });
   }
   const trimmedKey = key.trim();
   try {
-    const text = await callDeepSeek(trimmedPrompt, trimmedKey);
+    const text = await callOpenClaw(trimmedPrompt, trimmedKey);
     if (text === null) {
-      return res.status(502).json({ error: 'DeepSeek API did not return a response' });
+      return res.status(502).json({ error: 'OpenClaw API did not return a response' });
     }
     res.json({ text });
   } catch (err) {
@@ -443,7 +445,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
 
-  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, deepseek: callDeepSeek };
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, openclaw: callOpenClaw };
 
   // Call all models in parallel
   const results = await Promise.all(
