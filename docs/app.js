@@ -121,11 +121,15 @@ async function callGrokProxy(prompt, key) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, key }),
   });
-  const data = await res.json();
+  // Parse JSON only after confirming the server returned a JSON response.
+  // A non-2xx response from a reverse proxy or static host returns HTML, which
+  // would cause "Unexpected token '<'" if parsed unconditionally.
   if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
     const msg = data.error || res.statusText;
     throw new Error(`Grok proxy error: ${msg}`);
   }
+  const data = await res.json();
   return data.text;
 }
 
@@ -274,7 +278,9 @@ async function runHybridCompetition(prompt) {
         if (model.id === 'gemini' && geminiKey) {
           text = await callGeminiDirect(prompt, geminiKey);
           isDemo = false;
-        } else if (model.id === 'grok' && grokKey) {
+        } else if (model.id === 'grok' && grokKey && backendAvailable) {
+          // Grok requires the backend proxy (x.ai blocks browser CORS).
+          // Skip on static/GitHub Pages hosting where backendAvailable is false.
           text = await callGrokProxy(prompt, grokKey);
           isDemo = false;
         } else if (model.id === 'claude' && claudeKey) {
