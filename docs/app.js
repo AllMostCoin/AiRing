@@ -126,8 +126,10 @@ async function callGeminiDirect(prompt, key) {
     const msg = data.error?.message || res.statusText;
     throw new Error(`Gemini API error: ${msg}`);
   }
+  if (!data.candidates?.length || !data.candidates[0]?.content?.parts?.length) throw new Error('Gemini returned no content');
   const parts = data.candidates[0].content.parts;
   const textPart = parts.find((p) => !p.thought) || parts[0];
+  if (!textPart?.text) throw new Error('Gemini returned no text part');
   return textPart.text.trim();
 }
 
@@ -195,6 +197,7 @@ async function callClaudeDirect(prompt, key) {
     throw new Error(`Claude API error: ${msg}`);
   }
   const data = await res.json();
+  if (!data.content?.length || !data.content[0]?.text) throw new Error('Claude returned no content');
   return data.content[0].text.trim();
 }
 
@@ -573,6 +576,16 @@ deepseekClearBtn.addEventListener('click', () => {
 
 const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot', 'grok', 'deepseek'];
 
+// Unbiased Fisher-Yates shuffle — returns a new shuffled array
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // Home positions — populated at runtime by initTeams() for a random split
 const AGENT_POSITIONS = {};
 
@@ -619,7 +632,7 @@ const SLOTS_4_R = [
 
 // Assign characters to random split floor slots and update their DOM state
 function initTeams() {
-  const shuffled = [...MODEL_IDS].sort(() => Math.random() - 0.5);
+  const shuffled = shuffleArray(MODEL_IDS);
   const total = MODEL_IDS.length; // 7
   const leftCount = Math.random() < 0.5 ? 3 : 4;
   const rightCount = total - leftCount;
@@ -1021,6 +1034,7 @@ function arenaShake() {
 
 function spawnScreenFlash() {
   const el = document.createElement('div');
+  el.className = 'room-flash';
   room.appendChild(el);
   el.addEventListener('animationend', () => el.remove(), { once: true });
 }
@@ -1030,7 +1044,7 @@ let battleLoopId    = null;
 
 async function fireBattleRound() {
   // Pick a random attacker and a different random defender
-  const order     = [...MODEL_IDS].sort(() => Math.random() - 0.5);
+  const order     = shuffleArray(MODEL_IDS);
   const attackerId = order[0];
   const defenderId = order[1];
   const attackerEl = getAgentEl(attackerId);
@@ -1136,6 +1150,7 @@ const INTRO_GREETINGS = {
   gemini:   'Nanaki, ready.',
   mistral:  '#$%@! Let\'s go!',
   copilot:  'For the Planet!',
+  grok:     "Hmph. Let's get this over with.",
   deepseek: 'Gimme all your Materia!',
 };
 

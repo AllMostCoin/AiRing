@@ -104,6 +104,7 @@ async function callOpenAI(prompt) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('OpenAI returned no content');
   return data.choices[0].message.content.trim();
 }
 
@@ -125,6 +126,7 @@ async function callAnthropic(prompt) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`Anthropic HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.content?.length || !data.content[0]?.text) throw new Error('Anthropic returned no content');
   return data.content[0].text.trim();
 }
 
@@ -139,8 +141,10 @@ async function callGoogle(prompt) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`Google HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.candidates?.length || !data.candidates[0]?.content?.parts?.length) throw new Error('Google returned no content');
   const parts = data.candidates[0].content.parts;
   const textPart = parts.find((p) => !p.thought) || parts[0];
+  if (!textPart?.text) throw new Error('Google returned no text part');
   return textPart.text.trim();
 }
 
@@ -158,6 +162,7 @@ async function callMistral(prompt) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`Mistral HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('Mistral returned no content');
   return data.choices[0].message.content.trim();
 }
 
@@ -176,6 +181,7 @@ async function callCopilot(prompt) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`GitHub Copilot HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('GitHub Copilot returned no content');
   return data.choices[0].message.content.trim();
 }
 
@@ -195,6 +201,7 @@ async function callXAI(prompt, key) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`xAI Grok HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('xAI Grok returned no content');
   return data.choices[0].message.content.trim();
 }
 
@@ -214,6 +221,7 @@ async function callDeepSeek(prompt, key) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('DeepSeek returned no content');
   return data.choices[0].message.content.trim();
 }
 
@@ -373,7 +381,8 @@ app.post('/api/grok-proxy', grokProxyLimiter, async (req, res) => {
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
   }
-  if (prompt.trim().length > 2000) {
+  const trimmedPrompt = prompt.trim();
+  if (trimmedPrompt.length > 2000) {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
   if (!key || typeof key !== 'string' || !key.trim().startsWith('xai-')) {
@@ -381,7 +390,7 @@ app.post('/api/grok-proxy', grokProxyLimiter, async (req, res) => {
   }
   const trimmedKey = key.trim();
   try {
-    const text = await callXAI(prompt.trim(), trimmedKey);
+    const text = await callXAI(trimmedPrompt, trimmedKey);
     if (text === null) {
       return res.status(502).json({ error: 'xAI API did not return a response' });
     }
@@ -402,7 +411,8 @@ app.post('/api/deepseek-proxy', deepseekProxyLimiter, async (req, res) => {
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
   }
-  if (prompt.trim().length > 2000) {
+  const trimmedPrompt = prompt.trim();
+  if (trimmedPrompt.length > 2000) {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
   if (!key || typeof key !== 'string' || !key.trim().startsWith('ck_')) {
@@ -410,7 +420,7 @@ app.post('/api/deepseek-proxy', deepseekProxyLimiter, async (req, res) => {
   }
   const trimmedKey = key.trim();
   try {
-    const text = await callDeepSeek(prompt.trim(), trimmedKey);
+    const text = await callDeepSeek(trimmedPrompt, trimmedKey);
     if (text === null) {
       return res.status(502).json({ error: 'DeepSeek API did not return a response' });
     }
@@ -428,10 +438,10 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
   }
-  if (prompt.trim().length > 2000) {
+  const trimmed = prompt.trim();
+  if (trimmed.length > 2000) {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
-  const trimmed = prompt.trim();
 
   const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, deepseek: callDeepSeek };
 
