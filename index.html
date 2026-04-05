@@ -589,6 +589,11 @@
         <input type="password" id="apiKey" placeholder="" autocomplete="off" />
         <p class="key-hint" id="apiKeyHint"></p>
       </div>
+      <div class="full" id="chatGrokProxyRow" style="display:none">
+        <label for="grokProxyChatInput">Grok CORS Proxy URL <span style="font-weight:400;opacity:.7">(required for browser use)</span></label>
+        <input type="url" id="grokProxyChatInput" placeholder="https://corsproxy.io/?url=" autocomplete="off" />
+        <p class="key-hint">xAI blocks direct browser requests (no CORS). Enter a proxy URL that forwards requests — e.g. <a href="https://corsproxy.io/" target="_blank" rel="noopener">corsproxy.io</a>. The proxy sees your API key; use a self-hosted proxy for production.</p>
+      </div>
 
       <!-- Ring-mode section (hidden by default) -->
       <div class="full" id="ringRows" style="display:none">
@@ -621,6 +626,9 @@
               <option value="grok-3-mini-fast">grok-3-mini-fast</option>
               <option value="grok-2-1212">grok-2-1212</option>
             </select>
+            <label for="grokProxyRingInput" class="ring-sub-label">CORS Proxy URL <span style="font-weight:400;opacity:.7">(required for browser use)</span></label>
+            <input type="url" id="grokProxyRingInput" placeholder="https://corsproxy.io/?url=" autocomplete="off" />
+            <p class="key-hint">xAI blocks direct browser requests. Enter a proxy URL that forwards to api.x.ai — e.g. <a href="https://corsproxy.io/" target="_blank" rel="noopener">corsproxy.io</a>.</p>
           </div>
         </div>
         <div style="margin-top:.6rem;max-width:200px">
@@ -669,6 +677,7 @@
     const STORAGE_RING_GEMINI_MDL = 'airing_ring_gemini_model';
     const STORAGE_RING_GROK_MDL   = 'airing_ring_grok_model';
     const STORAGE_RING_ROUNDS     = 'airing_ring_rounds';
+    const STORAGE_GROK_PROXY      = 'airing_grok_proxy';
 
     // Ring Protocol — forces both AIs into a terse, abbreviated debate style
     const RING_SYSTEM =
@@ -736,6 +745,9 @@
     const geminiMdlRingSelect = document.getElementById('geminiModelRing');
     const grokKeyRingInput    = document.getElementById('grokKeyRing');
     const grokMdlRingSelect   = document.getElementById('grokModelRing');
+    const grokProxyRingInput  = document.getElementById('grokProxyRingInput');
+    const grokProxyChatInput  = document.getElementById('grokProxyChatInput');
+    const chatGrokProxyRow    = document.getElementById('chatGrokProxyRow');
     const ringRoundsSelect    = document.getElementById('ringRounds');
 
     // ── Mode switching ────────────────────────────────────────────────────────
@@ -746,6 +758,7 @@
       chatProviderRow.style.display = ringMode ? 'none' : '';
       chatModelRow.style.display    = ringMode ? 'none' : '';
       chatKeyRow.style.display      = ringMode ? 'none' : '';
+      chatGrokProxyRow.style.display = (ringMode || providerSelect.value !== 'grok') ? 'none' : '';
       ringRows.style.display        = ringMode ? '' : 'none';
       questionEl.placeholder        = ringMode
         ? 'Enter debate topic… (Ctrl+Enter to start the ring)'
@@ -759,6 +772,8 @@
       apiKeyLabel.textContent = cfg.label;
       apiKeyInput.placeholder = cfg.placeholder;
       apiKeyHint.innerHTML    = cfg.hint;
+      // Show CORS proxy field only for Grok (xAI blocks direct browser requests)
+      chatGrokProxyRow.style.display = providerSelect.value === 'grok' ? '' : 'none';
       // Rebuild model options
       modelSelect.innerHTML = '';
       cfg.models.forEach(m => {
@@ -772,6 +787,13 @@
       const savedModel = localStorage.getItem(`${STORAGE_MODEL}_${providerSelect.value}`);
       if (savedModel) modelSelect.value = savedModel;
       localStorage.setItem(STORAGE_PROVIDER, providerSelect.value);
+    }
+
+    // ── Grok proxy helper — returns the effective xAI endpoint URL ────────────
+    function grokEndpoint() {
+      const proxy = (grokProxyChatInput.value.trim() || grokProxyRingInput.value.trim());
+      const base  = 'https://api.x.ai/v1/chat/completions';
+      return proxy ? `${proxy.replace(/\/$/, '')}/${base}` : base;
     }
 
     // ── Restore saved state ──────────────────────────────────────────────────
@@ -800,6 +822,19 @@
     ringRoundsSelect.addEventListener('change', () =>
       localStorage.setItem(STORAGE_RING_ROUNDS, ringRoundsSelect.value)
     );
+
+    // Restore + sync Grok proxy URL (shared between chat and ring inputs)
+    const savedGrokProxy = localStorage.getItem(STORAGE_GROK_PROXY) || '';
+    grokProxyChatInput.value = savedGrokProxy;
+    grokProxyRingInput.value = savedGrokProxy;
+    function onGrokProxyChange(val) {
+      const trimmed = val.trim();
+      grokProxyChatInput.value = trimmed;
+      grokProxyRingInput.value = trimmed;
+      localStorage.setItem(STORAGE_GROK_PROXY, trimmed);
+    }
+    grokProxyChatInput.addEventListener('input', () => onGrokProxyChange(grokProxyChatInput.value));
+    grokProxyRingInput.addEventListener('input', () => onGrokProxyChange(grokProxyRingInput.value));
 
     // Restore mode (after DOM refs are ready)
     if (localStorage.getItem(STORAGE_MODE) === 'ring') setMode('ring');
@@ -1048,9 +1083,10 @@
 
     // ── xAI Grok API (OpenAI-compatible) ─────────────────────────────────────
     async function callGrokRaw(apiKey, model, messages) {
+      const url = grokEndpoint();
       let res;
       try {
-        res = await fetch('https://api.x.ai/v1/chat/completions', {
+        res = await fetch(url, {
           method:  'POST',
           headers: {
             'Content-Type':  'application/json',
@@ -1059,7 +1095,11 @@
           body: JSON.stringify({ model, messages })
         });
       } catch (netErr) {
-        throw new Error(`Cannot reach Grok API — network/CORS error: ${netErr.message}`);
+        const isCors = !grokProxyChatInput.value.trim() && !grokProxyRingInput.value.trim();
+        const hint   = isCors
+          ? ' — xAI blocks direct browser requests (CORS). Add a CORS Proxy URL in Grok settings.'
+          : '';
+        throw new Error(`Cannot reach Grok API — network/CORS error: ${netErr.message}${hint}`);
       }
 
       let data;
