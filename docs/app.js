@@ -149,11 +149,15 @@ async function callClaudeDirect(prompt, key) {
       messages: [{ role: 'user', content: prompt }],
     }),
   });
-  const data = await res.json();
+  // Parse JSON only after confirming the server returned a JSON response.
+  // A non-2xx response from a WAF or rate-limiter may return HTML, which would
+  // cause "Unexpected token '<'" if parsed unconditionally.
   if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
     const msg = data.error?.message || res.statusText;
     throw new Error(`Claude API error: ${msg}`);
   }
+  const data = await res.json();
   return data.content[0].text.trim();
 }
 
@@ -283,6 +287,14 @@ async function runHybridCompetition(prompt) {
           // Skip on static/GitHub Pages hosting where backendAvailable is false.
           text = await callGrokProxy(prompt, grokKey);
           isDemo = false;
+        } else if (model.id === 'grok' && grokKey && !backendAvailable) {
+          // User has a Grok key but there is no backend to proxy through — show a
+          // one-time hint so the user understands why Grok stays in demo mode.
+          if (settingsStatus) {
+            settingsStatus.textContent = '⚠ Grok key saved but no backend available — Grok requires the Node.js server to proxy requests (x.ai blocks browser CORS). Run the server locally or deploy it to go LIVE.';
+            settingsStatus.className = 'settings-status err';
+            settingsPanel.classList.remove('hidden');
+          }
         } else if (model.id === 'claude' && claudeKey) {
           text = await callClaudeDirect(prompt, claudeKey);
           isDemo = false;
