@@ -691,17 +691,20 @@ async function checkServerMode() {
     const grokKey   = getLocalGrokKey();
     const claudeKey = getLocalClaudeKey();
     const localConfigured = {
-      gpt4: false, claude: !!claudeKey, gemini: !!geminiKey, mistral: false, copilot: false, grok: !!grokKey,
+      gpt4: false, claude: !!claudeKey, gemini: !!geminiKey, mistral: false, copilot: false,
+      // Grok requires the backend proxy (x.ai blocks browser CORS); without a backend it cannot
+      // run live even if a key is present, so keep it as DEMO to avoid a misleading LIVE badge.
+      grok: false,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
     applyModelStatus(localConfigured);
-    // Auto-open settings panel once per session when no keys are present
-    // so users know exactly how to activate live mode.
-    if (!geminiKey && !grokKey && !claudeKey && !sessionStorage.getItem('airing_settings_shown')) {
+    // Auto-open settings panel once per session when no keys that work on static hosting
+    // are present, so users know exactly how to activate live mode.
+    if (!geminiKey && !claudeKey && !sessionStorage.getItem('airing_settings_shown')) {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
-      settingsStatus.textContent = '⚡ Paste your Gemini, Grok, or Claude key and hit SAVE to go LIVE!';
+      settingsStatus.textContent = '⚡ Paste your Gemini or Claude key and hit SAVE to go LIVE! (Grok requires the Node.js backend.)';
       settingsStatus.className = 'settings-status info';
     }
   }
@@ -1182,6 +1185,9 @@ document.querySelectorAll('.rounds-btn').forEach((btn) => {
   });
 });
 
+// Initialise pip visibility for the default round count (TOTAL_ROUNDS = 1)
+resetRoundPips();
+
 function showRoundBanner(roundNum) {
   roundLabel.textContent = `ROUND ${roundNum}`;
   roundIndicator.classList.remove('hidden', 'stamp');
@@ -1240,8 +1246,14 @@ async function fetchOneRound(prompt) {
           data.winnerId = newWinner.modelId;
           data.winnerName = newWinner.name;
           data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
-        } catch (_) {
-          // Proxy call failed — keep the demo response for Grok
+        } catch (err) {
+          // Proxy call failed — surface the error so the user knows why Grok is in demo mode
+          const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
+          const hint = isAuthError ? ' — key may be invalid or have no credits. Hit CLEAR to remove it.' : '';
+          settingsStatus.textContent = `✗ Grok live call failed: ${err.message}${hint}`;
+          settingsStatus.className = 'settings-status err';
+          settingsPanel.classList.remove('hidden');
+          if (isAuthError) { clearModelKey('grok'); checkServerMode(); }
         }
       }
     }
@@ -1267,8 +1279,14 @@ async function fetchOneRound(prompt) {
           data.winnerId = newWinner.modelId;
           data.winnerName = newWinner.name;
           data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
-        } catch (_) {
-          // Direct call failed — keep the demo response for Claude
+        } catch (err) {
+          // Direct call failed — surface the error so the user knows why Claude is in demo mode
+          const isAuthError = /401|403|unauthorized|invalid|forbidden|credit|quota/i.test(err.message);
+          const hint = isAuthError ? ' — key may be invalid or have no credits. Hit CLEAR to remove it.' : '';
+          settingsStatus.textContent = `✗ Claude live call failed: ${err.message}${hint}`;
+          settingsStatus.className = 'settings-status err';
+          settingsPanel.classList.remove('hidden');
+          if (isAuthError) { clearModelKey('claude'); checkServerMode(); }
         }
       }
     }
