@@ -32,3 +32,9 @@ services:
         sync: false
       - key: GITHUB_TOKEN
         sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: OLLAMA_MODEL
+        sync: false
+      - key: OLLAMA_BASE_URL
+        sync: false
