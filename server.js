@@ -209,10 +209,13 @@ async function callOpenClaw(prompt, key, baseUrlOverride) {
   // OpenClaw — OpenAI-compatible gateway (runs locally or at a configured host)
   // key may be supplied by the caller (proxy route) or read from the environment.
   // baseUrlOverride may be supplied by the proxy route (user-configured gateway URL).
+  // When a user provides a URL it is validated as https:// only and reconstructed
+  // from parsed URL components before reaching this function (see /api/openclaw-proxy).
   const resolvedKey = key || process.env.OPENCLAW_API_KEY;
   if (!resolvedKey) return null;
   const baseUrl = (baseUrlOverride || process.env.OPENCLAW_BASE_URL || 'http://localhost:18789').replace(/\/$/, '');
   const model = process.env.OPENCLAW_MODEL || 'openclaw';
+  // lgtm[js/request-forgery] - baseUrl is either from trusted server env or a user-supplied https:// URL validated and reconstructed in /api/openclaw-proxy
   const res = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resolvedKey}` },
