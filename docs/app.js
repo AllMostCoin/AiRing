@@ -92,23 +92,21 @@ async function callGeminiDirect(prompt, key) {
   return textPart.text.trim();
 }
 
-async function callGrokDirect(prompt, key) {
-  // xAI Grok — OpenAI-compatible endpoint, called directly from the browser
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+async function callGrokProxy(prompt, key) {
+  // Route the xAI call through the backend to avoid browser CORS restrictions on api.x.ai.
+  // The backend /api/grok-proxy endpoint accepts the user's key in the request body and
+  // forwards the call server-side (CORS-free), then returns { text }.
+  const res = await fetch(`${API_BASE}/api/grok-proxy`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: 'grok-3-mini',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 512,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, key }),
   });
   const data = await res.json();
   if (!res.ok) {
-    const msg = data.error?.message || res.statusText;
-    throw new Error(`Grok API error: ${msg}`);
+    const msg = data.error || res.statusText;
+    throw new Error(`Grok proxy error: ${msg}`);
   }
-  return data.choices[0].message.content.trim();
+  return data.text;
 }
 
 async function callClaudeDirect(prompt, key) {
@@ -257,7 +255,7 @@ async function runHybridCompetition(prompt) {
           text = await callGeminiDirect(prompt, geminiKey);
           isDemo = false;
         } else if (model.id === 'grok' && grokKey) {
-          text = await callGrokDirect(prompt, grokKey);
+          text = await callGrokProxy(prompt, grokKey);
           isDemo = false;
         } else if (model.id === 'claude' && claudeKey) {
           text = await callClaudeDirect(prompt, claudeKey);
@@ -1206,7 +1204,35 @@ async function fetchOneRound(prompt) {
       const err = await res.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(err.error || `HTTP ${res.status}`);
     }
-    return res.json();
+    const data = await res.json();
+
+    // If the backend doesn't have XAI_API_KEY but the user saved a personal Grok
+    // key, overlay the Grok result via the proxy endpoint (server-side, CORS-free).
+    const grokKey = getLocalGrokKey();
+    if (grokKey && !backendGrokConfigured) {
+      const grokResult = data.results.find((r) => r.modelId === 'grok');
+      if (grokResult && grokResult.isDemo) {
+        try {
+          const proxyStart = Date.now();
+          const text = await callGrokProxy(prompt, grokKey);
+          grokResult.response = text;
+          grokResult.isDemo = false;
+          grokResult.latencyMs = Date.now() - proxyStart;
+          const grokModel = AI_MODELS_DATA.find((m) => m.id === 'grok');
+          grokResult.score = scoreResponse(prompt, text, grokModel);
+          // Re-sort and refresh winner flags
+          data.results.sort((a, b) => b.score - a.score);
+          const newWinner = data.results[0];
+          data.winnerId = newWinner.modelId;
+          data.winnerName = newWinner.name;
+          data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
+        } catch (_) {
+          // Proxy call failed — keep the demo response for Grok
+        }
+      }
+    }
+
+    return data;
   }
   // Static / GitHub Pages mode
   const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey());
