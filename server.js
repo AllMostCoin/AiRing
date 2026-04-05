@@ -448,7 +448,8 @@ app.post('/api/openclaw-proxy', openclawProxyLimiter, async (req, res) => {
     if (parsed.protocol !== 'https:') {
       return res.status(400).json({ error: 'user-supplied gateway url must use https. For http (e.g. local dev), set OPENCLAW_BASE_URL on the server instead.' });
     }
-    resolvedBaseUrl = trimmedUrl;
+    // Reconstruct from parsed URL components to avoid passing raw user input downstream.
+    resolvedBaseUrl = `${parsed.protocol}//${parsed.host}`;
   }
 
   try {
