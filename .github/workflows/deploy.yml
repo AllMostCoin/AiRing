@@ -43,12 +43,17 @@ jobs:
         #                   BACKEND_URL is also required for Grok to go LIVE.
         #
         # BACKEND_URL     — URL of the self-hosted Node.js backend (e.g. the
-        #                   Render.com service).  **This is the single most
-        #                   important secret for getting all seven models LIVE.**
-        #                   Without it only Gemini (and Claude, if the user
-        #                   provides their own key in the settings panel) will
-        #                   run live on GitHub Pages.  With it the backend handles
-        #                   GPT-4, Claude, Mistral, Copilot, Grok, and Ollama.
+        #                   Render.com service).  Without it only Gemini, Claude,
+        #                   and GPT-4 (if a key is provided) will run live on
+        #                   GitHub Pages.  With it the backend handles Grok,
+        #                   Mistral, Copilot, and Ollama as well.
+        #
+        # OPENAI_API_KEY  — injected directly as window.AIRING_OPENAI_KEY;
+        #                   OpenAI's API supports browser CORS, so GPT-4 can be
+        #                   called straight from the browser just like Gemini and
+        #                   Claude.  Without this secret GPT-4 runs in demo mode
+        #                   on GitHub Pages (users can still supply their own key
+        #                   via the in-app settings panel).
         #
         # CLAUDE_API_KEY — injected directly as window.AIRING_CLAUDE_KEY;
         #                  Anthropic's API supports browser CORS via the
@@ -61,10 +66,11 @@ jobs:
           node -e '
             const fs = require("fs");
             const lines = [
-              `window.AIRING_GEMINI_KEY = ${JSON.stringify(process.env.GEMINI_API_KEY || "")};`,
-              `window.AIRING_GROK_KEY   = ${JSON.stringify(process.env.GROK_API_KEY || "")};`,
-              `window.AIRING_CLAUDE_KEY = ${JSON.stringify(process.env.CLAUDE_API_KEY || "")};`,
-              `window.AIRING_API_BASE   = ${JSON.stringify(process.env.BACKEND_URL || "")};`,
+              `window.AIRING_GEMINI_KEY  = ${JSON.stringify(process.env.GEMINI_API_KEY || "")};`,
+              `window.AIRING_GROK_KEY    = ${JSON.stringify(process.env.GROK_API_KEY || "")};`,
+              `window.AIRING_CLAUDE_KEY  = ${JSON.stringify(process.env.CLAUDE_API_KEY || "")};`,
+              `window.AIRING_OPENAI_KEY  = ${JSON.stringify(process.env.OPENAI_API_KEY || "")};`,
+              `window.AIRING_API_BASE    = ${JSON.stringify(process.env.BACKEND_URL || "")};`,
             ];
             fs.writeFileSync("docs/config.js", lines.join("\n") + "\n");
           '
@@ -72,6 +78,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
       - name: Setup Pages
