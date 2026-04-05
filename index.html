@@ -859,12 +859,18 @@
         questionEl.value = '';
         autoResize();
         charCountEl.textContent = '';
-        await ringFight(
-          question,
-          geminiKey, geminiMdlRingSelect.value,
-          grokKey,   grokMdlRingSelect.value,
-          parseInt(ringRoundsSelect.value, 10) || 3
-        );
+        try {
+          await ringFight(
+            question,
+            geminiKey, geminiMdlRingSelect.value,
+            grokKey,   grokMdlRingSelect.value,
+            parseInt(ringRoundsSelect.value, 10) || 3
+          );
+        } catch (err) {
+          renderError(`❌ Ring error: ${err.message}`);
+          stopBtn.style.display = 'none';
+          setLoading(false);
+        }
         return;
       }
 
@@ -920,81 +926,87 @@
     // History framing (Gemini sees itself as "model", Grok as "user"):
     //   Gemini contents: [topic→user, gemini1→model, grok1→user, gemini2→model, ...]
     // History framing (Grok sees itself as "assistant", Gemini as "user"):
-    //   Grok messages:   [system, gemini1→user, grok1→assistant, gemini2→user, ...]
+    //   Grok messages:   [system+topic, gemini1→user, grok1→assistant, gemini2→user, ...]
     async function ringFight(topic, geminiKey, geminiModel, grokKey, grokModel, rounds) {
-      ringAborted  = false;
+      ringAborted = false;
       stopBtn.style.display = '';
       setLoading(true);
       hideEmpty();
       if (settingsOpen) toggleSettings();
 
-      renderRingBanner(`⚔️ Ring Topic: ${topic}`);
+      try {
+        renderRingBanner(`⚔️ Ring Topic: ${topic}`);
 
-      const ringHistory = []; // { source: 'gemini'|'grok', text, ts, round }
+        const ringHistory = []; // { source: 'gemini'|'grok', text, ts, round }
+        // Grok system message includes the topic so round-1 context is complete
+        const grokSystem = `${RING_SYSTEM}\nTopic: ${topic}`;
 
-      for (let round = 0; round < rounds && !ringAborted; round++) {
-        renderRingBanner(`— Round ${round + 1} of ${rounds} —`);
+        for (let round = 0; round < rounds && !ringAborted; round++) {
+          renderRingBanner(`— Round ${round + 1} of ${rounds} —`);
 
-        // ── Gemini turn ──────────────────────────────────────────────────────
-        const geminiTyping = showTypingFor('gemini');
+          // ── Gemini turn ────────────────────────────────────────────────────
+          const geminiTyping = showTypingFor('gemini');
 
-        const geminiContents = [{ role: 'user', parts: [{ text: topic }] }];
-        for (const entry of ringHistory) {
-          geminiContents.push({
-            role:  entry.source === 'gemini' ? 'model' : 'user',
-            parts: [{ text: entry.text }]
-          });
-        }
+          const geminiContents = [{ role: 'user', parts: [{ text: topic }] }];
+          for (const entry of ringHistory) {
+            geminiContents.push({
+              role:  entry.source === 'gemini' ? 'model' : 'user',
+              parts: [{ text: entry.text }]
+            });
+          }
 
-        let geminiText;
-        try {
-          geminiText = await callGeminiRaw(geminiKey, geminiModel, geminiContents, RING_SYSTEM);
-        } catch (err) {
+          let geminiText;
+          try {
+            geminiText = await callGeminiRaw(geminiKey, geminiModel, geminiContents, RING_SYSTEM);
+          } catch (err) {
+            removeTyping(geminiTyping);
+            renderError(`❌ Gemini (round ${round + 1}): ${err.message}`);
+            ringAborted = true;
+            break;
+          }
+          if (ringAborted) { removeTyping(geminiTyping); break; }
           removeTyping(geminiTyping);
-          renderError(`❌ Gemini (round ${round + 1}): ${err.message}`);
-          ringAborted = true;
-          break;
-        }
-        if (ringAborted) { removeTyping(geminiTyping); break; }
-        removeTyping(geminiTyping);
 
-        const gts = Date.now();
-        ringHistory.push({ source: 'gemini', text: geminiText, ts: gts, round: round + 1 });
-        renderRingMessage('gemini', geminiText, gts, round + 1);
+          const gts = Date.now();
+          ringHistory.push({ source: 'gemini', text: geminiText, ts: gts, round: round + 1 });
+          renderRingMessage('gemini', geminiText, gts, round + 1);
 
-        if (ringAborted) break;
+          if (ringAborted) break;
 
-        // ── Grok turn ────────────────────────────────────────────────────────
-        const grokTyping = showTypingFor('grok');
+          // ── Grok turn ──────────────────────────────────────────────────────
+          const grokTyping = showTypingFor('grok');
 
-        const grokMessages = [{ role: 'system', content: RING_SYSTEM }];
-        for (const entry of ringHistory) {
-          grokMessages.push({
-            role:    entry.source === 'grok' ? 'assistant' : 'user',
-            content: entry.text
-          });
-        }
+          const grokMessages = [{ role: 'system', content: grokSystem }];
+          for (const entry of ringHistory) {
+            grokMessages.push({
+              role:    entry.source === 'grok' ? 'assistant' : 'user',
+              content: entry.text
+            });
+          }
 
-        let grokText;
-        try {
-          grokText = await callGrokRaw(grokKey, grokModel, grokMessages);
-        } catch (err) {
+          let grokText;
+          try {
+            grokText = await callGrokRaw(grokKey, grokModel, grokMessages);
+          } catch (err) {
+            removeTyping(grokTyping);
+            renderError(`❌ Grok (round ${round + 1}): ${err.message}`);
+            ringAborted = true;
+            break;
+          }
+          if (ringAborted) { removeTyping(grokTyping); break; }
           removeTyping(grokTyping);
-          renderError(`❌ Grok (round ${round + 1}): ${err.message}`);
-          ringAborted = true;
-          break;
+
+          const xts = Date.now();
+          ringHistory.push({ source: 'grok', text: grokText, ts: xts, round: round + 1 });
+          renderRingMessage('grok', grokText, xts, round + 1);
         }
-        if (ringAborted) { removeTyping(grokTyping); break; }
-        removeTyping(grokTyping);
 
-        const xts = Date.now();
-        ringHistory.push({ source: 'grok', text: grokText, ts: xts, round: round + 1 });
-        renderRingMessage('grok', grokText, xts, round + 1);
+        if (!ringAborted) renderRingBanner('🏆 Fight concluded');
+
+      } finally {
+        stopBtn.style.display = 'none';
+        setLoading(false);
       }
-
-      if (!ringAborted) renderRingBanner('🏆 Fight concluded');
-      stopBtn.style.display = 'none';
-      setLoading(false);
     }
 
     function stopRing() {
@@ -1008,14 +1020,20 @@
       const body = { contents };
       if (systemPrompt) body.system_instruction = { parts: [{ text: systemPrompt }] };
 
-      const res  = await fetch(url, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body:    JSON.stringify(body)
-      });
+      let res;
+      try {
+        res = await fetch(url, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body:    JSON.stringify(body)
+        });
+      } catch (netErr) {
+        throw new Error(`Cannot reach Gemini API — network/CORS error: ${netErr.message}`);
+      }
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(`Gemini API error: ${data?.error?.message || `HTTP ${res.status}`}`);
+      let data;
+      try { data = await res.json(); } catch (_) { data = null; }
+      if (!res.ok) throw new Error(`Gemini API error (${res.status}): ${data?.error?.message || res.statusText}`);
 
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error('Gemini returned an empty response.');
@@ -1030,17 +1048,23 @@
 
     // ── xAI Grok API (OpenAI-compatible) ─────────────────────────────────────
     async function callGrokRaw(apiKey, model, messages) {
-      const res = await fetch('https://api.x.ai/v1/chat/completions', {
-        method:  'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({ model, messages })
-      });
+      let res;
+      try {
+        res = await fetch('https://api.x.ai/v1/chat/completions', {
+          method:  'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({ model, messages })
+        });
+      } catch (netErr) {
+        throw new Error(`Cannot reach Grok API — network/CORS error: ${netErr.message}`);
+      }
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(`Grok API error: ${data?.error?.message || `HTTP ${res.status}`}`);
+      let data;
+      try { data = await res.json(); } catch (_) { data = null; }
+      if (!res.ok) throw new Error(`Grok API error (${res.status}): ${data?.error?.message || res.statusText}`);
 
       const text = data?.choices?.[0]?.message?.content;
       if (!text) throw new Error('Grok returned an empty response.');
