@@ -1150,7 +1150,7 @@ const INTRO_GREETINGS = {
   gemini:   'Nanaki, ready.',
   mistral:  '#$%@! Let\'s go!',
   copilot:  'For the Planet!',
-  grok:     'Hmph. Let\'s get this over with.',
+  grok:     "Hmph. Let's get this over with.",
   deepseek: 'Gimme all your Materia!',
 };
 
