@@ -90,7 +90,7 @@
   });
 }());
 
- = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';  // same-origin by default; set window.AIRING_API_BASE to point to a remote backend
+const API_BASE = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';  // same-origin by default; set window.AIRING_API_BASE to point to a remote backend
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local API key storage (Gemini + Claude + OpenAI — browser ↔ API directly, no backend needed)
