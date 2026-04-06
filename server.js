@@ -110,7 +110,7 @@ async function callOpenAI(prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-4.1',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 512,
     }),
@@ -187,7 +187,7 @@ async function callCopilot(prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: 'openai/gpt-4o',
+      model: 'openai/gpt-4.1',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 512,
     }),
@@ -534,7 +534,7 @@ app.post('/api/openai-proxy', openaiProxyLimiter, async (req, res) => {
     const res2 = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${trimmedKey}` },
-      body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
+      body: JSON.stringify({ model: 'gpt-4.1', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
     });
     const data = await res2.json();
     if (!res2.ok) throw new Error(`OpenAI HTTP ${res2.status}: ${data.error?.message || res2.statusText}`);
@@ -605,7 +605,7 @@ app.post('/api/copilot-proxy', copilotProxyLimiter, async (req, res) => {
     const res2 = await fetch('https://models.github.ai/inference/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${trimmedKey}` },
-      body: JSON.stringify({ model: 'openai/gpt-4o', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
+      body: JSON.stringify({ model: 'openai/gpt-4.1', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
     });
     const data = await res2.json().catch(() => ({}));
     if (!res2.ok) {
