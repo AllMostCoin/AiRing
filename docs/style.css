@@ -1547,6 +1547,12 @@ html, body {
   grid-column: 1 / -1;
 }
 
+.ticker-loading--stale {
+  color: #f0a500;
+  font-size: 8px;
+  grid-column: 1 / -1;
+}
+
 /* ── Portfolio ──────────────────────────────────────────────── */
 .portfolio-panel {
   background: var(--surface2);
