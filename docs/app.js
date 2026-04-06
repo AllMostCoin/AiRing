@@ -8,7 +8,8 @@
 // Login Gate — protect the site with Phantom wallet when AIRING_LOGIN_HASH is set.
 // AIRING_LOGIN_HASH is injected at deploy time via config.js and acts as a
 // session token: any non-empty value enables the gate, and its value is stored
-// in sessionStorage so that sessions are invalidated on each new deployment.
+// in localStorage so that authentication persists across browser sessions.
+// Changing LOGIN_PASSWORD invalidates all existing tokens.
 // If AIRING_LOGIN_HASH is empty the gate is skipped entirely.
 // ─────────────────────────────────────────────────────────────────────────────
 (function initLoginGate() {
@@ -18,11 +19,11 @@
   const SS_KEY = 'airing_authenticated';
 
   function isAuthenticated() {
-    try { return sessionStorage.getItem(SS_KEY) === loginHash; } catch { return false; }
+    try { return localStorage.getItem(SS_KEY) === loginHash; } catch { return false; }
   }
 
   function setAuthenticated() {
-    try { sessionStorage.setItem(SS_KEY, loginHash); } catch { /* ignore */ }
+    try { localStorage.setItem(SS_KEY, loginHash); } catch { /* ignore */ }
   }
 
   function getPhantomProviderForLogin() {
@@ -77,13 +78,29 @@
         // causes popup blockers to silently suppress the Phantom redirect.
         const provider = getPhantomProviderForLogin();
         if (!provider) {
-          // Phantom not installed — attempt to open the Phantom universal-link
-          // redirect synchronously (before any await) so popup blockers don't
-          // interfere.  Also reveal the direct install link as a reliable
-          // fallback in case the popup is suppressed.
-          openPhantomOrRedirect();
-          showLoginError(errEl, '◈ PHANTOM NOT FOUND — INSTALL PHANTOM');
-          if (installEl) installEl.classList.remove('hidden');
+          // Phantom not found in this browser context.
+          const encodedUrl = encodeURIComponent(window.location.href);
+          const encodedRef = encodeURIComponent(window.location.origin);
+          const phantomUrl = `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodedRef}`;
+          const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+          if (isTouchDevice) {
+            // On mobile, expose the Universal Link as a tappable <a> element so the
+            // OS can intercept it as a Universal Link and open Phantom's in-app browser.
+            // Programmatic window.location.href navigation is NOT reliably treated as a
+            // Universal Link on iOS — only user taps on <a> elements trigger it correctly.
+            if (installEl) {
+              installEl.href = phantomUrl;
+              installEl.textContent = '◈ OPEN IN PHANTOM ↗';
+              installEl.classList.remove('hidden');
+            }
+            showLoginError(errEl, '◈ PHANTOM NOT FOUND — TAP LINK ABOVE');
+          } else {
+            // On desktop without the extension, open the Phantom website in a new tab
+            // so the user stays on the login page while they install the extension.
+            openPhantomOrRedirect();
+            showLoginError(errEl, '◈ PHANTOM NOT FOUND — INSTALL PHANTOM');
+            if (installEl) installEl.classList.remove('hidden');
+          }
           return;
         }
 
@@ -2589,30 +2606,16 @@ function getPhantomProvider() {
   return null;
 }
 
-// Redirects the current page into Phantom's in-app browser via Phantom's
-// Universal Link so that window.phantom.solana is injected and login works.
-// On mobile with Phantom installed this opens the app directly via Universal
-// Link; on desktop without the extension it opens the Phantom website in a new
-// tab so the user stays on the login page.
+// Opens the Phantom Universal Link so the user can connect their wallet.
+// Used from the wallet-panel connect button (not the login gate, which has its
+// own inline mobile handling via a tappable <a> element).
+// On desktop without the extension it opens the Phantom website in a new tab
+// so the user stays on the current page while they install the extension.
 function openPhantomOrRedirect() {
   const encodedUrl = encodeURIComponent(window.location.href);
   const encodedRef = encodeURIComponent(window.location.origin);
   const phantomUrl = `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodedRef}`;
-  // On mobile, navigate the current tab so that Phantom opens the dApp inside
-  // its in-app browser (where window.phantom.solana is injected).  Opening a
-  // new tab causes the connection to happen in a separate sessionStorage context
-  // so the original browser tab never gets authenticated and Phantom has no way
-  // to return the user back to it.
-  // On desktop (no extension installed) keep the new-tab behaviour so the user
-  // stays on the login page while they install the extension.
-  // Feature-detect a touch device rather than sniffing the user-agent string,
-  // as UA strings can be spoofed and hybrid devices are increasingly common.
-  const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-  if (isMobile) {
-    window.location.href = phantomUrl;
-  } else {
-    window.open(phantomUrl, '_blank', 'noopener,noreferrer');
-  }
+  window.open(phantomUrl, '_blank', 'noopener,noreferrer');
 }
 
 // Returns the Phantom provider, waiting up to `timeout` ms for the
