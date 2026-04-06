@@ -558,6 +558,181 @@ async function runHybridCompetition(prompt) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Room analysis — each model sees what the others said and refines its answer
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ask each live model to review the other models' initial responses and deliver
+ * its best answer. Falls back to the backend proxy when available, otherwise
+ * calls each model directly (mirrors the hybrid path).
+ */
+async function runRoomAnalysis(prompt, initialData) {
+  const initialResults = initialData.results;
+
+  if (backendAvailable) {
+    try {
+      const res = await fetch(`${API_BASE}/api/room-analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, results: initialResults }),
+      });
+      if (res.ok) return await res.json();
+    } catch (_) {
+      // fall through to local path
+    }
+  }
+
+  // Local / hybrid path: call each model with the analysis prompt directly
+  const geminiKey   = getLocalGeminiKey();
+  const grokKey     = getLocalGrokKey();
+  const claudeKey   = getLocalClaudeKey();
+  const ollamaModel = getLocalOllamaModel();
+  const openaiKey   = getLocalOpenAIKey();
+  const mistralKey  = getLocalMistralKey();
+  const copilotKey  = getLocalCopilotKey();
+
+  function buildAnalysisPrompt(model) {
+    const others = initialResults.filter((r) => r.modelId !== model.id);
+    const othersText = others.map((r) => `[${r.name}]: ${r.response}`).join('\n\n');
+    return (
+      `You are competing in the AI Ring arena. The original question was:\n"${prompt}"\n\n` +
+      `Here is what the other AI models in the room answered:\n\n${othersText}\n\n` +
+      `You are ${model.name}. Having reviewed the other models' responses, ` +
+      `identify what is missing or could be improved, then provide your definitive best answer ` +
+      `to the original question.`
+    );
+  }
+
+  const results = await Promise.all(
+    AI_MODELS_DATA.map(async (model) => {
+      const start = Date.now();
+      const analysisPrompt = buildAnalysisPrompt(model);
+      let text = null;
+      let isDemo = true;
+      try {
+        if (model.id === 'gemini' && geminiKey) {
+          text = await callGeminiDirect(analysisPrompt, geminiKey);
+          isDemo = false;
+        } else if (model.id === 'grok' && grokKey && backendAvailable) {
+          text = await callGrokProxy(analysisPrompt, grokKey);
+          isDemo = false;
+        } else if (model.id === 'claude' && claudeKey) {
+          text = await callClaudeDirect(analysisPrompt, claudeKey);
+          isDemo = false;
+        } else if (model.id === 'ollama' && ollamaModel && backendAvailable) {
+          text = await callOllamaProxy(analysisPrompt, ollamaModel);
+          isDemo = false;
+        } else if (model.id === 'gpt4' && openaiKey) {
+          text = await callOpenAIDirect(analysisPrompt, openaiKey);
+          isDemo = false;
+        } else if (model.id === 'mistral' && mistralKey && backendAvailable) {
+          text = await callMistralProxy(analysisPrompt, mistralKey);
+          isDemo = false;
+        } else if (model.id === 'copilot' && copilotKey && backendAvailable) {
+          text = await callCopilotProxy(analysisPrompt, copilotKey);
+          isDemo = false;
+        }
+      } catch (_) {
+        text = null;
+      }
+      if (text === null) {
+        text = generateDemoResponse(model.id, prompt);
+        isDemo = true;
+      }
+      const latencyMs = Date.now() - start;
+      const score = scoreResponse(prompt, text, model);
+      return { model, response: text, latencyMs, score, isDemo };
+    }),
+  );
+
+  results.sort((a, b) => b.score - a.score);
+  const winner = results[0];
+  return {
+    prompt,
+    results: results.map((r) => ({
+      modelId:   r.model.id,
+      name:      r.model.name,
+      color:     r.model.color,
+      emoji:     r.model.emoji,
+      response:  r.response,
+      score:     r.score,
+      latencyMs: r.latencyMs,
+      isDemo:    r.isDemo,
+      isWinner:  r.model.id === winner.model.id,
+    })),
+    winnerId:   winner.model.id,
+    winnerName: winner.model.name,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Archive — persist the best answer across sessions (localStorage)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LS_ARCHIVE = 'airing_archive';
+const ARCHIVE_MAX = 20;
+
+function loadArchive() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_ARCHIVE) || '[]');
+  } catch (_) {
+    return [];
+  }
+}
+
+function archiveBestAnswer(matchData) {
+  const winner = matchData.results.find((r) => r.isWinner);
+  if (!winner) return;
+  const entry = {
+    id:        Date.now(),
+    timestamp: new Date().toISOString(),
+    prompt:    matchData.prompt,
+    winner: {
+      modelId:  winner.modelId,
+      name:     winner.name,
+      emoji:    winner.emoji,
+      response: winner.response,
+      score:    winner.score,
+    },
+  };
+  const archive = loadArchive();
+  archive.unshift(entry);
+  if (archive.length > ARCHIVE_MAX) archive.length = ARCHIVE_MAX;
+  try {
+    localStorage.setItem(LS_ARCHIVE, JSON.stringify(archive));
+  } catch (_) {
+    // storage full — skip silently
+  }
+  renderArchive();
+}
+
+function renderArchive() {
+  const archiveList = document.getElementById('archive-list');
+  if (!archiveList) return;
+  const archive = loadArchive();
+  if (archive.length === 0) {
+    archiveList.innerHTML = '<p class="history-empty">No archived answers yet.</p>';
+    return;
+  }
+  archiveList.innerHTML = '';
+  archive.forEach((entry) => {
+    const item = document.createElement('div');
+    item.className = 'history-item archive-item';
+    const date = new Date(entry.timestamp).toLocaleDateString();
+    item.innerHTML =
+      `<span class="history-prompt">${escapeHtml(entry.prompt)}</span>` +
+      `<span class="history-winner">${entry.winner.emoji || ''} ${escapeHtml(entry.winner.name)} ★${entry.winner.score}</span>`;
+    item.title = `${date} — Score: ${entry.winner.score}`;
+    item.addEventListener('click', () => {
+      winnerName.textContent = `${entry.winner.emoji || ''} ${entry.winner.name}`;
+      winnerResponse.textContent = entry.winner.response;
+      winnerPanel.classList.remove('hidden');
+    });
+    archiveList.appendChild(item);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DOM references
 // ─────────────────────────────────────────────────────────────────────────────
 const promptInput     = document.getElementById('prompt-input');
@@ -1158,9 +1333,8 @@ async function checkServerMode() {
 }
 
 checkServerMode();
+renderArchive();
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Input handlers
 // ─────────────────────────────────────────────────────────────────────────────
 promptInput.addEventListener('input', () => {
   const len = promptInput.value.length;
@@ -2028,8 +2202,8 @@ submitBtn.addEventListener('click', async () => {
       lastData.results.forEach((r) => { lastRoundScores[r.modelId] = r.score; });
       matchWinnerIds.sort((a, b) => (lastRoundScores[b] || 0) - (lastRoundScores[a] || 0));
     }
-    const matchWinnerId = matchWinnerIds[0];
-    const matchWinnerModel = AI_MODELS_DATA.find((m) => m.id === matchWinnerId);
+    let matchWinnerId = matchWinnerIds[0];
+    let matchWinnerModel = AI_MODELS_DATA.find((m) => m.id === matchWinnerId);
 
     // Compose aggregated results for renderResults
     const aggregated = AI_MODELS_DATA.map((model) => {
@@ -2060,6 +2234,41 @@ submitBtn.addEventListener('click', async () => {
     });
     aggregated.sort((a, b) => b.score - a.score);
 
+    // ── Room analysis phase — each model reviews the other models' answers ──
+    // Show analysis bubbles while waiting
+    MODEL_IDS.forEach((id) => {
+      const el = getAgentEl(id);
+      el.classList.remove('winner', 'loser');
+      showBubble(id, '🔍 analyzing...');
+    });
+
+    let analysisData = null;
+    try {
+      analysisData = await runRoomAnalysis(prompt, { prompt, results: aggregated });
+    } catch (_) {
+      // Room analysis failed — proceed with initial scores
+    }
+
+    if (analysisData) {
+      // Merge room analysis scores/responses into aggregated results
+      analysisData.results.forEach((ar) => {
+        const r = aggregated.find((x) => x.modelId === ar.modelId);
+        if (r) {
+          // Add analysis score on top of round scores
+          r.score += ar.score;
+          // Replace response with the refined analysis response
+          r.response = ar.response;
+          if (!ar.isDemo) r.isDemo = false;
+        }
+      });
+      // Re-sort and re-determine winner based on combined scores
+      aggregated.sort((a, b) => b.score - a.score);
+      matchWinnerId = aggregated[0].modelId;
+      matchWinnerModel = AI_MODELS_DATA.find((m) => m.id === matchWinnerId);
+      aggregated.forEach((r) => { r.isWinner = r.modelId === matchWinnerId; });
+    }
+    // ── End room analysis ────────────────────────────────────────────────────
+
     const matchData = {
       prompt,
       results:    aggregated,
@@ -2088,6 +2297,7 @@ submitBtn.addEventListener('click', async () => {
 
     renderResults(matchData);
     addToHistory(matchData);
+    archiveBestAnswer(matchData);
 
     // Surface any API errors from the match to the settings panel
     const failedLive = aggregated.filter((r) => r.isDemo && r.error);

@@ -1288,6 +1288,18 @@ html, body {
   white-space: nowrap;
 }
 
+/* ── Archive panel (best answers stored across sessions) ────── */
+.archive-panel {
+  border-color: var(--mako);
+}
+.archive-panel .history-title {
+  color: var(--mako);
+  text-shadow: 1px 1px 0 #000, 0 0 8px var(--mako);
+}
+.archive-item .history-winner {
+  color: var(--mako);
+}
+
 /* ── Footer ─────────────────────────────────────────────────── */
 .site-footer {
   text-align: center;

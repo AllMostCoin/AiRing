@@ -511,6 +511,128 @@ describe('POST /api/compete', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/room-analyze
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SAMPLE_INITIAL_RESULTS = [
+  { modelId: 'gpt4',    name: 'GPT-4',   response: 'GPT-4 initial answer about AI.' },
+  { modelId: 'claude',  name: 'Claude',  response: 'Claude initial answer about AI.' },
+  { modelId: 'gemini',  name: 'Gemini',  response: 'Gemini initial answer about AI.' },
+  { modelId: 'mistral', name: 'Mistral', response: 'Mistral initial answer about AI.' },
+  { modelId: 'copilot', name: 'Copilot', response: 'Copilot initial answer about AI.' },
+  { modelId: 'grok',    name: 'Grok',    response: 'Grok initial answer about AI.' },
+  { modelId: 'ollama',  name: 'Ollama',  response: 'Ollama initial answer about AI.' },
+];
+
+describe('POST /api/room-analyze', () => {
+  beforeEach(() => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.MISTRAL_API_KEY;
+    delete process.env.GITHUB_TOKEN;
+    delete process.env.XAI_API_KEY;
+    delete process.env.OLLAMA_MODEL;
+  });
+
+  it('returns 400 when prompt is missing', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ results: SAMPLE_INITIAL_RESULTS });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/prompt/i);
+  });
+
+  it('returns 400 when prompt is empty', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: '   ', results: SAMPLE_INITIAL_RESULTS });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when prompt exceeds 2000 characters', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'z'.repeat(2001), results: SAMPLE_INITIAL_RESULTS });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/2000/);
+  });
+
+  it('returns 400 when results array is missing', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'What is AI?' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/results/i);
+  });
+
+  it('returns 400 when results array is empty', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'What is AI?', results: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 200 with 7 demo results when no API keys configured', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'What is AI?', results: SAMPLE_INITIAL_RESULTS });
+    expect(res.status).toBe(200);
+    expect(res.body.results).toHaveLength(7);
+    expect(res.body.results.every((r) => r.isDemo)).toBe(true);
+  });
+
+  it('response includes required top-level fields', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'test prompt', results: SAMPLE_INITIAL_RESULTS });
+    expect(res.body).toHaveProperty('prompt');
+    expect(res.body).toHaveProperty('results');
+    expect(res.body).toHaveProperty('winnerId');
+    expect(res.body).toHaveProperty('winnerName');
+  });
+
+  it('each result has required per-model fields', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'test', results: SAMPLE_INITIAL_RESULTS });
+    const REQUIRED = ['modelId', 'name', 'character', 'color', 'emoji', 'response', 'score', 'latencyMs', 'isDemo', 'isWinner'];
+    for (const result of res.body.results) {
+      for (const field of REQUIRED) {
+        expect(result).toHaveProperty(field);
+      }
+    }
+  });
+
+  it('exactly one result has isWinner:true', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'test', results: SAMPLE_INITIAL_RESULTS });
+    const winners = res.body.results.filter((r) => r.isWinner);
+    expect(winners).toHaveLength(1);
+    expect(winners[0].modelId).toBe(res.body.winnerId);
+  });
+
+  it('results are sorted by score descending', async () => {
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'coding analysis task', results: SAMPLE_INITIAL_RESULTS });
+    const scores = res.body.results.map((r) => r.score);
+    for (let i = 0; i < scores.length - 1; i++) {
+      expect(scores[i]).toBeGreaterThanOrEqual(scores[i + 1]);
+    }
+  });
+
+  it('prompt is echoed back in response', async () => {
+    const prompt = 'unique room analysis prompt xyz';
+    const res = await request(app).post('/api/room-analyze').send({ prompt, results: SAMPLE_INITIAL_RESULTS });
+    expect(res.body.prompt).toBe(prompt);
+  });
+
+  it('returns a live result for a model with a valid key + mocked fetch', async () => {
+    process.env.OPENAI_API_KEY = 'sk-livekey';
+    fetch.mockResolvedValue(mockChoicesResponse('Live GPT-4 room analysis answer'));
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'What is AI?', results: SAMPLE_INITIAL_RESULTS });
+    expect(res.status).toBe(200);
+    const gpt4 = res.body.results.find((r) => r.modelId === 'gpt4');
+    expect(gpt4.isDemo).toBe(false);
+    expect(gpt4.response).toBe('Live GPT-4 room analysis answer');
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  it('gracefully falls back to demo when a model caller throws', async () => {
+    process.env.OPENAI_API_KEY = 'sk-throwkey';
+    fetch.mockRejectedValue(new Error('Simulated network error'));
+    const res = await request(app).post('/api/room-analyze').send({ prompt: 'What is AI?', results: SAMPLE_INITIAL_RESULTS });
+    expect(res.status).toBe(200);
+    expect(res.body.results).toHaveLength(7);
+    const gpt4 = res.body.results.find((r) => r.modelId === 'gpt4');
+    expect(gpt4.isDemo).toBe(true);
+    delete process.env.OPENAI_API_KEY;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Catch-all — frontend serving
 // ─────────────────────────────────────────────────────────────────────────────
 

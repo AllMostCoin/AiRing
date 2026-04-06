@@ -666,6 +666,100 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Room analysis helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build a prompt that asks a model to analyze what the other models said
+ * and then deliver its best possible answer.
+ */
+function buildRoomAnalysisPrompt(originalPrompt, modelName, otherResponses) {
+  const others = otherResponses
+    .map((r) => `[${r.name}]: ${r.response}`)
+    .join('\n\n');
+  return (
+    `You are competing in the AI Ring arena. The original question was:\n"${originalPrompt}"\n\n` +
+    `Here is what the other AI models in the room answered:\n\n${others}\n\n` +
+    `You are ${modelName}. Having reviewed the other models' responses, ` +
+    `identify what is missing or could be improved, then provide your definitive best answer ` +
+    `to the original question.`
+  );
+}
+
+const roomAnalyzeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: POST /api/room-analyze — each model analyzes the other models' answers
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/room-analyze', roomAnalyzeLimiter, async (req, res) => {
+  const { prompt, results: initialResults } = req.body;
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return res.status(400).json({ error: 'prompt is required' });
+  }
+  if (!Array.isArray(initialResults) || initialResults.length === 0) {
+    return res.status(400).json({ error: 'results array is required' });
+  }
+  const trimmed = prompt.trim();
+  if (trimmed.length > 2000) {
+    return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
+  }
+
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, ollama: callOllama };
+
+  const results = await Promise.all(
+    AI_MODELS.map(async (model) => {
+      const start = Date.now();
+      // Build context from the other models' responses (exclude this model)
+      const others = initialResults.filter((r) => r.modelId !== model.id);
+      const analysisPrompt = buildRoomAnalysisPrompt(trimmed, model.name, others);
+      try {
+        let text = await callers[model.id](analysisPrompt);
+        const isDemo = text === null;
+        if (isDemo) text = generateDemoResponse(model.id, trimmed);
+        const latencyMs = Date.now() - start;
+        const score = scoreResponse(trimmed, text, model);
+        return { model, response: text, latencyMs, score, isDemo, error: null };
+      } catch (err) {
+        console.error(`[${model.id}] room-analyze failed: ${err.message}`);
+        const text = generateDemoResponse(model.id, trimmed);
+        const latencyMs = Date.now() - start;
+        const score = scoreResponse(trimmed, text, model);
+        return { model, response: text, latencyMs, score, isDemo: true, error: err.message };
+      }
+    }),
+  );
+
+  results.sort((a, b) => b.score - a.score);
+  const winner = results[0];
+
+  res.json({
+    prompt: trimmed,
+    results: results.map((r) => ({
+      modelId:   r.model.id,
+      name:      r.model.name,
+      character: r.model.character,
+      color:     r.model.color,
+      emoji:     r.model.emoji,
+      response:  r.response,
+      score:     r.score,
+      latencyMs: r.latencyMs,
+      isDemo:    r.isDemo,
+      error:     r.error || null,
+      isWinner:  r.model.id === winner.model.id,
+    })),
+    winnerId:   winner.model.id,
+    winnerName: winner.model.name,
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Rate limiter — protect the frontend catch-all from abuse
 // ─────────────────────────────────────────────────────────────────────────────
 const pageLimiter = rateLimit({
@@ -690,4 +784,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, scoreResponse, generateDemoResponse, AI_MODELS, DEMO_TEMPLATES };
+module.exports = { app, scoreResponse, generateDemoResponse, buildRoomAnalysisPrompt, AI_MODELS, DEMO_TEMPLATES };
