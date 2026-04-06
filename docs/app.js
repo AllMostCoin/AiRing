@@ -2565,11 +2565,14 @@ function getPhantomProvider() {
   return null;
 }
 
-// Opens the Phantom install page in a new tab so the user stays on the
-// current login page in their regular browser rather than being redirected
-// into Phantom's in-app browser.
+// Redirects the current page into Phantom's in-app browser via Phantom's
+// Universal Link so that window.phantom.solana is injected and login works.
+// On mobile with Phantom installed this opens the app directly; on desktop
+// without the extension it navigates to the Phantom website.
 function openPhantomOrRedirect() {
-  window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
+  const encodedUrl = encodeURIComponent(window.location.href);
+  const encodedRef = encodeURIComponent(window.location.origin);
+  window.location.href = `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodedRef}`;
 }
 
 // Returns the Phantom provider, waiting up to `timeout` ms for the
