@@ -79,6 +79,11 @@ jobs:
         run: |
           node -e '
             const fs = require("fs");
+            const crypto = require("crypto");
+            const loginPwd = process.env.LOGIN_PASSWORD || "";
+            const loginHash = loginPwd
+              ? crypto.createHash("sha256").update(loginPwd).digest("hex")
+              : "";
             const lines = [
               `window.AIRING_GEMINI_KEY  = ${JSON.stringify(process.env.GEMINI_API_KEY || "")};`,
               `window.AIRING_GROK_KEY    = ${JSON.stringify(process.env.GROK_API_KEY || "")};`,
@@ -87,6 +92,7 @@ jobs:
               `window.AIRING_MISTRAL_KEY = ${JSON.stringify(process.env.MISTRAL_API_KEY || "")};`,
               `window.AIRING_COPILOT_KEY = ${JSON.stringify(process.env.COPILOT_API_KEY || "")};`,
               `window.AIRING_API_BASE    = ${JSON.stringify(process.env.BACKEND_URL || "")};`,
+              `window.AIRING_LOGIN_HASH  = ${JSON.stringify(loginHash)};`,
             ];
             fs.writeFileSync("docs/config.js", lines.join("\n") + "\n");
           '
@@ -98,6 +104,7 @@ jobs:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           COPILOT_API_KEY: ${{ secrets.COPILOT_API_KEY }}
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
 
       - name: Warn if backend required but BACKEND_URL not set
         # Copilot, Grok, and Mistral all need the Node.js backend to handle CORS.

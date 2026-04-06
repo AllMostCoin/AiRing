@@ -9,6 +9,32 @@
     <link rel="stylesheet" href="style.css?v=9" />
   </head>
   <body>
+
+    <!-- ─── Login Gate ───────────────────────────────────────────────── -->
+    <div id="login-gate" class="login-gate hidden" aria-modal="true" role="dialog" aria-labelledby="login-title">
+      <div class="login-box ff7-panel">
+        <div class="login-logo">
+          <span class="logo-icon">⚔</span>
+          <span class="logo-text">AI RING</span>
+        </div>
+        <div id="login-title" class="login-title">◆ ACCESS REQUIRED ◆</div>
+        <form id="login-form" class="login-form" novalidate>
+          <label class="login-label" for="login-password">ENTER PASSWORD</label>
+          <input
+            id="login-password"
+            class="login-input"
+            type="password"
+            autocomplete="current-password"
+            spellcheck="false"
+            placeholder="▓▓▓▓▓▓▓▓"
+            required
+          />
+          <button id="login-submit" class="login-btn" type="submit">▶ ENTER</button>
+          <div id="login-error" class="login-error hidden">✖ WRONG PASSWORD — ACCESS DENIED</div>
+        </form>
+      </div>
+    </div>
+
     <!-- ─── Header ─────────────────────────────────────────────────── -->
     <header class="site-header">
       <div class="header-inner">
@@ -551,6 +577,7 @@
     <script>window.AIRING_COPILOT_KEY = window.AIRING_COPILOT_KEY || '';</script>
     <script>window.AIRING_OLLAMA_MODEL = window.AIRING_OLLAMA_MODEL || '';</script>
     <script>window.AIRING_API_BASE = window.AIRING_API_BASE || '';</script>
+    <script>window.AIRING_LOGIN_HASH = window.AIRING_LOGIN_HASH || '';</script>
     <script src="config.js" onerror="void 0"></script>
     <script src="utils.js?v=1"></script>
     <script src="app.js?v=15"></script>
