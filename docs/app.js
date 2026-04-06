@@ -86,11 +86,15 @@
     if (!btn) return;
 
     btn.addEventListener('click', async () => {
-      // Wait for phantom#initialized if the extension hasn't injected yet.
-      const provider = await waitForPhantomProvider(getPhantomProviderForLogin);
+      // Check synchronously — by the time the gate is visible the page has
+      // already waited up to 800 ms for Phantom to inject, so any further
+      // async wait is unnecessary.  More importantly, calling window.open()
+      // after an `await` loses the browser's user-activation state, which
+      // causes popup blockers to silently suppress the Phantom redirect.
+      const provider = getPhantomProviderForLogin();
       if (!provider) {
-        // Phantom not installed — open the Phantom install page in a new tab
-        // so the user stays on the login page in their regular browser.
+        // Phantom not installed — open the Phantom universal-link redirect
+        // synchronously (before any await) so popup blockers don't interfere.
         openPhantomOrRedirect();
         showLoginError(errEl, '◈ PHANTOM NOT FOUND — INSTALL PHANTOM');
         return;
@@ -2642,8 +2646,11 @@ function onWalletDisconnected() {
 
 if (walletConnectBtn) {
   walletConnectBtn.addEventListener('click', async () => {
-    // Wait for phantom#initialized if the extension hasn't injected yet.
-    const provider = await waitForPhantomProvider(getPhantomProvider);
+    // Check synchronously — by the time the wallet panel is visible Phantom
+    // has had plenty of time to inject.  Calling window.open() after an
+    // `await` loses the browser's user-activation state and causes popup
+    // blockers to suppress the Phantom redirect.
+    const provider = getPhantomProvider();
     if (!provider) {
       openPhantomOrRedirect();
       return;
@@ -2652,7 +2659,10 @@ if (walletConnectBtn) {
       walletConnectBtn.disabled = true;
       walletConnectBtn.textContent = '◈ CONNECTING…';
       const resp = await provider.connect();
-      onWalletConnected(resp.publicKey.toString());
+      // Some Phantom versions set provider.publicKey rather than returning it
+      const pubkey = resp?.publicKey ?? provider.publicKey;
+      if (!pubkey) throw new Error('No public key returned from Phantom');
+      onWalletConnected(pubkey.toString());
     } catch (err) {
       walletConnectBtn.textContent = '◈ CONNECT PHANTOM';
       walletConnectBtn.disabled = false;
