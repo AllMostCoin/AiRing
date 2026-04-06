@@ -2703,7 +2703,7 @@ function renderTicker(tokens, stale) {
     </div>`;
   }).join('');
   const staleNotice = stale
-    ? '<span class="ticker-loading" style="color:#f0a500;font-size:8px;">⚠ prices may be delayed</span>'
+    ? '<span class="ticker-loading ticker-loading--stale">⚠ prices may be delayed</span>'
     : '';
   tickerGridEl.innerHTML = cards + staleNotice;
 }

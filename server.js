@@ -886,7 +886,7 @@ async function fetchMarketData() {
 
   // If Jupiter is completely unavailable, serve cached data (stale) rather than 502.
   if (!jupData) {
-    if (marketDataCache.tokens) {
+    if (marketDataCache.tokens && Date.now() - marketDataCache.timestamp <= MARKET_CACHE_MAX_AGE_MS) {
       console.warn('[market-data] Jupiter unavailable — serving cached prices');
       return { tokens: marketDataCache.tokens, stale: true };
     }
