@@ -785,14 +785,7 @@ function isValidSolanaAddress(addr) {
 async function fetchMarketData() {
   const mintList = TRACKED_TOKENS.map((t) => t.mint).join(',');
 
-  // Jupiter Price API v2 (free, no auth required)
-  const jupRes = await fetch(`https://api.jup.ag/price/v2?ids=${mintList}`, {
-    headers: { Accept: 'application/json' },
-  });
-  if (!jupRes.ok) throw new Error(`Jupiter Price API HTTP ${jupRes.status}`);
-  const jupData = await jupRes.json();
-
-  // DexScreener for 24-h change / volume (free, no auth required)
+  // DexScreener for 24-h change / volume / price fallback (free, no auth required)
   const dexRes = await fetch(
     `https://api.dexscreener.com/latest/dex/tokens/${mintList}`,
     { headers: { Accept: 'application/json' } },
@@ -811,13 +804,29 @@ async function fetchMarketData() {
     }
   }
 
+  // Jupiter Price API v2 (free, no auth required) — primary price source
+  // Falls back to DexScreener priceUsd if Jupiter is unavailable
+  let jupData = null;
+  try {
+    const jupRes = await fetch(`https://api.jup.ag/price/v2?ids=${mintList}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (jupRes.ok) {
+      jupData = await jupRes.json();
+    } else {
+      console.warn(`[market-data] Jupiter API returned ${jupRes.status}, using DexScreener prices`);
+    }
+  } catch (err) {
+    console.warn('[market-data] Jupiter API unavailable, using DexScreener prices:', err.message);
+  }
+
   return TRACKED_TOKENS.map((token) => {
-    const priceInfo = jupData.data?.[token.mint];
+    const priceInfo = jupData?.data?.[token.mint];
     const dexPair   = dexByMint[token.mint] || null;
     return {
       symbol:    token.symbol,
       mint:      token.mint,
-      price:     priceInfo?.price ?? null,
+      price:     priceInfo?.price ?? dexPair?.priceUsd ?? null,
       change24h: dexPair?.priceChange?.h24 ?? null,
       volume24h: dexPair?.volume?.h24 ?? null,
       liquidity: dexPair?.liquidity?.usd ?? null,
