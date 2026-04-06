@@ -7,7 +7,7 @@
  * Testing here therefore gives effective coverage of both implementations.
  */
 
-const { scoreResponse, generateDemoResponse, AI_MODELS, DEMO_TEMPLATES } = require('../server');
+const { scoreResponse, generateDemoResponse, buildRoomAnalysisPrompt, AI_MODELS, DEMO_TEMPLATES } = require('../server');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // scoreResponse
@@ -203,5 +203,44 @@ describe('AI_MODELS', () => {
   it('all model ids are unique', () => {
     const ids = AI_MODELS.map((m) => m.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildRoomAnalysisPrompt
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('buildRoomAnalysisPrompt', () => {
+  const otherResponses = [
+    { name: 'Claude',  response: 'Claude says hello.' },
+    { name: 'Gemini',  response: 'Gemini says hi.' },
+  ];
+
+  it('includes the original prompt in the output', () => {
+    const result = buildRoomAnalysisPrompt('What is AI?', 'GPT-4', otherResponses);
+    expect(result).toContain('What is AI?');
+  });
+
+  it('includes the model name in the output', () => {
+    const result = buildRoomAnalysisPrompt('What is AI?', 'GPT-4', otherResponses);
+    expect(result).toContain('GPT-4');
+  });
+
+  it('includes the other models\' names and responses', () => {
+    const result = buildRoomAnalysisPrompt('test prompt', 'Mistral', otherResponses);
+    expect(result).toContain('Claude');
+    expect(result).toContain('Claude says hello.');
+    expect(result).toContain('Gemini');
+    expect(result).toContain('Gemini says hi.');
+  });
+
+  it('returns a non-empty string', () => {
+    const result = buildRoomAnalysisPrompt('hello', 'Grok', []);
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('works with an empty other-responses list', () => {
+    expect(() => buildRoomAnalysisPrompt('test', 'Ollama', [])).not.toThrow();
   });
 });
