@@ -261,11 +261,12 @@ async function callGeminiDirect(prompt, key) {
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
   });
-  const data = await res.json();
   if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
     const msg = data.error?.message || res.statusText;
     throw new Error(`Gemini API error: ${msg}`);
   }
+  const data = await res.json();
   if (!data.candidates?.length || !data.candidates[0]?.content?.parts?.length) throw new Error('Gemini returned no content');
   const parts = data.candidates[0].content.parts;
   const textPart = parts.find((p) => !p.thought) || parts[0];
