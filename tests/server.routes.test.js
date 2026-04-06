@@ -633,6 +633,102 @@ describe('POST /api/room-analyze', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/market-data
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Minimal DexScreener response with priceUsd for SOL
+const DEX_PAIR_SOL = {
+  baseToken: { address: 'So11111111111111111111111111111111111111112' },
+  priceUsd: '150.00',
+  priceChange: { h24: 2.5 },
+  volume: { h24: 1000000 },
+  liquidity: { usd: 5000000 },
+  txns: { h24: { buys: 300, sells: 200 } },
+};
+
+function mockJupiterOk(priceMap) {
+  return { ok: true, json: jest.fn().mockResolvedValue({ data: priceMap }) };
+}
+
+function mockDexOk(pairs) {
+  return { ok: true, json: jest.fn().mockResolvedValue({ pairs }) };
+}
+
+describe('GET /api/market-data', () => {
+  beforeEach(() => {
+    // Clear cache between tests so each test starts fresh
+    const { marketDataCache } = require('../server');
+    marketDataCache.tokens = null;
+    marketDataCache.timestamp = null;
+  });
+
+  it('returns 200 with prices when both Jupiter and DexScreener succeed', async () => {
+    const jupPriceMap = { 'So11111111111111111111111111111111111111112': { price: '155.00' } };
+    fetch.mockImplementation((url) => {
+      if (url.includes('jup.ag')) return Promise.resolve(mockJupiterOk(jupPriceMap));
+      if (url.includes('dexscreener')) return Promise.resolve(mockDexOk([DEX_PAIR_SOL]));
+      return Promise.reject(new Error('unexpected URL'));
+    });
+    const res = await request(app).get('/api/market-data');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.tokens)).toBe(true);
+    const sol = res.body.tokens.find((t) => t.symbol === 'SOL');
+    expect(sol.price).toBe('155.00'); // Jupiter price wins
+    expect(sol.change24h).toBe(2.5);
+  });
+
+  it('returns 200 with DexScreener prices when Jupiter is unavailable', async () => {
+    fetch.mockImplementation((url) => {
+      if (url.includes('jup.ag')) return Promise.resolve({ ok: false, status: 503 });
+      if (url.includes('dexscreener')) return Promise.resolve(mockDexOk([DEX_PAIR_SOL]));
+      return Promise.reject(new Error('unexpected URL'));
+    });
+    const res = await request(app).get('/api/market-data');
+    expect(res.status).toBe(200);
+    const sol = res.body.tokens.find((t) => t.symbol === 'SOL');
+    expect(sol.price).toBe('150.00'); // DexScreener fallback price
+    expect(sol.change24h).toBe(2.5);
+  });
+
+  it('returns 200 with DexScreener prices when Jupiter throws a network error', async () => {
+    fetch.mockImplementation((url) => {
+      if (url.includes('jup.ag')) return Promise.reject(new Error('network error'));
+      if (url.includes('dexscreener')) return Promise.resolve(mockDexOk([DEX_PAIR_SOL]));
+      return Promise.reject(new Error('unexpected URL'));
+    });
+    const res = await request(app).get('/api/market-data');
+    expect(res.status).toBe(200);
+    const sol = res.body.tokens.find((t) => t.symbol === 'SOL');
+    expect(sol.price).toBe('150.00');
+  });
+
+  it('returns 502 when both Jupiter and DexScreener fail and cache is empty', async () => {
+    fetch.mockImplementation(() => Promise.reject(new Error('all down')));
+    const res = await request(app).get('/api/market-data');
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/unavailable/i);
+  });
+
+  it('returns stale cached data when both sources fail but cache is warm', async () => {
+    // Prime the cache with a successful response first
+    const jupPriceMap = { 'So11111111111111111111111111111111111111112': { price: '140.00' } };
+    fetch.mockImplementation((url) => {
+      if (url.includes('jup.ag')) return Promise.resolve(mockJupiterOk(jupPriceMap));
+      if (url.includes('dexscreener')) return Promise.resolve(mockDexOk([DEX_PAIR_SOL]));
+      return Promise.reject(new Error('unexpected URL'));
+    });
+    await request(app).get('/api/market-data'); // warms the cache
+
+    // Now take both sources offline
+    fetch.mockImplementation(() => Promise.reject(new Error('all down')));
+    const res = await request(app).get('/api/market-data');
+    expect(res.status).toBe(200);
+    expect(res.body.stale).toBe(true);
+    expect(Array.isArray(res.body.tokens)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Catch-all — frontend serving
 // ─────────────────────────────────────────────────────────────────────────────
 
