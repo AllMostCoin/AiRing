@@ -90,7 +90,7 @@
   });
 }());
 
- = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';  // same-origin by default; set window.AIRING_API_BASE to point to a remote backend
+const API_BASE = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';  // same-origin by default; set window.AIRING_API_BASE to point to a remote backend
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local API key storage (Gemini + Claude + OpenAI — browser ↔ API directly, no backend needed)
@@ -2413,3 +2413,477 @@ submitBtn.addEventListener('click', async () => {
 // Utilities
 // ─────────────────────────────────────────────────────────────────────────────
 function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Solana Wallet & Trading Module
+// All private-key operations happen inside Phantom — keys never leave the browser.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Token mint → decimals map (mirrors TRACKED_TOKENS on the backend)
+const TOKEN_DECIMALS = {
+  'So11111111111111111111111111111111111111112':   9,  // SOL
+  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 6,  // USDC
+  'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': 5,  // BONK
+  'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN':  6,  // JUP
+  'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm': 6,  // WIF
+  'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3': 6,  // PYTH
+  '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R':  6,  // RAY
+};
+
+// Symbol → mint address lookup (used by auto-fill and trade history display)
+const SYMBOL_TO_MINT = {
+  SOL:  'So11111111111111111111111111111111111111112',
+  USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  BONK: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+  JUP:  'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+  WIF:  'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+  PYTH: 'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3',
+  RAY:  '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+};
+
+function mintToSymbol(mint) {
+  return Object.entries(SYMBOL_TO_MINT).find(([, m]) => m === mint)?.[0] || mint.slice(0, 4);
+}
+
+const LS_TRADE_HISTORY = 'airing_trade_history';
+let connectedWallet   = null;
+let latestMarketData  = null;
+let tradeHistory      = [];
+
+try {
+  const stored = localStorage.getItem(LS_TRADE_HISTORY);
+  if (stored) tradeHistory = JSON.parse(stored);
+} catch { tradeHistory = []; }
+
+// ── DOM refs ───────────────────────────────────────────────────
+const walletBtn             = document.getElementById('wallet-btn');
+const walletPanelEl         = document.getElementById('wallet-panel');
+const walletConnectBtn      = document.getElementById('wallet-connect-btn');
+const walletAddressDisplay  = document.getElementById('wallet-address-display');
+const walletDisconnectBtn   = document.getElementById('wallet-disconnect-btn');
+const tickerGridEl          = document.getElementById('ticker-grid');
+const refreshMarketBtn      = document.getElementById('refresh-market-btn');
+const portfolioPanelEl      = document.getElementById('portfolio-panel');
+const portfolioDisplayEl    = document.getElementById('portfolio-display');
+const analyzeMarketBtn      = document.getElementById('analyze-market-btn');
+const autoTradeToggle       = document.getElementById('auto-trade-toggle');
+const tradeRecommendation   = document.getElementById('trade-recommendation');
+const recommendationDisplay = document.getElementById('recommendation-display');
+const executeTradeBtnEl     = document.getElementById('execute-trade-btn');
+const tradeFromSelect       = document.getElementById('trade-from-select');
+const tradeToSelect         = document.getElementById('trade-to-select');
+const tradeAmountInput      = document.getElementById('trade-amount-input');
+const tradeSlippageInput    = document.getElementById('trade-slippage-input');
+const tradeStatusEl         = document.getElementById('trade-status');
+const tradeHistoryListEl    = document.getElementById('trade-history-list');
+
+// ── Toggle wallet panel ────────────────────────────────────────
+if (walletBtn) {
+  walletBtn.addEventListener('click', () => {
+    walletPanelEl.classList.toggle('hidden');
+    // Close settings panel when opening wallet panel and vice-versa
+    if (!walletPanelEl.classList.contains('hidden')) {
+      settingsPanel.classList.add('hidden');
+      refreshMarketData();
+    }
+  });
+}
+
+// Also close wallet panel when settings opens
+if (settingsBtn) {
+  settingsBtn.addEventListener('click', () => {
+    if (!walletPanelEl.classList.contains('hidden')) {
+      walletPanelEl.classList.add('hidden');
+    }
+  }, true /* capture — runs before existing listener */);
+}
+
+// ── Phantom wallet helpers ─────────────────────────────────────
+function getPhantomProvider() {
+  if (typeof window === 'undefined') return null;
+  if (window.phantom?.solana?.isPhantom) return window.phantom.solana;
+  if (window.solana?.isPhantom)          return window.solana;
+  return null;
+}
+
+function onWalletConnected(pubkey) {
+  connectedWallet = pubkey;
+  const short = `${pubkey.slice(0, 4)}…${pubkey.slice(-4)}`;
+  if (walletConnectBtn) {
+    walletConnectBtn.textContent = '◈ CONNECTED';
+    walletConnectBtn.classList.add('connected');
+    walletConnectBtn.disabled = true;
+  }
+  if (walletAddressDisplay) {
+    walletAddressDisplay.textContent = short;
+    walletAddressDisplay.title = pubkey;
+    walletAddressDisplay.classList.remove('hidden');
+  }
+  if (walletDisconnectBtn) walletDisconnectBtn.classList.remove('hidden');
+  if (executeTradeBtnEl)   executeTradeBtnEl.disabled = false;
+  if (portfolioPanelEl)    portfolioPanelEl.classList.remove('hidden');
+  fetchPortfolioData(pubkey);
+}
+
+function onWalletDisconnected() {
+  connectedWallet = null;
+  if (walletConnectBtn) {
+    walletConnectBtn.textContent = '◈ CONNECT PHANTOM';
+    walletConnectBtn.classList.remove('connected');
+    walletConnectBtn.disabled = false;
+  }
+  if (walletAddressDisplay) walletAddressDisplay.classList.add('hidden');
+  if (walletDisconnectBtn)  walletDisconnectBtn.classList.add('hidden');
+  if (portfolioPanelEl)     portfolioPanelEl.classList.add('hidden');
+  if (executeTradeBtnEl)    executeTradeBtnEl.disabled = true;
+}
+
+if (walletConnectBtn) {
+  walletConnectBtn.addEventListener('click', async () => {
+    const provider = getPhantomProvider();
+    if (!provider) {
+      window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
+      return;
+    }
+    try {
+      walletConnectBtn.disabled = true;
+      walletConnectBtn.textContent = '◈ CONNECTING…';
+      const resp = await provider.connect();
+      onWalletConnected(resp.publicKey.toString());
+    } catch (err) {
+      walletConnectBtn.textContent = '◈ CONNECT PHANTOM';
+      walletConnectBtn.disabled = false;
+      console.error('[wallet] connect error:', err);
+    }
+  });
+}
+
+if (walletDisconnectBtn) {
+  walletDisconnectBtn.addEventListener('click', async () => {
+    const provider = getPhantomProvider();
+    if (provider) { try { await provider.disconnect(); } catch { /* ignore */ } }
+    onWalletDisconnected();
+  });
+}
+
+// Listen for Phantom events and attempt silent reconnect
+(function initPhantomListeners() {
+  const provider = getPhantomProvider();
+  if (!provider) return;
+  provider.on('connect',        (pk) => onWalletConnected(pk.toString()));
+  provider.on('disconnect',     ()   => onWalletDisconnected());
+  provider.on('accountChanged', (pk) => { if (pk) onWalletConnected(pk.toString()); else onWalletDisconnected(); });
+  // Silently reconnect if the user previously approved this dApp
+  provider.connect({ onlyIfTrusted: true })
+    .then((resp) => { if (resp?.publicKey) onWalletConnected(resp.publicKey.toString()); })
+    .catch(() => { /* not previously trusted — require explicit connect */ });
+}());
+
+// ── Market data ────────────────────────────────────────────────
+async function refreshMarketData() {
+  if (!tickerGridEl) return;
+  tickerGridEl.innerHTML = '<span class="ticker-loading">Loading market data…</span>';
+  try {
+    const res = await fetch(`${API_BASE}/api/market-data`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    latestMarketData = data.tokens;
+    renderTicker(data.tokens);
+  } catch (err) {
+    if (tickerGridEl) {
+      tickerGridEl.innerHTML = `<span class="ticker-loading" style="color:#ff4040">⚠ ${escapeHtml(err.message)}</span>`;
+    }
+  }
+}
+
+function renderTicker(tokens) {
+  if (!tickerGridEl) return;
+  tickerGridEl.innerHTML = tokens.map((t) => {
+    const rawPrice = Number(t.price);
+    const price = t.price !== null
+      ? (rawPrice < 0.01 ? `$${rawPrice.toExponential(3)}` : `$${rawPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`)
+      : 'N/A';
+    const change      = t.change24h !== null ? `${t.change24h >= 0 ? '+' : ''}${Number(t.change24h).toFixed(2)}%` : '—';
+    const changeClass = t.change24h === null ? 'flat' : t.change24h >= 0 ? 'up' : 'down';
+    return `<div class="ticker-card">
+      <div class="ticker-symbol">${escapeHtml(t.symbol)}</div>
+      <div class="ticker-price">${escapeHtml(price)}</div>
+      <div class="ticker-change ${changeClass}">${escapeHtml(change)}</div>
+    </div>`;
+  }).join('');
+}
+
+if (refreshMarketBtn) {
+  refreshMarketBtn.addEventListener('click', refreshMarketData);
+}
+
+// ── Portfolio ──────────────────────────────────────────────────
+async function fetchPortfolioData(walletAddress) {
+  if (!portfolioDisplayEl) return;
+  portfolioDisplayEl.textContent = 'Loading…';
+  try {
+    const res = await fetch(`${API_BASE}/api/portfolio/${encodeURIComponent(walletAddress)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderPortfolio(data);
+  } catch (err) {
+    if (portfolioDisplayEl) portfolioDisplayEl.textContent = `Failed to load: ${err.message}`;
+  }
+}
+
+function renderPortfolio(portfolio) {
+  if (!portfolioDisplayEl) return;
+  let html = `<strong>SOL:</strong> ${Number(portfolio.sol).toFixed(4)}`;
+  if (portfolio.tokens && portfolio.tokens.length > 0) {
+    html += portfolio.tokens
+      .map((t) => `<br><strong>${escapeHtml(t.symbol)}:</strong> ${t.amount}`)
+      .join('');
+  } else {
+    html += '<br><span style="color:var(--text-muted)">No tracked SPL tokens</span>';
+  }
+  portfolioDisplayEl.innerHTML = html;
+}
+
+// ── Trading analysis — AI room battles on live market data ─────
+if (analyzeMarketBtn) {
+  analyzeMarketBtn.addEventListener('click', runTradingAnalysis);
+}
+
+async function runTradingAnalysis() {
+  if (!analyzeMarketBtn) return;
+  analyzeMarketBtn.disabled = true;
+  analyzeMarketBtn.innerHTML = '<span class="btn-icon">⚔</span> ANALYZING…';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/trading-analysis`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ wallet: connectedWallet || undefined }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+
+    // Refresh market ticker with the data returned from analysis
+    if (data.marketData) {
+      latestMarketData = data.marketData;
+      renderTicker(data.marketData);
+    }
+
+    const winner = data.results.find((r) => r.isWinner);
+
+    // Show the winning recommendation panel
+    if (winner && tradeRecommendation && recommendationDisplay) {
+      recommendationDisplay.textContent = winner.response;
+      tradeRecommendation.classList.remove('hidden');
+      autoFillTradeForm(winner.response);
+    }
+
+    // Surface the analysis in the main battle room (quest log + scoreboard)
+    if (winnerPanel && winnerName && winnerResponse) {
+      winnerPanel.classList.remove('hidden');
+      winnerName.textContent = `${winner?.emoji || ''} ${data.winnerName}`;
+      winnerResponse.textContent = winner?.response || '';
+    }
+    const analysisEntry = {
+      prompt:     '⚔ MARKET ANALYSIS',
+      results:    data.results,
+      winnerId:   data.winnerId,
+      winnerName: data.winnerName,
+    };
+    renderResults(analysisEntry);
+    addToHistory(analysisEntry);
+
+    // Auto-execute if toggle is on and wallet is connected
+    if (autoTradeToggle?.checked && connectedWallet) {
+      const parsedTrade = parseTradeRecommendation(winner?.response || '', data.marketData);
+      if (parsedTrade) await executeTrade(parsedTrade);
+    }
+  } catch (err) {
+    if (tradeStatusEl) {
+      tradeStatusEl.textContent = `✗ Analysis failed: ${escapeHtml(err.message)}`;
+      tradeStatusEl.className = 'settings-status err';
+    }
+  } finally {
+    analyzeMarketBtn.disabled = false;
+    analyzeMarketBtn.innerHTML = '<span class="btn-icon">⚔</span> ANALYZE MARKET';
+  }
+}
+
+// Pre-fill the trade form from an AI recommendation string
+function autoFillTradeForm(recommendation) {
+  if (!recommendation) return;
+  const actionMatch = recommendation.match(/ACTION:\s*(BUY|SELL|HOLD)\s+(\w+)/i);
+  if (!actionMatch) return;
+  const action = actionMatch[1].toUpperCase();
+  const symbol = actionMatch[2].toUpperCase();
+  if (action === 'HOLD') return;
+  const targetMint = SYMBOL_TO_MINT[symbol];
+  if (!targetMint) return;
+  if (action === 'BUY') {
+    if (tradeFromSelect) tradeFromSelect.value = SYMBOL_TO_MINT.SOL;
+    if (tradeToSelect)   tradeToSelect.value   = targetMint;
+  } else {
+    if (tradeFromSelect) tradeFromSelect.value = targetMint;
+    if (tradeToSelect)   tradeToSelect.value   = SYMBOL_TO_MINT.USDC;
+  }
+}
+
+// Parse an AI recommendation into a structured trade object for auto-execute
+function parseTradeRecommendation(recommendation, marketData) {
+  const actionMatch = recommendation.match(/ACTION:\s*(BUY|SELL|HOLD)\s+(\w+)/i);
+  const sizeMatch   = recommendation.match(/SIZE:\s*([\d.]+)%/i);
+  if (!actionMatch) return null;
+  const action = actionMatch[1].toUpperCase();
+  const symbol = actionMatch[2].toUpperCase();
+  if (action === 'HOLD') return null;
+
+  const targetMint = SYMBOL_TO_MINT[symbol];
+  if (!targetMint) return null;
+
+  const sizePct  = sizeMatch ? Math.min(parseFloat(sizeMatch[1]) / 100, 0.20) : 0.05; // cap at 20%
+  const solToken = (marketData || []).find((t) => t.symbol === 'SOL');
+  const solPrice = solToken?.price || 100;
+  const solAmountUi       = Math.max(0.001, (sizePct * 1000) / solPrice);
+  const solAmountLamports = Math.floor(solAmountUi * 1e9);
+
+  if (action === 'BUY') {
+    return { inputMint: SYMBOL_TO_MINT.SOL, outputMint: targetMint, amount: solAmountLamports, userPublicKey: connectedWallet, slippageBps: 50 };
+  }
+  const targetDecimals = TOKEN_DECIMALS[targetMint] ?? 6;
+  return { inputMint: targetMint, outputMint: SYMBOL_TO_MINT.USDC, amount: Math.floor(solAmountUi * Math.pow(10, targetDecimals)), userPublicKey: connectedWallet, slippageBps: 50 };
+}
+
+// ── Execute trade button ───────────────────────────────────────
+if (executeTradeBtnEl) {
+  executeTradeBtnEl.addEventListener('click', async () => {
+    if (!connectedWallet) {
+      if (tradeStatusEl) { tradeStatusEl.textContent = '✗ Connect wallet first'; tradeStatusEl.className = 'settings-status err'; }
+      return;
+    }
+    const inputMint  = tradeFromSelect?.value;
+    const outputMint = tradeToSelect?.value;
+    const amountUi   = parseFloat(tradeAmountInput?.value || '0');
+    const slippage   = Math.max(1, Math.min(parseInt(tradeSlippageInput?.value || '50', 10), 5000));
+
+    if (!inputMint || !outputMint) {
+      if (tradeStatusEl) { tradeStatusEl.textContent = '✗ Select tokens'; tradeStatusEl.className = 'settings-status err'; }
+      return;
+    }
+    if (inputMint === outputMint) {
+      if (tradeStatusEl) { tradeStatusEl.textContent = '✗ From and To tokens must differ'; tradeStatusEl.className = 'settings-status err'; }
+      return;
+    }
+    if (!amountUi || amountUi <= 0) {
+      if (tradeStatusEl) { tradeStatusEl.textContent = '✗ Enter a valid amount'; tradeStatusEl.className = 'settings-status err'; }
+      return;
+    }
+    const decimals   = TOKEN_DECIMALS[inputMint] ?? 9;
+    const amountBase = Math.floor(amountUi * Math.pow(10, decimals));
+    if (amountBase <= 0) {
+      if (tradeStatusEl) { tradeStatusEl.textContent = '✗ Amount too small'; tradeStatusEl.className = 'settings-status err'; }
+      return;
+    }
+    await executeTrade({ inputMint, outputMint, amount: amountBase, userPublicKey: connectedWallet, slippageBps: slippage });
+  });
+}
+
+// Core trade execution: create unsigned tx via backend → sign in Phantom → submit
+async function executeTrade({ inputMint, outputMint, amount, userPublicKey, slippageBps = 50 }) {
+  const inputSym  = mintToSymbol(inputMint);
+  const outputSym = mintToSymbol(outputMint);
+
+  if (executeTradeBtnEl) executeTradeBtnEl.disabled = true;
+  if (tradeStatusEl) { tradeStatusEl.textContent = '⟳ Getting quote…'; tradeStatusEl.className = 'settings-status info'; }
+
+  try {
+    // 1. Ask the backend to build the unsigned Jupiter V6 swap transaction
+    const createRes = await fetch(`${API_BASE}/api/create-swap`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ inputMint, outputMint, amount, userPublicKey, slippageBps }),
+    });
+    const createData = await createRes.json();
+    if (!createRes.ok) throw new Error(createData.error || `HTTP ${createRes.status}`);
+
+    const { swapTransaction, quote } = createData;
+    if (tradeStatusEl) { tradeStatusEl.textContent = '⟳ Approve transaction in Phantom…'; }
+
+    // 2. Deserialise the base64-encoded VersionedTransaction using @solana/web3.js
+    const provider = getPhantomProvider();
+    if (!provider) throw new Error('Phantom wallet not found — install it at phantom.app');
+
+    const solanaWeb3 = window.solanaWeb3;
+    if (!solanaWeb3?.VersionedTransaction) throw new Error('@solana/web3.js not loaded');
+
+    const txBytes = Uint8Array.from(atob(swapTransaction), (c) => c.charCodeAt(0));
+    const transaction = solanaWeb3.VersionedTransaction.deserialize(txBytes);
+
+    // 3. Sign and send via Phantom (Phantom handles the RPC submission)
+    const { signature } = await provider.signAndSendTransaction(transaction);
+    if (!signature) throw new Error('No signature returned from Phantom');
+
+    const explorerUrl = `https://solscan.io/tx/${signature}`;
+    if (tradeStatusEl) {
+      tradeStatusEl.innerHTML = `✓ Sent! <a href="${explorerUrl}" target="_blank" rel="noopener" style="color:var(--border-gold)">View on Solscan ↗</a>`;
+      tradeStatusEl.className = 'settings-status ok';
+    }
+
+    addTradeHistoryEntry({
+      action:    `${inputSym} → ${outputSym}`,
+      inAmount:  quote.inAmount,
+      outAmount: quote.outAmount,
+      signature,
+      timestamp: new Date().toISOString(),
+      status:    'success',
+    });
+
+    // Refresh portfolio after a short delay so the on-chain state settles
+    if (connectedWallet) setTimeout(() => fetchPortfolioData(connectedWallet), 4000);
+
+  } catch (err) {
+    if (tradeStatusEl) {
+      tradeStatusEl.textContent = `✗ Trade failed: ${escapeHtml(err.message)}`;
+      tradeStatusEl.className = 'settings-status err';
+    }
+    addTradeHistoryEntry({
+      action:    `${inputSym} → ${outputSym}`,
+      timestamp: new Date().toISOString(),
+      status:    'failed',
+      error:     err.message,
+    });
+  } finally {
+    if (executeTradeBtnEl) executeTradeBtnEl.disabled = !connectedWallet;
+  }
+}
+
+// ── Trade history ──────────────────────────────────────────────
+function addTradeHistoryEntry(entry) {
+  tradeHistory.unshift(entry);
+  if (tradeHistory.length > 50) tradeHistory = tradeHistory.slice(0, 50);
+  try { localStorage.setItem(LS_TRADE_HISTORY, JSON.stringify(tradeHistory)); } catch { /* ignore */ }
+  renderTradeHistory();
+}
+
+function renderTradeHistory() {
+  if (!tradeHistoryListEl) return;
+  if (tradeHistory.length === 0) {
+    tradeHistoryListEl.innerHTML = '<p class="history-empty">No trades executed yet.</p>';
+    return;
+  }
+  tradeHistoryListEl.innerHTML = tradeHistory.slice(0, 20).map((t) => {
+    const time        = new Date(t.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const statusClass = t.status === 'success' ? 'ok' : 'fail';
+    const label       = t.signature
+      ? `<a href="https://solscan.io/tx/${t.signature}" target="_blank" rel="noopener" style="color:var(--border-gold)">${escapeHtml(t.action)}</a>`
+      : escapeHtml(t.action);
+    return `<div class="trade-history-item">
+      <span class="trade-history-action">${label} <span class="trade-history-status ${statusClass}">[${escapeHtml(t.status)}]</span></span>
+      <span class="trade-history-time">${escapeHtml(time)}</span>
+    </div>`;
+  }).join('');
+}
+
+renderTradeHistory();

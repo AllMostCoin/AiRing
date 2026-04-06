@@ -760,6 +760,350 @@ app.post('/api/room-analyze', roomAnalyzeLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Solana / Trading — constants and helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+
+const TRACKED_TOKENS = [
+  { symbol: 'SOL',  mint: 'So11111111111111111111111111111111111111112',   decimals: 9 },
+  { symbol: 'USDC', mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 },
+  { symbol: 'BONK', mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', decimals: 5 },
+  { symbol: 'JUP',  mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',  decimals: 6 },
+  { symbol: 'WIF',  mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', decimals: 6 },
+  { symbol: 'PYTH', mint: 'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3', decimals: 6 },
+  { symbol: 'RAY',  mint: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',  decimals: 6 },
+];
+
+function isValidSolanaAddress(addr) {
+  return typeof addr === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
+}
+
+async function fetchMarketData() {
+  const mintList = TRACKED_TOKENS.map((t) => t.mint).join(',');
+
+  // Jupiter Price API v2 (free, no auth required)
+  const jupRes = await fetch(`https://api.jup.ag/price/v2?ids=${mintList}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!jupRes.ok) throw new Error(`Jupiter Price API HTTP ${jupRes.status}`);
+  const jupData = await jupRes.json();
+
+  // DexScreener for 24-h change / volume (free, no auth required)
+  const dexRes = await fetch(
+    `https://api.dexscreener.com/latest/dex/tokens/${mintList}`,
+    { headers: { Accept: 'application/json' } },
+  ).catch(() => null);
+  const dexData = dexRes && dexRes.ok ? await dexRes.json().catch(() => ({})) : {};
+
+  // Map each mint to the highest-liquidity DexScreener pair
+  const dexByMint = {};
+  if (Array.isArray(dexData.pairs)) {
+    for (const pair of dexData.pairs) {
+      const mint = pair.baseToken?.address;
+      if (!mint) continue;
+      if (!dexByMint[mint] || (pair.liquidity?.usd || 0) > (dexByMint[mint].liquidity?.usd || 0)) {
+        dexByMint[mint] = pair;
+      }
+    }
+  }
+
+  return TRACKED_TOKENS.map((token) => {
+    const priceInfo = jupData.data?.[token.mint];
+    const dexPair   = dexByMint[token.mint] || null;
+    return {
+      symbol:    token.symbol,
+      mint:      token.mint,
+      price:     priceInfo?.price ?? null,
+      change24h: dexPair?.priceChange?.h24 ?? null,
+      volume24h: dexPair?.volume?.h24 ?? null,
+      liquidity: dexPair?.liquidity?.usd ?? null,
+      txns24h:   dexPair
+        ? (dexPair.txns?.h24?.buys || 0) + (dexPair.txns?.h24?.sells || 0)
+        : null,
+    };
+  });
+}
+
+async function fetchWalletPortfolio(walletAddress) {
+  const rpcPost = (method, params) =>
+    fetch(SOLANA_RPC_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    }).then((r) => r.json());
+
+  const [balRes, tokRes] = await Promise.all([
+    rpcPost('getBalance', [walletAddress, { commitment: 'confirmed' }]),
+    rpcPost('getTokenAccountsByOwner', [
+      walletAddress,
+      { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+      { encoding: 'jsonParsed', commitment: 'confirmed' },
+    ]),
+  ]);
+
+  const solBalance = (balRes.result?.value ?? 0) / 1e9;
+  const accounts   = tokRes.result?.value ?? [];
+
+  const trackedMints = new Set(TRACKED_TOKENS.map((t) => t.mint));
+  const tokens = accounts
+    .filter((acc) => trackedMints.has(acc.account?.data?.parsed?.info?.mint))
+    .map((acc) => {
+      const info     = acc.account.data.parsed.info;
+      const tokenDef = TRACKED_TOKENS.find((t) => t.mint === info.mint);
+      return {
+        symbol:   tokenDef?.symbol || info.mint.slice(0, 4),
+        mint:     info.mint,
+        amount:   info.tokenAmount?.uiAmount ?? 0,
+        decimals: info.tokenAmount?.decimals ?? 0,
+      };
+    })
+    .filter((t) => t.amount > 0);
+
+  return { sol: solBalance, tokens };
+}
+
+function buildTradingPrompt(marketData, portfolio) {
+  const priceLines = marketData
+    .map((t) => {
+      const price  = t.price     !== null ? `$${Number(t.price).toPrecision(6)}`                                                                            : 'N/A';
+      const change = t.change24h !== null ? `${t.change24h >= 0 ? '+' : ''}${Number(t.change24h).toFixed(2)}%`                                             : 'N/A';
+      const vol    = t.volume24h !== null ? `$${Number(t.volume24h).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'N/A';
+      return `${t.symbol}: price=${price} | 24h=${change} | vol=${vol}`;
+    })
+    .join('\n');
+
+  const portfolioSection = portfolio
+    ? `WALLET HOLDINGS:\nSOL: ${portfolio.sol.toFixed(4)}\n` +
+      (portfolio.tokens.length
+        ? portfolio.tokens.map((t) => `${t.symbol}: ${t.amount}`).join('\n')
+        : '(no tracked SPL tokens in wallet)')
+    : 'WALLET: not connected';
+
+  return (
+    `You are an expert Solana DeFi trader and on-chain analyst. ` +
+    `Analyze the following LIVE market data and provide a specific, actionable trading recommendation.\n\n` +
+    `LIVE SOLANA MARKET DATA (UTC ${new Date().toISOString()}):\n${priceLines}\n\n` +
+    `${portfolioSection}\n\n` +
+    `Based on price action, momentum, volume, and risk management principles, ` +
+    `provide your BEST trading recommendation in this EXACT format:\n` +
+    `ACTION: [BUY/SELL/HOLD] [TOKEN]\n` +
+    `ENTRY: $[price]\n` +
+    `TARGET: $[price]\n` +
+    `STOP: $[price]\n` +
+    `RISK: [LOW/MEDIUM/HIGH]\n` +
+    `SIZE: [X]% of portfolio\n` +
+    `RATIONALE: [concise technical + sentiment analysis, 2–3 sentences]`
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rate limiters for Solana / trading endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
+const marketDataLimiter = rateLimit({
+  windowMs: 10 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+const portfolioLimiter = rateLimit({
+  windowMs: 30 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+const tradingAnalysisLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+const createSwapLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: GET /api/market-data — real-time Solana token prices + signals
+// ─────────────────────────────────────────────────────────────────────────────
+app.get('/api/market-data', marketDataLimiter, async (_req, res) => {
+  try {
+    const tokens = await fetchMarketData();
+    res.json({ tokens, timestamp: new Date().toISOString() });
+  } catch (err) {
+    console.error('[market-data]', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: GET /api/portfolio/:wallet — SOL + SPL token balances for a wallet
+// ─────────────────────────────────────────────────────────────────────────────
+app.get('/api/portfolio/:wallet', portfolioLimiter, async (req, res) => {
+  const { wallet } = req.params;
+  if (!isValidSolanaAddress(wallet)) {
+    return res.status(400).json({ error: 'Invalid Solana wallet address' });
+  }
+  try {
+    const portfolio = await fetchWalletPortfolio(wallet);
+    res.json(portfolio);
+  } catch (err) {
+    console.error('[portfolio]', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: POST /api/trading-analysis — all 7 AI models analyze live market data
+// and compete to give the best Solana trading recommendation
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/trading-analysis', tradingAnalysisLimiter, async (req, res) => {
+  const { wallet } = req.body;
+  if (wallet && !isValidSolanaAddress(wallet)) {
+    return res.status(400).json({ error: 'Invalid Solana wallet address' });
+  }
+
+  let marketData, portfolio;
+  try {
+    [marketData, portfolio] = await Promise.all([
+      fetchMarketData(),
+      wallet ? fetchWalletPortfolio(wallet).catch(() => null) : Promise.resolve(null),
+    ]);
+  } catch (err) {
+    console.error('[trading-analysis] market fetch failed:', err.message);
+    return res.status(502).json({ error: `Failed to fetch market data: ${err.message}` });
+  }
+
+  const prompt = buildTradingPrompt(marketData, portfolio);
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, ollama: callOllama };
+
+  const results = await Promise.all(
+    AI_MODELS.map(async (model) => {
+      const start = Date.now();
+      try {
+        let text = await callers[model.id](prompt);
+        const isDemo = text === null;
+        if (isDemo) text = generateDemoResponse(model.id, prompt);
+        const latencyMs = Date.now() - start;
+        const score = scoreResponse(prompt, text, model);
+        return { model, response: text, latencyMs, score, isDemo, error: null };
+      } catch (err) {
+        console.error(`[${model.id}] trading-analysis failed: ${err.message}`);
+        const text = generateDemoResponse(model.id, prompt);
+        const latencyMs = Date.now() - start;
+        const score = scoreResponse(prompt, text, model);
+        return { model, response: text, latencyMs, score, isDemo: true, error: err.message };
+      }
+    }),
+  );
+
+  results.sort((a, b) => b.score - a.score);
+  const winner = results[0];
+
+  res.json({
+    prompt,
+    marketData,
+    results: results.map((r) => ({
+      modelId:   r.model.id,
+      name:      r.model.name,
+      character: r.model.character,
+      color:     r.model.color,
+      emoji:     r.model.emoji,
+      response:  r.response,
+      score:     r.score,
+      latencyMs: r.latencyMs,
+      isDemo:    r.isDemo,
+      error:     r.error || null,
+      isWinner:  r.model.id === winner.model.id,
+    })),
+    winnerId:   winner.model.id,
+    winnerName: winner.model.name,
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route: POST /api/create-swap — build an unsigned Jupiter V6 swap transaction.
+// The browser (Phantom) will sign and submit it — the private key never leaves
+// the client.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/create-swap', createSwapLimiter, async (req, res) => {
+  const { inputMint, outputMint, amount, userPublicKey, slippageBps = 50 } = req.body;
+
+  if (!isValidSolanaAddress(inputMint))     return res.status(400).json({ error: 'Invalid inputMint' });
+  if (!isValidSolanaAddress(outputMint))    return res.status(400).json({ error: 'Invalid outputMint' });
+  if (!isValidSolanaAddress(userPublicKey)) return res.status(400).json({ error: 'Invalid userPublicKey' });
+  if (!Number.isInteger(amount) || amount <= 0)
+    return res.status(400).json({ error: 'amount must be a positive integer (base units)' });
+
+  // Restrict swaps to tracked tokens only
+  const knownMints = new Set(TRACKED_TOKENS.map((t) => t.mint));
+  if (!knownMints.has(inputMint))  return res.status(400).json({ error: 'inputMint not in tracked token list' });
+  if (!knownMints.has(outputMint)) return res.status(400).json({ error: 'outputMint not in tracked token list' });
+
+  const slippage = Math.max(0, Math.min(Number(slippageBps) || 50, 5000));
+
+  try {
+    // Step 1: get a quote from Jupiter V6
+    const quoteUrl = new URL('https://quote-api.jup.ag/v6/quote');
+    quoteUrl.searchParams.set('inputMint',      inputMint);
+    quoteUrl.searchParams.set('outputMint',     outputMint);
+    quoteUrl.searchParams.set('amount',         String(amount));
+    quoteUrl.searchParams.set('slippageBps',    String(slippage));
+    quoteUrl.searchParams.set('onlyDirectRoutes', 'false');
+
+    const quoteRes  = await fetch(quoteUrl.toString(), { headers: { Accept: 'application/json' } });
+    const quoteData = await quoteRes.json();
+    if (!quoteRes.ok || quoteData.error)
+      throw new Error(quoteData.error || `Jupiter quote HTTP ${quoteRes.status}`);
+
+    // Step 2: build the unsigned swap transaction (base64-encoded VersionedTransaction)
+    const swapRes  = await fetch('https://quote-api.jup.ag/v6/swap', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body:    JSON.stringify({
+        quoteResponse:             quoteData,
+        userPublicKey,
+        wrapAndUnwrapSol:          true,
+        dynamicComputeUnitLimit:   true,
+        prioritizationFeeLamports: 'auto',
+      }),
+    });
+    const swapData = await swapRes.json();
+    if (!swapRes.ok || swapData.error)
+      throw new Error(swapData.error || `Jupiter swap HTTP ${swapRes.status}`);
+
+    res.json({
+      swapTransaction: swapData.swapTransaction,
+      quote: {
+        inputMint,
+        outputMint,
+        inAmount:        quoteData.inAmount,
+        outAmount:       quoteData.outAmount,
+        priceImpactPct:  quoteData.priceImpactPct,
+        slippageBps:     slippage,
+      },
+    });
+  } catch (err) {
+    console.error('[create-swap]', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Rate limiter — protect the frontend catch-all from abuse
 // ─────────────────────────────────────────────────────────────────────────────
 const pageLimiter = rateLimit({
@@ -784,4 +1128,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, scoreResponse, generateDemoResponse, buildRoomAnalysisPrompt, AI_MODELS, DEMO_TEMPLATES };
+module.exports = { app, scoreResponse, generateDemoResponse, buildRoomAnalysisPrompt, buildTradingPrompt, AI_MODELS, DEMO_TEMPLATES, TRACKED_TOKENS, isValidSolanaAddress };

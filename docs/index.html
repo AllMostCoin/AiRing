@@ -45,6 +45,7 @@
         </div>
         <div id="demo-badge" class="demo-badge hidden">TRAINING MODE</div>
         <button id="settings-btn" class="settings-btn" title="API Key Settings">⚙ KEYS</button>
+        <button id="wallet-btn" class="settings-btn wallet-hdr-btn" title="Solana Wallet &amp; Trading">◈ WALLET</button>
       </div>
     </header>
 
@@ -112,6 +113,103 @@
           <button id="copilot-clear-btn" class="settings-clear-btn">CLEAR</button>
         </div>
         <div id="settings-status" class="settings-status"></div>
+      </div>
+    </div>
+
+    <!-- ─── Solana Wallet & Trading Panel ─────────────────── -->
+    <div id="wallet-panel" class="settings-panel wallet-panel hidden">
+      <div class="settings-inner">
+        <div class="settings-title">◆ SOLANA WALLET &amp; TRADING ◆</div>
+        <p class="settings-note">
+          Connect your <strong>Phantom</strong> wallet to let the AI Room analyze live Solana market data and generate trading recommendations.
+          The winning AI's recommendation can be executed directly from here — all signing happens in Phantom; your private key never leaves your browser.<br />
+          <strong>⚠ Trading involves financial risk. Only trade what you can afford to lose.</strong>
+        </p>
+
+        <!-- Wallet connect row -->
+        <div class="wallet-connect-row">
+          <button id="wallet-connect-btn" class="wallet-connect-btn">◈ CONNECT PHANTOM</button>
+          <span id="wallet-address-display" class="wallet-address-display hidden"></span>
+          <button id="wallet-disconnect-btn" class="settings-clear-btn hidden">DISCONNECT</button>
+        </div>
+
+        <!-- Live market ticker -->
+        <div class="market-ticker">
+          <div class="ticker-label">◆ LIVE MARKET PRICES</div>
+          <div class="ticker-grid" id="ticker-grid">
+            <span class="ticker-loading">Loading market data…</span>
+          </div>
+          <button id="refresh-market-btn" class="settings-save-btn" style="margin-top:6px;font-size:8px;">↻ REFRESH PRICES</button>
+        </div>
+
+        <!-- Portfolio (shown after wallet connect) -->
+        <div class="portfolio-panel hidden" id="portfolio-panel">
+          <div class="ticker-label">◆ YOUR PORTFOLIO</div>
+          <div id="portfolio-display" class="portfolio-display">Loading…</div>
+        </div>
+
+        <!-- AI Market Analysis -->
+        <div class="trade-analysis-row">
+          <button id="analyze-market-btn" class="submit-btn trade-analyze-btn">
+            <span class="btn-icon">⚔</span> ANALYZE MARKET
+          </button>
+          <label class="auto-trade-label" title="Automatically execute the winning AI recommendation when analysis completes">
+            <input type="checkbox" id="auto-trade-toggle" />
+            AUTO-EXECUTE WINNER
+          </label>
+        </div>
+
+        <!-- Winning recommendation (shown after analysis) -->
+        <div class="trade-recommendation hidden" id="trade-recommendation">
+          <div class="ticker-label">◆ WINNING RECOMMENDATION</div>
+          <div id="recommendation-display" class="recommendation-display"></div>
+
+          <!-- Execute trade form -->
+          <div class="execute-trade-form">
+            <div class="settings-row">
+              <label class="settings-label" for="trade-from-select">FROM TOKEN</label>
+              <select id="trade-from-select" class="settings-input trade-select">
+                <option value="So11111111111111111111111111111111111111112">SOL</option>
+                <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
+                <option value="DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263">BONK</option>
+                <option value="JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN">JUP</option>
+                <option value="EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm">WIF</option>
+                <option value="HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3">PYTH</option>
+                <option value="4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R">RAY</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <label class="settings-label" for="trade-to-select">TO TOKEN</label>
+              <select id="trade-to-select" class="settings-input trade-select">
+                <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
+                <option value="So11111111111111111111111111111111111111112">SOL</option>
+                <option value="DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263">BONK</option>
+                <option value="JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN">JUP</option>
+                <option value="EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm">WIF</option>
+                <option value="HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3">PYTH</option>
+                <option value="4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R">RAY</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <label class="settings-label" for="trade-amount-input">AMOUNT (UI units)</label>
+              <input id="trade-amount-input" class="settings-input" type="number" min="0.000001" step="any" placeholder="e.g. 0.1" style="max-width:160px;" />
+            </div>
+            <div class="settings-row">
+              <label class="settings-label" for="trade-slippage-input">SLIPPAGE bps</label>
+              <input id="trade-slippage-input" class="settings-input" type="number" min="1" max="5000" value="50" style="max-width:100px;" />
+            </div>
+            <button id="execute-trade-btn" class="execute-trade-btn" disabled>◈ EXECUTE TRADE (PHANTOM)</button>
+            <div id="trade-status" class="settings-status" style="margin-top:6px;"></div>
+          </div>
+        </div>
+
+        <!-- Trade history -->
+        <div>
+          <div class="ticker-label">◆ TRADE HISTORY</div>
+          <div id="trade-history-list" class="trade-history-list">
+            <p class="history-empty">No trades executed yet.</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -579,7 +677,9 @@
     <script>window.AIRING_API_BASE = window.AIRING_API_BASE || '';</script>
     <script>window.AIRING_LOGIN_HASH = window.AIRING_LOGIN_HASH || '';</script>
     <script src="config.js" onerror="void 0"></script>
+    <!-- @solana/web3.js UMD — required for VersionedTransaction deserialization (Phantom signing) -->
+    <script src="https://unpkg.com/@solana/web3.js@1.98.0/lib/index.iife.min.js" crossorigin="anonymous"></script>
     <script src="utils.js?v=1"></script>
-    <script src="app.js?v=15"></script>
+    <script src="app.js?v=16"></script>
   </body>
 </html>

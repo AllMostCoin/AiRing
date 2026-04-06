@@ -1460,3 +1460,227 @@ html, body {
   60%      { transform: translateX(-4px); }
   80%      { transform: translateX(4px); }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Solana Wallet & Trading Panel
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Wallet header button ───────────────────────────────────── */
+.wallet-hdr-btn {
+  margin-left: 8px;
+  color: var(--mako);
+  border-color: var(--mako);
+}
+.wallet-hdr-btn:hover { background: var(--mako); color: #000; }
+
+/* ── Wallet panel — reuses .settings-panel layout ───────────── */
+.wallet-panel { /* inherits all .settings-panel rules */ }
+
+/* ── Phantom connect row ────────────────────────────────────── */
+.wallet-connect-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wallet-connect-btn {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  background: #1a0030;
+  color: var(--mako);
+  border: 2px solid var(--mako);
+  padding: 8px 16px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  box-shadow: 2px 2px 0 #000;
+  transition: background 0.15s;
+}
+.wallet-connect-btn:hover     { background: var(--mako); color: #000; }
+.wallet-connect-btn.connected { background: #002010; color: #00ff88; border-color: #00ff88; cursor: default; }
+.wallet-connect-btn:disabled  { opacity: 0.7; cursor: default; }
+
+.wallet-address-display {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  color: #00ff88;
+  border: 1px solid #00ff8844;
+  padding: 4px 10px;
+  background: #001810;
+}
+
+/* ── Market ticker ──────────────────────────────────────────── */
+.market-ticker {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  padding: 10px 14px;
+}
+
+.ticker-label {
+  font-family: var(--pixel-font);
+  font-size: 7px;
+  color: var(--border-gold);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.ticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.ticker-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+}
+
+.ticker-symbol {
+  font-family: var(--pixel-font);
+  font-size: 7px;
+  color: var(--border-gold);
+  margin-bottom: 2px;
+}
+
+.ticker-price {
+  font-family: var(--mono-font);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.ticker-change {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  margin-top: 1px;
+}
+.ticker-change.up   { color: #00ff88; }
+.ticker-change.down { color: #ff4040; }
+.ticker-change.flat { color: var(--text-muted); }
+
+.ticker-loading {
+  color: var(--text-muted);
+  font-size: 12px;
+  grid-column: 1 / -1;
+}
+
+/* ── Portfolio ──────────────────────────────────────────────── */
+.portfolio-panel {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  padding: 10px 14px;
+}
+
+.portfolio-display {
+  font-family: var(--mono-font);
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.8;
+}
+
+/* ── Analysis row ───────────────────────────────────────────── */
+.trade-analysis-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.trade-analyze-btn {
+  font-size: 10px !important;
+  padding: 10px 20px !important;
+}
+
+.auto-trade-label {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.auto-trade-label input { cursor: pointer; accent-color: var(--mako); }
+
+/* ── Trade recommendation ───────────────────────────────────── */
+.trade-recommendation {
+  background: var(--surface2);
+  border: 2px solid var(--mako);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recommendation-display {
+  font-family: var(--mono-font);
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+  line-height: 1.6;
+  max-height: 200px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+/* ── Execute trade form ─────────────────────────────────────── */
+.execute-trade-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trade-select {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono-font);
+  font-size: 13px;
+  padding: 6px 10px;
+  cursor: pointer;
+  max-width: 200px;
+  flex: 1;
+}
+.trade-select:focus { border-color: var(--border-gold); outline: none; }
+
+.execute-trade-btn {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  background: #1a0030;
+  color: var(--mako);
+  border: 2px solid var(--mako);
+  padding: 8px 16px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  box-shadow: 2px 2px 0 #000;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+.execute-trade-btn:hover    { background: var(--mako); color: #000; }
+.execute-trade-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Trade history ──────────────────────────────────────────── */
+.trade-history-list {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+}
+
+.trade-history-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+}
+.trade-history-item:last-child { border-bottom: none; }
+
+.trade-history-action { color: var(--text); }
+.trade-history-time   { color: var(--text-muted); font-size: 11px; text-align: right; white-space: nowrap; }
+
+.trade-history-status.ok   { color: #00ff88; }
+.trade-history-status.fail { color: #ff4040; }
