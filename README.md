@@ -12,7 +12,7 @@ The app works fully in your browser in **demo mode** (simulated responses). It s
 
 | Character | AI Model | API key / config needed |
 |---|---|---|
-| Cloud (⚔️) | GPT-4o | `OPENAI_API_KEY` |
+| Cloud (⚔️) | GPT-4.1 | `OPENAI_API_KEY` |
 | Barret (🔫) | Claude Sonnet | `ANTHROPIC_API_KEY` |
 | Red XIII (🔥) | Gemini 2.5 Flash | `GOOGLE_API_KEY` |
 | Cid (✈️) | Mistral Large | `MISTRAL_API_KEY` |
@@ -115,7 +115,7 @@ npm start              # http://localhost:3000
 | Variable | Description | Default |
 |---|---|---|
 | `PORT` | HTTP port to listen on | `3000` |
-| `OPENAI_API_KEY` | OpenAI (GPT-4o) | — |
+| `OPENAI_API_KEY` | OpenAI (GPT-4.1) | — |
 | `ANTHROPIC_API_KEY` | Anthropic (Claude Sonnet) | — |
 | `GOOGLE_API_KEY` | Google (Gemini 2.5 Flash) | — |
 | `MISTRAL_API_KEY` | Mistral (mistral-large) | — |
