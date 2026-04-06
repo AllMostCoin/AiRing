@@ -911,7 +911,7 @@ async function fetchMarketData() {
 
   // Map each mint to the highest-liquidity DexScreener pair
   const dexByMint = {};
-  if (Array.isArray(dexData?.pairs)) {
+  if (Array.isArray(dexData.pairs)) {
     for (const pair of dexData.pairs) {
       const mint = pair.baseToken?.address;
       if (!mint) continue;
