@@ -80,8 +80,9 @@
       showGate();
     }
 
-    const btn   = document.getElementById('login-phantom-btn');
-    const errEl = document.getElementById('login-error');
+    const btn        = document.getElementById('login-phantom-btn');
+    const errEl      = document.getElementById('login-error');
+    const installEl  = document.getElementById('login-phantom-install');
 
     if (!btn) return;
 
@@ -93,16 +94,20 @@
       // causes popup blockers to silently suppress the Phantom redirect.
       const provider = getPhantomProviderForLogin();
       if (!provider) {
-        // Phantom not installed — open the Phantom universal-link redirect
-        // synchronously (before any await) so popup blockers don't interfere.
+        // Phantom not installed — attempt to open the Phantom universal-link
+        // redirect synchronously (before any await) so popup blockers don't
+        // interfere.  Also reveal the direct install link as a reliable
+        // fallback in case the popup is suppressed.
         openPhantomOrRedirect();
         showLoginError(errEl, '◈ PHANTOM NOT FOUND — INSTALL PHANTOM');
+        if (installEl) installEl.classList.remove('hidden');
         return;
       }
 
       btn.disabled = true;
       btn.textContent = '◈ CONNECTING…';
-      if (errEl) errEl.classList.add('hidden');
+      if (errEl)     errEl.classList.add('hidden');
+      if (installEl) installEl.classList.add('hidden');
 
       try {
         const resp = await provider.connect();
