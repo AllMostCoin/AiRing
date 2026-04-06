@@ -23,6 +23,9 @@ const TELEGRAM_BOT_TOKEN   = process.env.TELEGRAM_BOT_TOKEN   || '';
 const TELEGRAM_CHANNEL_IDS = (process.env.TELEGRAM_CHANNEL_IDS || '')
   .split(',').map((s) => s.trim()).filter(Boolean);
 
+// Timeout (ms) for external social-signal API calls
+const SOCIAL_SIGNALS_TIMEOUT_MS = 6000;
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'docs')));
@@ -985,7 +988,6 @@ function buildTradingPrompt(marketData, portfolio, socialSignals) {
  */
 async function fetchSocialSignals(symbols = []) {
   const items = [];
-  const timeout = 6000;
 
   // ── CryptoPanic ───────────────────────────────────────────────────────────
   if (CRYPTOPANIC_API_KEY) {
@@ -994,7 +996,7 @@ async function fetchSocialSignals(symbols = []) {
       const url =
         `https://cryptopanic.com/api/v1/posts/?auth_token=${encodeURIComponent(CRYPTOPANIC_API_KEY)}` +
         `&currencies=${encodeURIComponent(currencies)}&kind=news&public=true`;
-      const res = await fetch(url, { timeout });
+      const res = await fetch(url, { timeout: SOCIAL_SIGNALS_TIMEOUT_MS });
       if (res.ok) {
         const data = await res.json();
         const posts = (data.results || []).slice(0, 5);
@@ -1020,7 +1022,7 @@ async function fetchSocialSignals(symbols = []) {
         `&tweet.fields=created_at,public_metrics&max_results=10`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${TWITTER_BEARER_TOKEN}` },
-        timeout,
+        timeout: SOCIAL_SIGNALS_TIMEOUT_MS,
       });
       if (res.ok) {
         const data = await res.json();
@@ -1046,17 +1048,17 @@ async function fetchSocialSignals(symbols = []) {
       const url =
         `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates` +
         `?limit=50&allowed_updates=["channel_post"]`;
-      const res = await fetch(url, { timeout });
+      const res = await fetch(url, { timeout: SOCIAL_SIGNALS_TIMEOUT_MS });
       if (res.ok) {
         const data = await res.json();
-        const seen = new Set();
+        const seenCounts = new Map();
         for (const update of (data.result || [])) {
           const post = update.channel_post;
           if (!post?.text) continue;
           const chatId = String(post.chat.id);
           if (!TELEGRAM_CHANNEL_IDS.includes(chatId)) continue;
-          if (seen.has(chatId) && [...seen].filter((x) => x === chatId).length >= 2) continue;
-          seen.add(chatId);
+          if ((seenCounts.get(chatId) || 0) >= 2) continue;
+          seenCounts.set(chatId, (seenCounts.get(chatId) || 0) + 1);
           const text = post.text.replace(/\n/g, ' ').slice(0, 200);
           items.push(`[Telegram] ${text}`);
         }

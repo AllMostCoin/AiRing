@@ -2729,7 +2729,7 @@ async function fetchSocialSignals() {
     renderSocialSignals(data);
   } catch (err) {
     if (socialSignalsListEl) {
-      socialSignalsListEl.textContent = `Failed to load: ${escapeHtml(err.message)}`;
+      socialSignalsListEl.textContent = `Failed to load: ${err.message}`;
     }
   }
 }
