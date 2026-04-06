@@ -1436,6 +1436,18 @@ html, body {
   animation: shake 0.35s ease;
 }
 
+.login-install {
+  display: block;
+  font-family: var(--pixel-font);
+  font-size: 0.5rem;
+  color: var(--border-gold);
+  text-align: center;
+  letter-spacing: 1px;
+  text-decoration: none;
+  margin-top: 4px;
+}
+.login-install:hover { text-decoration: underline; }
+
 @keyframes shake {
   0%,100% { transform: translateX(0); }
   20%      { transform: translateX(-6px); }
