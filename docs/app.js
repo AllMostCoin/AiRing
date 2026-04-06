@@ -2565,11 +2565,9 @@ function getPhantomProvider() {
   return null;
 }
 
-// On mobile devices Phantom is not a browser extension — the user must open
-// the dApp inside Phantom's in-app browser.  This helper detects mobile and
-// On mobile or desktop, opens the Phantom install page in a new tab so the
-// user stays on the current login page in their regular browser rather than
-// being redirected into Phantom's in-app browser.
+// Opens the Phantom install page in a new tab so the user stays on the
+// current login page in their regular browser rather than being redirected
+// into Phantom's in-app browser.
 function openPhantomOrRedirect() {
   window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
 }
