@@ -49,9 +49,11 @@
     if (document.readyState !== 'loading') { fn(); } else { document.addEventListener('DOMContentLoaded', fn); }
   }
 
-  onReady(() => {
-    // Attempt silent reconnect before showing the gate
-    const providerEarly = getPhantomProviderForLogin();
+  onReady(async () => {
+    // Attempt silent reconnect before showing the gate.
+    // waitForPhantomProvider waits up to 800 ms for phantom#initialized so the
+    // gate is not shown just because the extension hasn't injected yet.
+    const providerEarly = await waitForPhantomProvider(getPhantomProviderForLogin);
     if (providerEarly) {
       providerEarly.connect({ onlyIfTrusted: true })
         .then((resp) => {
