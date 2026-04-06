@@ -86,10 +86,13 @@
           if (isTouchDevice) {
             // On mobile, expose the Universal Link as a tappable <a> element so the
             // OS can intercept it as a Universal Link and open Phantom's in-app browser.
-            // Programmatic window.location.href navigation is NOT reliably treated as a
-            // Universal Link on iOS — only user taps on <a> elements trigger it correctly.
+            // IMPORTANT: target must be "_self" (same-window navigation) — iOS and Android
+            // only treat same-window navigations as Universal / App Links.  A "_blank"
+            // popup/new-tab context is NOT intercepted, so Phantom would never open.
             if (installEl) {
               installEl.href = phantomUrl;
+              installEl.target = '_self';
+              installEl.rel = '';
               installEl.textContent = '◈ OPEN IN PHANTOM ↗';
               installEl.classList.remove('hidden');
             }
@@ -2609,13 +2612,22 @@ function getPhantomProvider() {
 // Opens the Phantom Universal Link so the user can connect their wallet.
 // Used from the wallet-panel connect button (not the login gate, which has its
 // own inline mobile handling via a tappable <a> element).
-// On desktop without the extension it opens the Phantom website in a new tab
-// so the user stays on the current page while they install the extension.
+// On mobile, same-window navigation is used so the OS intercepts the URL as a
+// Universal Link / App Link and opens Phantom's in-app browser.  window.open()
+// with "_blank" creates a popup/new-tab context that iOS and Android do NOT treat
+// as a Universal Link, causing the redirect to fail silently.
+// On desktop, a new tab is opened so the user stays on the current page while
+// they install the Phantom extension.
 function openPhantomOrRedirect() {
   const encodedUrl = encodeURIComponent(window.location.href);
   const encodedRef = encodeURIComponent(window.location.origin);
   const phantomUrl = `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodedRef}`;
-  window.open(phantomUrl, '_blank', 'noopener,noreferrer');
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  if (isTouchDevice) {
+    window.location.href = phantomUrl;
+  } else {
+    window.open(phantomUrl, '_blank', 'noopener,noreferrer');
+  }
 }
 
 // Returns the Phantom provider, waiting up to `timeout` ms for the
