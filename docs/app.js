@@ -78,8 +78,8 @@
       // Wait for phantom#initialized if the extension hasn't injected yet.
       const provider = await waitForPhantomProvider(getPhantomProviderForLogin);
       if (!provider) {
-        // Phantom not installed — on mobile open current page in Phantom's
-        // in-app browser; on desktop redirect to the extension install page.
+        // Phantom not installed — open the Phantom install page in a new tab
+        // so the user stays on the login page in their regular browser.
         openPhantomOrRedirect();
         return;
       }
@@ -2567,17 +2567,11 @@ function getPhantomProvider() {
 
 // On mobile devices Phantom is not a browser extension — the user must open
 // the dApp inside Phantom's in-app browser.  This helper detects mobile and
-// uses Phantom's universal deep-link to reopen the current page there.
-// On desktop it falls back to the extension install page.
+// On mobile or desktop, opens the Phantom install page in a new tab so the
+// user stays on the current login page in their regular browser rather than
+// being redirected into Phantom's in-app browser.
 function openPhantomOrRedirect() {
-  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  if (isMobile) {
-    const dappUrl = encodeURIComponent(window.location.href);
-    const ref     = encodeURIComponent(window.location.origin);
-    window.location.href = `https://phantom.app/ul/browse/${dappUrl}?ref=${ref}`;
-  } else {
-    window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
-  }
+  window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
 }
 
 // Returns the Phantom provider, waiting up to `timeout` ms for the
