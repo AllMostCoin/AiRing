@@ -690,7 +690,7 @@ async function runRoomAnalysis(prompt, initialData) {
       const res = await fetch(`${API_BASE}/api/room-analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, results: initialResults }),
+        body: JSON.stringify({ prompt, results: initialResults, wallet: connectedWallet || undefined }),
       });
       if (res.ok) return await res.json();
     } catch (_) {
@@ -2038,7 +2038,7 @@ async function fetchOneRound(prompt) {
     const res = await fetch(`${API_BASE}/api/compete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, wallet: connectedWallet || undefined }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -2515,6 +2515,9 @@ const tradeAmountInput      = document.getElementById('trade-amount-input');
 const tradeSlippageInput    = document.getElementById('trade-slippage-input');
 const tradeStatusEl         = document.getElementById('trade-status');
 const tradeHistoryListEl    = document.getElementById('trade-history-list');
+const socialSignalsPanelEl  = document.getElementById('social-signals-panel');
+const socialSignalsListEl   = document.getElementById('social-signals-list');
+const refreshSignalsBtn     = document.getElementById('refresh-signals-btn');
 
 // ── Toggle wallet panel ────────────────────────────────────────
 if (walletBtn) {
@@ -2715,6 +2718,52 @@ function renderPortfolio(portfolio) {
   portfolioDisplayEl.innerHTML = html;
 }
 
+// ── Social signals — fetch and render ─────────────────────────
+async function fetchSocialSignals() {
+  if (!socialSignalsListEl) return;
+  socialSignalsListEl.textContent = 'Loading…';
+  try {
+    const res = await fetch(`${API_BASE}/api/social-signals`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderSocialSignals(data);
+  } catch (err) {
+    if (socialSignalsListEl) {
+      socialSignalsListEl.textContent = `Failed to load: ${err.message}`;
+    }
+  }
+}
+
+function renderSocialSignals(data) {
+  if (!socialSignalsPanelEl || !socialSignalsListEl) return;
+  const { signals, sources } = data;
+  const active = Object.entries(sources || {})
+    .filter(([, v]) => v)
+    .map(([k]) => k)
+    .join(', ');
+
+  if (!signals) {
+    socialSignalsListEl.innerHTML =
+      '<span style="color:var(--text-muted)">No social API keys configured. ' +
+      'Add CRYPTOPANIC_API_KEY, TWITTER_BEARER_TOKEN, or TELEGRAM_BOT_TOKEN in your .env file.</span>';
+    return;
+  }
+
+  const lines = signals.split('\n').filter(Boolean);
+  socialSignalsListEl.innerHTML = lines
+    .map((line) => `<div class="signal-item">${escapeHtml(line)}</div>`)
+    .join('');
+
+  if (active) {
+    const label = socialSignalsPanelEl.querySelector('.social-sources-label');
+    if (label) label.textContent = `Sources: ${active}`;
+  }
+}
+
+if (refreshSignalsBtn) {
+  refreshSignalsBtn.addEventListener('click', fetchSocialSignals);
+}
+
 // ── Trading analysis — AI room battles on live market data ─────
 if (analyzeMarketBtn) {
   analyzeMarketBtn.addEventListener('click', runTradingAnalysis);
@@ -2741,6 +2790,11 @@ async function runTradingAnalysis() {
     if (data.marketData) {
       latestMarketData = data.marketData;
       renderTicker(data.marketData);
+    }
+
+    // Refresh social signals panel from the analysis response
+    if (data.socialSignals !== undefined) {
+      renderSocialSignals({ signals: data.socialSignals, sources: {} });
     }
 
     const winner = data.results.find((r) => r.isWinner);
@@ -2958,3 +3012,10 @@ function renderTradeHistory() {
 }
 
 renderTradeHistory();
+
+// ── Auto-load social signals when the trading panel is first opened ────────
+(function initSocialSignals() {
+  if (socialSignalsPanelEl && backendAvailable) {
+    fetchSocialSignals();
+  }
+}());
