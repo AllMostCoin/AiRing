@@ -8,6 +8,9 @@
 // proxy-dependent models (Grok, Mistral, Copilot, Ollama) also work on
 // the static site.
 //
+// AIRING_LOGIN_HASH is the SHA-256 hex hash of the site password set via
+// the LOGIN_PASSWORD repository secret.  If empty, the site is open to all.
+//
 // To use locally: copy this file to config.js and fill in your key(s).
 // config.js is listed in .gitignore so your keys are never committed.
 window.AIRING_GEMINI_KEY  = '';
@@ -17,3 +20,4 @@ window.AIRING_OPENAI_KEY  = ''; // enables GPT-4 direct browser calls without a 
 window.AIRING_MISTRAL_KEY = ''; // requires backend proxy (BACKEND_URL must also be set)
 window.AIRING_COPILOT_KEY = ''; // GitHub PAT with models:read; requires backend proxy
 window.AIRING_API_BASE    = ''; // e.g. 'https://airing-ago1.onrender.com'
+window.AIRING_LOGIN_HASH  = ''; // SHA-256 hex hash of the site password; empty = no login required

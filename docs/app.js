@@ -4,7 +4,93 @@
 
 'use strict';
 
-const API_BASE = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';  // same-origin by default; set window.AIRING_API_BASE to point to a remote backend
+// ─────────────────────────────────────────────────────────────────────────────
+// Login Gate — password-protect the site when AIRING_LOGIN_HASH is set.
+// The hash (SHA-256 hex) is injected at deploy time via config.js.
+// If AIRING_LOGIN_HASH is empty the gate is skipped entirely.
+// Session authentication is stored in sessionStorage so the user must
+// log in once per browser tab/session.
+// ─────────────────────────────────────────────────────────────────────────────
+(function initLoginGate() {
+  const loginHash = (typeof window !== 'undefined' && window.AIRING_LOGIN_HASH) || '';
+  if (!loginHash) return;  // no password configured — open access
+
+  const SS_KEY = 'airing_authenticated';
+
+  function isAuthenticated() {
+    try { return sessionStorage.getItem(SS_KEY) === loginHash; } catch { return false; }
+  }
+
+  function setAuthenticated() {
+    try { sessionStorage.setItem(SS_KEY, loginHash); } catch { /* ignore */ }
+  }
+
+  async function sha256hex(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function showGate() {
+    const gate = document.getElementById('login-gate');
+    if (gate) gate.classList.remove('hidden');
+    const input = document.getElementById('login-password');
+    if (input) input.focus();
+  }
+
+  function hideGate() {
+    const gate = document.getElementById('login-gate');
+    if (gate) gate.classList.add('hidden');
+  }
+
+  if (isAuthenticated()) return;  // already authenticated this session
+
+  // Wait for DOM to be ready before showing the gate
+  function onReady(fn) {
+    if (document.readyState !== 'loading') { fn(); } else { document.addEventListener('DOMContentLoaded', fn); }
+  }
+
+  onReady(() => {
+    showGate();
+
+    const form   = document.getElementById('login-form');
+    const input  = document.getElementById('login-password');
+    const errEl  = document.getElementById('login-error');
+    const btn    = document.getElementById('login-submit');
+
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = input ? input.value : '';
+      if (!password) return;
+
+      btn.disabled = true;
+      if (errEl) errEl.classList.add('hidden');
+
+      try {
+        const hash = await sha256hex(password);
+        if (hash === loginHash) {
+          setAuthenticated();
+          hideGate();
+        } else {
+          if (input) { input.value = ''; input.focus(); }
+          if (errEl) {
+            // Re-trigger shake animation by removing and re-adding class
+            errEl.classList.remove('hidden');
+            errEl.style.animation = 'none';
+            // Force reflow
+            void errEl.offsetWidth;
+            errEl.style.animation = '';
+          }
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}());
+
+ = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';  // same-origin by default; set window.AIRING_API_BASE to point to a remote backend
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local API key storage (Gemini + Claude + OpenAI — browser ↔ API directly, no backend needed)
