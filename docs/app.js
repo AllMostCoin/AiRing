@@ -70,7 +70,7 @@
           // Some Phantom versions set provider.publicKey rather than returning it
           if (resp?.publicKey ?? providerEarly.publicKey) {
             setAuthenticated();
-            // Gate stays hidden — no need to show it
+            hideGate();  // defensive: hide in case it was shown before promise settled
           } else {
             showGate();
           }
