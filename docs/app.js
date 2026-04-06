@@ -2419,6 +2419,15 @@ function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
 // All private-key operations happen inside Phantom — keys never leave the browser.
 // ─────────────────────────────────────────────────────────────────────────────
 
+const DEFAULT_SLIPPAGE_BPS_FE = 50;    // 0.5 % default — mirrors server constant
+const MAX_SLIPPAGE_BPS_FE     = 5000;  // 50 % hard cap — mirrors server constant
+const MAX_TRADE_HISTORY       = 50;    // maximum entries stored in localStorage
+const DISPLAYED_TRADE_HISTORY = 20;    // maximum entries shown in the UI
+// Delay (ms) before refreshing portfolio after a trade to allow on-chain settlement
+const PORTFOLIO_REFRESH_DELAY_MS = 4000;
+// Assumed total portfolio value in USD used to size auto-trade positions
+const AUTO_TRADE_PORTFOLIO_USD = 1000;
+
 // Token mint → decimals map (mirrors TRACKED_TOKENS on the backend)
 const TOKEN_DECIMALS = {
   'So11111111111111111111111111111111111111112':   9,  // SOL
@@ -2746,14 +2755,14 @@ function parseTradeRecommendation(recommendation, marketData) {
   const sizePct  = sizeMatch ? Math.min(parseFloat(sizeMatch[1]) / 100, 0.20) : 0.05; // cap at 20%
   const solToken = (marketData || []).find((t) => t.symbol === 'SOL');
   const solPrice = solToken?.price || 100;
-  const solAmountUi       = Math.max(0.001, (sizePct * 1000) / solPrice);
+  const solAmountUi       = Math.max(0.001, (sizePct * AUTO_TRADE_PORTFOLIO_USD) / solPrice);
   const solAmountLamports = Math.floor(solAmountUi * 1e9);
 
   if (action === 'BUY') {
-    return { inputMint: SYMBOL_TO_MINT.SOL, outputMint: targetMint, amount: solAmountLamports, userPublicKey: connectedWallet, slippageBps: 50 };
+    return { inputMint: SYMBOL_TO_MINT.SOL, outputMint: targetMint, amount: solAmountLamports, userPublicKey: connectedWallet, slippageBps: DEFAULT_SLIPPAGE_BPS_FE };
   }
   const targetDecimals = TOKEN_DECIMALS[targetMint] ?? 6;
-  return { inputMint: targetMint, outputMint: SYMBOL_TO_MINT.USDC, amount: Math.floor(solAmountUi * Math.pow(10, targetDecimals)), userPublicKey: connectedWallet, slippageBps: 50 };
+  return { inputMint: targetMint, outputMint: SYMBOL_TO_MINT.USDC, amount: Math.floor(solAmountUi * Math.pow(10, targetDecimals)), userPublicKey: connectedWallet, slippageBps: DEFAULT_SLIPPAGE_BPS_FE };
 }
 
 // ── Execute trade button ───────────────────────────────────────
@@ -2766,7 +2775,7 @@ if (executeTradeBtnEl) {
     const inputMint  = tradeFromSelect?.value;
     const outputMint = tradeToSelect?.value;
     const amountUi   = parseFloat(tradeAmountInput?.value || '0');
-    const slippage   = Math.max(1, Math.min(parseInt(tradeSlippageInput?.value || '50', 10), 5000));
+    const slippage   = Math.max(1, Math.min(parseInt(tradeSlippageInput?.value || String(DEFAULT_SLIPPAGE_BPS_FE), 10), MAX_SLIPPAGE_BPS_FE));
 
     if (!inputMint || !outputMint) {
       if (tradeStatusEl) { tradeStatusEl.textContent = '✗ Select tokens'; tradeStatusEl.className = 'settings-status err'; }
@@ -2791,7 +2800,7 @@ if (executeTradeBtnEl) {
 }
 
 // Core trade execution: create unsigned tx via backend → sign in Phantom → submit
-async function executeTrade({ inputMint, outputMint, amount, userPublicKey, slippageBps = 50 }) {
+async function executeTrade({ inputMint, outputMint, amount, userPublicKey, slippageBps = DEFAULT_SLIPPAGE_BPS_FE }) {
   const inputSym  = mintToSymbol(inputMint);
   const outputSym = mintToSymbol(outputMint);
 
@@ -2841,7 +2850,7 @@ async function executeTrade({ inputMint, outputMint, amount, userPublicKey, slip
     });
 
     // Refresh portfolio after a short delay so the on-chain state settles
-    if (connectedWallet) setTimeout(() => fetchPortfolioData(connectedWallet), 4000);
+    if (connectedWallet) setTimeout(() => fetchPortfolioData(connectedWallet), PORTFOLIO_REFRESH_DELAY_MS);
 
   } catch (err) {
     if (tradeStatusEl) {
@@ -2862,7 +2871,7 @@ async function executeTrade({ inputMint, outputMint, amount, userPublicKey, slip
 // ── Trade history ──────────────────────────────────────────────
 function addTradeHistoryEntry(entry) {
   tradeHistory.unshift(entry);
-  if (tradeHistory.length > 50) tradeHistory = tradeHistory.slice(0, 50);
+  if (tradeHistory.length > MAX_TRADE_HISTORY) tradeHistory = tradeHistory.slice(0, MAX_TRADE_HISTORY);
   try { localStorage.setItem(LS_TRADE_HISTORY, JSON.stringify(tradeHistory)); } catch { /* ignore */ }
   renderTradeHistory();
 }
@@ -2873,7 +2882,7 @@ function renderTradeHistory() {
     tradeHistoryListEl.innerHTML = '<p class="history-empty">No trades executed yet.</p>';
     return;
   }
-  tradeHistoryListEl.innerHTML = tradeHistory.slice(0, 20).map((t) => {
+  tradeHistoryListEl.innerHTML = tradeHistory.slice(0, DISPLAYED_TRADE_HISTORY).map((t) => {
     const time        = new Date(t.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     const statusClass = t.status === 'success' ? 'ok' : 'fail';
     const label       = t.signature

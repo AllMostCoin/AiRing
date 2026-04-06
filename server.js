@@ -765,6 +765,9 @@ app.post('/api/room-analyze', roomAnalyzeLimiter, async (req, res) => {
 
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
+const DEFAULT_SLIPPAGE_BPS = 50;   // 0.5 % — sensible default for liquid pairs
+const MAX_SLIPPAGE_BPS     = 5000; // 50 % — hard cap to protect users
+
 const TRACKED_TOKENS = [
   { symbol: 'SOL',  mint: 'So11111111111111111111111111111111111111112',   decimals: 9 },
   { symbol: 'USDC', mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 },
@@ -866,8 +869,8 @@ async function fetchWalletPortfolio(walletAddress) {
 function buildTradingPrompt(marketData, portfolio) {
   const priceLines = marketData
     .map((t) => {
-      const price  = t.price     !== null ? `$${Number(t.price).toPrecision(6)}`                                                                            : 'N/A';
-      const change = t.change24h !== null ? `${t.change24h >= 0 ? '+' : ''}${Number(t.change24h).toFixed(2)}%`                                             : 'N/A';
+      const price  = t.price     !== null ? `$${Number(t.price).toPrecision(6)}`                                                              : 'N/A';
+      const change = t.change24h !== null ? `${t.change24h >= 0 ? '+' : ''}${Number(t.change24h).toFixed(2)}%`                               : 'N/A';
       const vol    = t.volume24h !== null ? `$${Number(t.volume24h).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'N/A';
       return `${t.symbol}: price=${price} | 24h=${change} | vol=${vol}`;
     })
@@ -1041,7 +1044,7 @@ app.post('/api/trading-analysis', tradingAnalysisLimiter, async (req, res) => {
 // the client.
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/create-swap', createSwapLimiter, async (req, res) => {
-  const { inputMint, outputMint, amount, userPublicKey, slippageBps = 50 } = req.body;
+  const { inputMint, outputMint, amount, userPublicKey, slippageBps = DEFAULT_SLIPPAGE_BPS } = req.body;
 
   if (!isValidSolanaAddress(inputMint))     return res.status(400).json({ error: 'Invalid inputMint' });
   if (!isValidSolanaAddress(outputMint))    return res.status(400).json({ error: 'Invalid outputMint' });
@@ -1054,7 +1057,7 @@ app.post('/api/create-swap', createSwapLimiter, async (req, res) => {
   if (!knownMints.has(inputMint))  return res.status(400).json({ error: 'inputMint not in tracked token list' });
   if (!knownMints.has(outputMint)) return res.status(400).json({ error: 'outputMint not in tracked token list' });
 
-  const slippage = Math.max(0, Math.min(Number(slippageBps) || 50, 5000));
+  const slippage = Math.max(0, Math.min(Number(slippageBps) || DEFAULT_SLIPPAGE_BPS, MAX_SLIPPAGE_BPS));
 
   try {
     // Step 1: get a quote from Jupiter V6
