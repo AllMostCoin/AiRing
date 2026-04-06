@@ -850,21 +850,56 @@ function isValidSolanaAddress(addr) {
   return typeof addr === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
 }
 
+// In-memory cache for the last successful market data fetch.
+// Allows serving stale prices when upstream APIs are temporarily unavailable.
+const marketDataCache = { tokens: null, timestamp: null };
+const MARKET_CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+
+async function fetchJupiterPrices(mintList) {
+  const JUPITER_URLS = [
+    `https://api.jup.ag/price/v2?ids=${mintList}`,
+    `https://lite-api.jup.ag/price/v2?ids=${mintList}`,
+  ];
+  for (const url of JUPITER_URLS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      if (res.ok) return res.json();
+    } catch (_e) {
+      // try next URL
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return null;
+}
+
 async function fetchMarketData() {
   const mintList = TRACKED_TOKENS.map((t) => t.mint).join(',');
 
-  // Jupiter Price API v2 (free, no auth required)
-  const jupRes = await fetch(`https://api.jup.ag/price/v2?ids=${mintList}`, {
-    headers: { Accept: 'application/json' },
-  });
-  if (!jupRes.ok) throw new Error(`Jupiter Price API HTTP ${jupRes.status}`);
-  const jupData = await jupRes.json();
+  // Jupiter Price API v2 — try primary then lite fallback
+  const jupData = await fetchJupiterPrices(mintList);
+
+  // If Jupiter is completely unavailable, serve cached data (stale) rather than 502.
+  if (!jupData) {
+    if (marketDataCache.tokens) {
+      console.warn('[market-data] Jupiter unavailable — serving cached prices');
+      return { tokens: marketDataCache.tokens, stale: true };
+    }
+    throw new Error('Jupiter Price API unavailable and no cached data');
+  }
 
   // DexScreener for 24-h change / volume (free, no auth required)
+  const dexController = new AbortController();
+  const dexTimer = setTimeout(() => dexController.abort(), 8000);
   const dexRes = await fetch(
     `https://api.dexscreener.com/latest/dex/tokens/${mintList}`,
-    { headers: { Accept: 'application/json' } },
-  ).catch(() => null);
+    { headers: { Accept: 'application/json' }, signal: dexController.signal },
+  ).catch(() => null).finally(() => clearTimeout(dexTimer));
   const dexData = dexRes && dexRes.ok ? await dexRes.json().catch(() => ({})) : {};
 
   // Map each mint to the highest-liquidity DexScreener pair
@@ -879,7 +914,7 @@ async function fetchMarketData() {
     }
   }
 
-  return TRACKED_TOKENS.map((token) => {
+  const tokens = TRACKED_TOKENS.map((token) => {
     const priceInfo = jupData.data?.[token.mint];
     const dexPair   = dexByMint[token.mint] || null;
     return {
@@ -894,6 +929,12 @@ async function fetchMarketData() {
         : null,
     };
   });
+
+  // Update cache with fresh data
+  marketDataCache.tokens    = tokens;
+  marketDataCache.timestamp = Date.now();
+
+  return { tokens, stale: false };
 }
 
 async function fetchWalletPortfolio(walletAddress) {
@@ -1127,8 +1168,8 @@ const createSwapLimiter = rateLimit({
 // ─────────────────────────────────────────────────────────────────────────────
 app.get('/api/market-data', marketDataLimiter, async (_req, res) => {
   try {
-    const tokens = await fetchMarketData();
-    res.json({ tokens, timestamp: new Date().toISOString() });
+    const { tokens, stale } = await fetchMarketData();
+    res.json({ tokens, stale, timestamp: new Date().toISOString() });
   } catch (err) {
     console.error('[market-data]', err.message);
     res.status(502).json({ error: err.message });
@@ -1182,11 +1223,14 @@ app.post('/api/trading-analysis', tradingAnalysisLimiter, async (req, res) => {
 
   let marketData, portfolio, socialSignals;
   try {
-    [marketData, portfolio, socialSignals] = await Promise.all([
+    const [marketResult, portfolioResult, signalsResult] = await Promise.all([
       fetchMarketData(),
       wallet ? fetchWalletPortfolio(wallet).catch(() => null) : Promise.resolve(null),
       fetchSocialSignals(TRACKED_TOKENS.map((t) => t.symbol)).catch(() => null),
     ]);
+    marketData    = marketResult.tokens;
+    portfolio     = portfolioResult;
+    socialSignals = signalsResult;
   } catch (err) {
     console.error('[trading-analysis] market fetch failed:', err.message);
     return res.status(502).json({ error: `Failed to fetch market data: ${err.message}` });

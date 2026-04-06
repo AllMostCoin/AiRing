@@ -2679,7 +2679,7 @@ async function refreshMarketData() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     latestMarketData = data.tokens;
-    renderTicker(data.tokens);
+    renderTicker(data.tokens, data.stale);
   } catch (err) {
     if (tickerGridEl) {
       tickerGridEl.innerHTML = `<span class="ticker-loading" style="color:#ff4040">⚠ ${escapeHtml(err.message)}</span>`;
@@ -2687,9 +2687,9 @@ async function refreshMarketData() {
   }
 }
 
-function renderTicker(tokens) {
+function renderTicker(tokens, stale) {
   if (!tickerGridEl) return;
-  tickerGridEl.innerHTML = tokens.map((t) => {
+  const cards = tokens.map((t) => {
     const rawPrice = Number(t.price);
     const price = t.price !== null
       ? (rawPrice < 0.01 ? `$${rawPrice.toExponential(3)}` : `$${rawPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`)
@@ -2702,6 +2702,10 @@ function renderTicker(tokens) {
       <div class="ticker-change ${changeClass}">${escapeHtml(change)}</div>
     </div>`;
   }).join('');
+  const staleNotice = stale
+    ? '<span class="ticker-loading" style="color:#f0a500;font-size:8px;">⚠ prices may be delayed</span>'
+    : '';
+  tickerGridEl.innerHTML = cards + staleNotice;
 }
 
 if (refreshMarketBtn) {
