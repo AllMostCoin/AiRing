@@ -923,7 +923,7 @@ async function fetchMarketData() {
     return {
       symbol:    token.symbol,
       mint:      token.mint,
-      price:     priceInfo?.price ?? null,
+      price:     priceInfo?.price ?? dexPair?.priceUsd ?? null,
       change24h: dexPair?.priceChange?.h24 ?? null,
       volume24h: dexPair?.volume?.h24 ?? null,
       liquidity: dexPair?.liquidity?.usd ?? null,
