@@ -73,7 +73,8 @@
     if (!btn) return;
 
     btn.addEventListener('click', async () => {
-      const provider = getPhantomProviderForLogin();
+      // Wait for phantom#initialized if the extension hasn't injected yet.
+      const provider = await waitForPhantomProvider(getPhantomProviderForLogin);
       if (!provider) {
         // Phantom not installed — send user to install it
         window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
@@ -2532,6 +2533,20 @@ function getPhantomProvider() {
   return null;
 }
 
+// Returns the Phantom provider, waiting up to `timeout` ms for the
+// phantom#initialized event in case the extension is still injecting.
+function waitForPhantomProvider(getProviderFn, timeout) {
+  return new Promise((resolve) => {
+    const provider = getProviderFn();
+    if (provider) { resolve(provider); return; }
+    const t = setTimeout(() => resolve(null), timeout || 800);
+    window.addEventListener('phantom#initialized', () => {
+      clearTimeout(t);
+      resolve(getProviderFn());
+    }, { once: true });
+  });
+}
+
 function onWalletConnected(pubkey) {
   connectedWallet = pubkey;
   const short = `${pubkey.slice(0, 4)}…${pubkey.slice(-4)}`;
@@ -2566,7 +2581,8 @@ function onWalletDisconnected() {
 
 if (walletConnectBtn) {
   walletConnectBtn.addEventListener('click', async () => {
-    const provider = getPhantomProvider();
+    // Wait for phantom#initialized if the extension hasn't injected yet.
+    const provider = await waitForPhantomProvider(getPhantomProvider);
     if (!provider) {
       window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
       return;
