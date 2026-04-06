@@ -78,8 +78,9 @@
       // Wait for phantom#initialized if the extension hasn't injected yet.
       const provider = await waitForPhantomProvider(getPhantomProviderForLogin);
       if (!provider) {
-        // Phantom not installed — send user to install it
-        window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
+        // Phantom not installed — on mobile open current page in Phantom's
+        // in-app browser; on desktop redirect to the extension install page.
+        openPhantomOrRedirect();
         return;
       }
 
@@ -2544,6 +2545,21 @@ function getPhantomProvider() {
   return null;
 }
 
+// On mobile devices Phantom is not a browser extension — the user must open
+// the dApp inside Phantom's in-app browser.  This helper detects mobile and
+// uses Phantom's universal deep-link to reopen the current page there.
+// On desktop it falls back to the extension install page.
+function openPhantomOrRedirect() {
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if (isMobile) {
+    const dappUrl = encodeURIComponent(window.location.href);
+    const ref     = encodeURIComponent(window.location.origin);
+    window.location.href = `https://phantom.app/ul/browse/${dappUrl}?ref=${ref}`;
+  } else {
+    window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
+  }
+}
+
 // Returns the Phantom provider, waiting up to `timeout` ms for the
 // phantom#initialized event in case the extension is still injecting.
 function waitForPhantomProvider(getProviderFn, timeout) {
@@ -2595,7 +2611,7 @@ if (walletConnectBtn) {
     // Wait for phantom#initialized if the extension hasn't injected yet.
     const provider = await waitForPhantomProvider(getPhantomProvider);
     if (!provider) {
-      window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
+      openPhantomOrRedirect();
       return;
     }
     try {
