@@ -2610,9 +2610,11 @@ if (walletDisconnectBtn) {
   });
 }
 
-// Listen for Phantom events and attempt silent reconnect
-(function initPhantomListeners() {
-  const provider = getPhantomProvider();
+// Listen for Phantom events and attempt silent reconnect.
+// Uses waitForPhantomProvider so that the listeners and silent reconnect are
+// still set up when Phantom is slow to inject (fires phantom#initialized late).
+(async function initPhantomListeners() {
+  const provider = await waitForPhantomProvider(getPhantomProvider);
   if (!provider) return;
   provider.on('connect',        (pk) => onWalletConnected(pk.toString()));
   provider.on('disconnect',     ()   => onWalletDisconnected());
