@@ -42,6 +42,16 @@
     if (gate) gate.classList.add('hidden');
   }
 
+  function showLoginError(errEl, message) {
+    if (!errEl) return;
+    errEl.textContent = message;
+    errEl.classList.remove('hidden');
+    errEl.style.animation = 'none';
+    // Force reflow to re-trigger shake animation
+    void errEl.offsetWidth;
+    errEl.style.animation = '';
+  }
+
   if (isAuthenticated()) return;  // already authenticated this session
 
   // Wait for DOM to be ready before showing the gate
@@ -57,7 +67,8 @@
     if (providerEarly) {
       providerEarly.connect({ onlyIfTrusted: true })
         .then((resp) => {
-          if (resp?.publicKey) {
+          // Some Phantom versions set provider.publicKey rather than returning it
+          if (resp?.publicKey ?? providerEarly.publicKey) {
             setAuthenticated();
             // Gate stays hidden — no need to show it
           } else {
@@ -81,6 +92,7 @@
         // Phantom not installed — open the Phantom install page in a new tab
         // so the user stays on the login page in their regular browser.
         openPhantomOrRedirect();
+        showLoginError(errEl, '◈ PHANTOM NOT FOUND — INSTALL PHANTOM');
         return;
       }
 
@@ -90,20 +102,21 @@
 
       try {
         const resp = await provider.connect();
-        if (resp?.publicKey) {
+        // Some Phantom versions set provider.publicKey rather than returning it
+        const pubkey = resp?.publicKey ?? provider.publicKey;
+        if (pubkey) {
           setAuthenticated();
           hideGate();
+        } else {
+          // Connected but no public key — surface an error so the user can retry
+          btn.textContent = '◈ CONNECT PHANTOM';
+          btn.disabled = false;
+          showLoginError(errEl, '✖ CONNECTION FAILED — TRY AGAIN');
         }
       } catch (err) {
         btn.textContent = '◈ CONNECT PHANTOM';
         btn.disabled = false;
-        if (errEl) {
-          errEl.classList.remove('hidden');
-          errEl.style.animation = 'none';
-          // Force reflow to re-trigger shake animation
-          void errEl.offsetWidth;
-          errEl.style.animation = '';
-        }
+        showLoginError(errEl, '✖ CONNECTION FAILED — TRY AGAIN');
         console.error('[login] phantom connect error:', err);
       }
     });
@@ -2667,7 +2680,11 @@ if (walletDisconnectBtn) {
   provider.on('accountChanged', (pk) => { if (pk) onWalletConnected(pk.toString()); else onWalletDisconnected(); });
   // Silently reconnect if the user previously approved this dApp
   provider.connect({ onlyIfTrusted: true })
-    .then((resp) => { if (resp?.publicKey) onWalletConnected(resp.publicKey.toString()); })
+    .then((resp) => {
+      // Some Phantom versions set provider.publicKey rather than returning it
+      const pk = resp?.publicKey ?? provider.publicKey;
+      if (pk) onWalletConnected(pk.toString());
+    })
     .catch(() => { /* not previously trusted — require explicit connect */ });
 }());
 
