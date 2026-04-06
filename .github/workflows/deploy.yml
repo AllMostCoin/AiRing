@@ -120,6 +120,9 @@ jobs:
           if ([ -n "$COPILOT_API_KEY" ] || [ -n "$GROK_API_KEY" ] || [ -n "$MISTRAL_API_KEY" ]) && [ -z "$BACKEND_URL" ]; then
             echo "::warning::BACKEND_URL is not set. Copilot, Grok, and Mistral will run in DEMO mode on GitHub Pages because their APIs block browser CORS. Deploy the Node.js backend (see render.yaml or Dockerfile) and add BACKEND_URL to your repository secrets to enable live mode for these models."
           fi
+          if echo "$BACKEND_URL" | grep -q '^http://'; then
+            echo "::warning::BACKEND_URL starts with http:// instead of https://. GitHub Pages is served over HTTPS; browser mixed-content rules will block all API calls to an http:// backend (including Phantom-dependent portfolio and trading features). Update BACKEND_URL to use https://."
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
