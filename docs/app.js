@@ -60,9 +60,64 @@
   }
 
   onReady(async () => {
-    // Attempt silent reconnect before showing the gate.
-    // waitForPhantomProvider waits up to 800 ms for phantom#initialized so the
-    // gate is not shown just because the extension hasn't injected yet.
+    // Show the gate immediately to prevent flash of unprotected content while
+    // waiting for the Phantom extension to inject.
+    showGate();
+
+    const btn        = document.getElementById('login-phantom-btn');
+    const errEl      = document.getElementById('login-error');
+    const installEl  = document.getElementById('login-phantom-install');
+
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        // Check synchronously — by the time the gate is visible the page has
+        // already waited up to 800 ms for Phantom to inject, so any further
+        // async wait is unnecessary.  More importantly, calling window.open()
+        // after an `await` loses the browser's user-activation state, which
+        // causes popup blockers to silently suppress the Phantom redirect.
+        const provider = getPhantomProviderForLogin();
+        if (!provider) {
+          // Phantom not installed — attempt to open the Phantom universal-link
+          // redirect synchronously (before any await) so popup blockers don't
+          // interfere.  Also reveal the direct install link as a reliable
+          // fallback in case the popup is suppressed.
+          openPhantomOrRedirect();
+          showLoginError(errEl, '◈ PHANTOM NOT FOUND — INSTALL PHANTOM');
+          if (installEl) installEl.classList.remove('hidden');
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = '◈ CONNECTING…';
+        if (errEl)     errEl.classList.add('hidden');
+        if (installEl) installEl.classList.add('hidden');
+
+        try {
+          const resp = await provider.connect();
+          // Some Phantom versions set provider.publicKey rather than returning it
+          const pubkey = resp?.publicKey ?? provider.publicKey;
+          if (pubkey) {
+            setAuthenticated();
+            hideGate();
+          } else {
+            // Connected but no public key — surface an error so the user can retry
+            btn.textContent = '◈ CONNECT PHANTOM';
+            btn.disabled = false;
+            showLoginError(errEl, '✖ CONNECTION FAILED — TRY AGAIN');
+          }
+        } catch (err) {
+          btn.textContent = '◈ CONNECT PHANTOM';
+          btn.disabled = false;
+          showLoginError(errEl, '✖ CONNECTION FAILED — TRY AGAIN');
+          console.error('[login] phantom connect error:', err);
+        }
+      });
+    }
+
+    // Attempt silent reconnect in the background — if Phantom is already
+    // trusted, auto-authenticate and hide the gate without requiring the user
+    // to click anything.  waitForPhantomProvider waits up to 800 ms for the
+    // phantom#initialized event in case the extension is still injecting.
     const providerEarly = await waitForPhantomProvider(getPhantomProviderForLogin);
     if (providerEarly) {
       providerEarly.connect({ onlyIfTrusted: true })
@@ -70,65 +125,12 @@
           // Some Phantom versions set provider.publicKey rather than returning it
           if (resp?.publicKey ?? providerEarly.publicKey) {
             setAuthenticated();
-            hideGate();  // defensive: hide in case it was shown before promise settled
-          } else {
-            showGate();
+            hideGate();
           }
+          // If no pubkey, gate is already visible — user must connect manually
         })
-        .catch(() => showGate());
-    } else {
-      showGate();
+        .catch(() => { /* not previously trusted — gate is already visible */ });
     }
-
-    const btn        = document.getElementById('login-phantom-btn');
-    const errEl      = document.getElementById('login-error');
-    const installEl  = document.getElementById('login-phantom-install');
-
-    if (!btn) return;
-
-    btn.addEventListener('click', async () => {
-      // Check synchronously — by the time the gate is visible the page has
-      // already waited up to 800 ms for Phantom to inject, so any further
-      // async wait is unnecessary.  More importantly, calling window.open()
-      // after an `await` loses the browser's user-activation state, which
-      // causes popup blockers to silently suppress the Phantom redirect.
-      const provider = getPhantomProviderForLogin();
-      if (!provider) {
-        // Phantom not installed — attempt to open the Phantom universal-link
-        // redirect synchronously (before any await) so popup blockers don't
-        // interfere.  Also reveal the direct install link as a reliable
-        // fallback in case the popup is suppressed.
-        openPhantomOrRedirect();
-        showLoginError(errEl, '◈ PHANTOM NOT FOUND — INSTALL PHANTOM');
-        if (installEl) installEl.classList.remove('hidden');
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = '◈ CONNECTING…';
-      if (errEl)     errEl.classList.add('hidden');
-      if (installEl) installEl.classList.add('hidden');
-
-      try {
-        const resp = await provider.connect();
-        // Some Phantom versions set provider.publicKey rather than returning it
-        const pubkey = resp?.publicKey ?? provider.publicKey;
-        if (pubkey) {
-          setAuthenticated();
-          hideGate();
-        } else {
-          // Connected but no public key — surface an error so the user can retry
-          btn.textContent = '◈ CONNECT PHANTOM';
-          btn.disabled = false;
-          showLoginError(errEl, '✖ CONNECTION FAILED — TRY AGAIN');
-        }
-      } catch (err) {
-        btn.textContent = '◈ CONNECT PHANTOM';
-        btn.disabled = false;
-        showLoginError(errEl, '✖ CONNECTION FAILED — TRY AGAIN');
-        console.error('[login] phantom connect error:', err);
-      }
-    });
   });
 }());
 
