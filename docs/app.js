@@ -6,10 +6,10 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Login Gate — protect the site with Phantom wallet when AIRING_LOGIN_HASH is set.
-// AIRING_LOGIN_HASH is injected at deploy time via config.js.
+// AIRING_LOGIN_HASH is injected at deploy time via config.js and acts as a
+// session token: any non-empty value enables the gate, and its value is stored
+// in sessionStorage so that sessions are invalidated on each new deployment.
 // If AIRING_LOGIN_HASH is empty the gate is skipped entirely.
-// Session authentication is stored in sessionStorage so the user must
-// connect once per browser tab/session.
 // ─────────────────────────────────────────────────────────────────────────────
 (function initLoginGate() {
   const loginHash = (typeof window !== 'undefined' && window.AIRING_LOGIN_HASH) || '';
@@ -18,11 +18,11 @@
   const SS_KEY = 'airing_authenticated';
 
   function isAuthenticated() {
-    try { return sessionStorage.getItem(SS_KEY) === 'true'; } catch { return false; }
+    try { return sessionStorage.getItem(SS_KEY) === loginHash; } catch { return false; }
   }
 
   function setAuthenticated() {
-    try { sessionStorage.setItem(SS_KEY, 'true'); } catch { /* ignore */ }
+    try { sessionStorage.setItem(SS_KEY, loginHash); } catch { /* ignore */ }
   }
 
   function getPhantomProviderForLogin() {
