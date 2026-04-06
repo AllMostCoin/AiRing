@@ -109,7 +109,16 @@
   });
 }());
 
-const API_BASE = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';  // same-origin by default; set window.AIRING_API_BASE to point to a remote backend
+// same-origin by default; set window.AIRING_API_BASE to point to a remote backend.
+// If the configured URL uses http:// but the page is served over HTTPS, upgrade it
+// to https:// automatically to prevent mixed-content blocking of all API calls.
+const API_BASE = (() => {
+  const raw = (typeof window !== 'undefined' && window.AIRING_API_BASE) || '';
+  if (raw.startsWith('http://') && typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    return 'https://' + raw.slice('http://'.length);
+  }
+  return raw;
+})();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local API key storage (Gemini + Claude + OpenAI — browser ↔ API directly, no backend needed)
