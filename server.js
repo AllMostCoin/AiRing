@@ -192,8 +192,11 @@ async function callCopilot(prompt) {
       max_tokens: 512,
     }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(`GitHub Copilot HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data.error?.message || data.message || res.statusText;
+    throw new Error(`GitHub Copilot HTTP ${res.status}: ${msg}`);
+  }
   if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('GitHub Copilot returned no content');
   return data.choices[0].message.content.trim();
 }
