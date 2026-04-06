@@ -5,15 +5,15 @@
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Login Gate — password-protect the site when AIRING_LOGIN_HASH is set.
-// The hash (SHA-256 hex) is injected at deploy time via config.js.
+// Login Gate — protect the site with Phantom wallet when AIRING_LOGIN_HASH is set.
+// AIRING_LOGIN_HASH is injected at deploy time via config.js and acts as a
+// session token: any non-empty value enables the gate, and its value is stored
+// in sessionStorage so that sessions are invalidated on each new deployment.
 // If AIRING_LOGIN_HASH is empty the gate is skipped entirely.
-// Session authentication is stored in sessionStorage so the user must
-// log in once per browser tab/session.
 // ─────────────────────────────────────────────────────────────────────────────
 (function initLoginGate() {
   const loginHash = (typeof window !== 'undefined' && window.AIRING_LOGIN_HASH) || '';
-  if (!loginHash) return;  // no password configured — open access
+  if (!loginHash) return;  // no login configured — open access
 
   const SS_KEY = 'airing_authenticated';
 
@@ -25,16 +25,16 @@
     try { sessionStorage.setItem(SS_KEY, loginHash); } catch { /* ignore */ }
   }
 
-  async function sha256hex(text) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  function getPhantomProviderForLogin() {
+    if (typeof window === 'undefined') return null;
+    if (window.phantom?.solana?.isPhantom) return window.phantom.solana;
+    if (window.solana?.isPhantom)          return window.solana;
+    return null;
   }
 
   function showGate() {
     const gate = document.getElementById('login-gate');
     if (gate) gate.classList.remove('hidden');
-    const input = document.getElementById('login-password');
-    if (input) input.focus();
   }
 
   function hideGate() {
@@ -50,41 +50,57 @@
   }
 
   onReady(() => {
-    showGate();
+    // Attempt silent reconnect before showing the gate
+    const providerEarly = getPhantomProviderForLogin();
+    if (providerEarly) {
+      providerEarly.connect({ onlyIfTrusted: true })
+        .then((resp) => {
+          if (resp?.publicKey) {
+            setAuthenticated();
+            // Gate stays hidden — no need to show it
+          } else {
+            showGate();
+          }
+        })
+        .catch(() => showGate());
+    } else {
+      showGate();
+    }
 
-    const form   = document.getElementById('login-form');
-    const input  = document.getElementById('login-password');
-    const errEl  = document.getElementById('login-error');
-    const btn    = document.getElementById('login-submit');
+    const btn   = document.getElementById('login-phantom-btn');
+    const errEl = document.getElementById('login-error');
 
-    if (!form) return;
+    if (!btn) return;
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const password = input ? input.value : '';
-      if (!password) return;
+    btn.addEventListener('click', async () => {
+      const provider = getPhantomProviderForLogin();
+      if (!provider) {
+        // Phantom not installed — send user to install it
+        window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
+        return;
+      }
 
       btn.disabled = true;
+      btn.textContent = '◈ CONNECTING…';
       if (errEl) errEl.classList.add('hidden');
 
       try {
-        const hash = await sha256hex(password);
-        if (hash === loginHash) {
+        const resp = await provider.connect();
+        if (resp?.publicKey) {
           setAuthenticated();
           hideGate();
-        } else {
-          if (input) { input.value = ''; input.focus(); }
-          if (errEl) {
-            // Re-trigger shake animation by removing and re-adding class
-            errEl.classList.remove('hidden');
-            errEl.style.animation = 'none';
-            // Force reflow
-            void errEl.offsetWidth;
-            errEl.style.animation = '';
-          }
         }
-      } finally {
+      } catch (err) {
+        btn.textContent = '◈ CONNECT PHANTOM';
         btn.disabled = false;
+        if (errEl) {
+          errEl.classList.remove('hidden');
+          errEl.style.animation = 'none';
+          // Force reflow to re-trigger shake animation
+          void errEl.offsetWidth;
+          errEl.style.animation = '';
+        }
+        console.error('[login] phantom connect error:', err);
       }
     });
   });

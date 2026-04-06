@@ -18,20 +18,11 @@
           <span class="logo-text">AI RING</span>
         </div>
         <div id="login-title" class="login-title">◆ ACCESS REQUIRED ◆</div>
-        <form id="login-form" class="login-form" novalidate>
-          <label class="login-label" for="login-password">ENTER PASSWORD</label>
-          <input
-            id="login-password"
-            class="login-input"
-            type="password"
-            autocomplete="current-password"
-            spellcheck="false"
-            placeholder="▓▓▓▓▓▓▓▓"
-            required
-          />
-          <button id="login-submit" class="login-btn" type="submit">▶ ENTER</button>
-          <div id="login-error" class="login-error hidden">✖ WRONG PASSWORD — ACCESS DENIED</div>
-        </form>
+        <div class="login-form">
+          <div class="login-label">CONNECT YOUR WALLET TO ACCESS</div>
+          <button id="login-phantom-btn" class="login-btn" type="button">◈ CONNECT PHANTOM</button>
+          <div id="login-error" class="login-error hidden">✖ CONNECTION FAILED — TRY AGAIN</div>
+        </div>
       </div>
     </div>
 

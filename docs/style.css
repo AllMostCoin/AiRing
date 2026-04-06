@@ -1409,23 +1409,6 @@ html, body {
   letter-spacing: 2px;
 }
 
-.login-input {
-  width: 100%;
-  background: #000820;
-  border: 3px solid var(--border);
-  color: var(--text);
-  font-family: var(--mono-font);
-  font-size: 1.1rem;
-  padding: 10px 14px;
-  letter-spacing: 6px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.login-input:focus {
-  border-color: var(--border-gold);
-  box-shadow: 0 0 0 2px var(--mako-dim);
-}
-
 .login-btn {
   width: 100%;
   background: var(--mako);
