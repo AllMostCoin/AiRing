@@ -2046,6 +2046,21 @@ async function fetchOneRound(prompt) {
     }
     const data = await res.json();
 
+    // Build wallet context string for fallback proxy calls so every AI model
+    // receives the same wallet holdings context that /api/compete injected
+    // server-side.  currentPortfolio is populated when the wallet connects.
+    let promptWithCtx = prompt;
+    if (currentPortfolio) {
+      const walletCtx =
+        `[ROOM CONTEXT — WALLET HOLDINGS]\n` +
+        `SOL: ${currentPortfolio.sol.toFixed(4)}\n` +
+        (currentPortfolio.tokens.length
+          ? currentPortfolio.tokens.map((t) => `${t.symbol}: ${t.amount}`).join('\n')
+          : '(no tracked SPL tokens)') +
+        '\n\n';
+      promptWithCtx = walletCtx + prompt;
+    }
+
     // If the backend doesn't have XAI_API_KEY but the user saved a personal Grok
     // key, overlay the Grok result via the proxy endpoint (server-side, CORS-free).
     const grokKey = getLocalGrokKey();
@@ -2054,7 +2069,7 @@ async function fetchOneRound(prompt) {
       if (grokResult && grokResult.isDemo) {
         try {
           const proxyStart = Date.now();
-          const text = await callGrokProxy(prompt, grokKey);
+          const text = await callGrokProxy(promptWithCtx, grokKey);
           grokResult.response = text;
           grokResult.isDemo = false;
           grokResult.latencyMs = Date.now() - proxyStart;
@@ -2085,7 +2100,7 @@ async function fetchOneRound(prompt) {
       if (claudeResult && claudeResult.isDemo) {
         try {
           const claudeStart = Date.now();
-          const text = await callClaudeDirect(prompt, claudeKey);
+          const text = await callClaudeDirect(promptWithCtx, claudeKey);
           claudeResult.response = text;
           claudeResult.isDemo = false;
           claudeResult.latencyMs = Date.now() - claudeStart;
@@ -2115,7 +2130,7 @@ async function fetchOneRound(prompt) {
       if (ollamaResult && ollamaResult.isDemo) {
         try {
           const ollamaStart = Date.now();
-          const text = await callOllamaProxy(prompt, ollamaModel);
+          const text = await callOllamaProxy(promptWithCtx, ollamaModel);
           ollamaResult.response = text;
           ollamaResult.isDemo = false;
           ollamaResult.latencyMs = Date.now() - ollamaStart;
@@ -2144,7 +2159,7 @@ async function fetchOneRound(prompt) {
     if (openaiKey && gpt4Result && gpt4Result.isDemo && (!backendGpt4Configured || gpt4Result.error)) {
       try {
         const gpt4Start = Date.now();
-        const text = await callOpenAIProxy(prompt, openaiKey);
+        const text = await callOpenAIProxy(promptWithCtx, openaiKey);
         gpt4Result.response = text;
         gpt4Result.isDemo = false;
         gpt4Result.error = null;
@@ -2172,7 +2187,7 @@ async function fetchOneRound(prompt) {
       if (mistralResult && mistralResult.isDemo) {
         try {
           const mistralStart = Date.now();
-          const text = await callMistralProxy(prompt, mistralKey);
+          const text = await callMistralProxy(promptWithCtx, mistralKey);
           mistralResult.response = text;
           mistralResult.isDemo = false;
           mistralResult.latencyMs = Date.now() - mistralStart;
@@ -2200,7 +2215,7 @@ async function fetchOneRound(prompt) {
       if (copilotResult && copilotResult.isDemo) {
         try {
           const copilotStart = Date.now();
-          const text = await callCopilotProxy(prompt, copilotKey);
+          const text = await callCopilotProxy(promptWithCtx, copilotKey);
           copilotResult.response = text;
           copilotResult.isDemo = false;
           copilotResult.latencyMs = Date.now() - copilotStart;
@@ -2486,6 +2501,7 @@ function mintToSymbol(mint) {
 
 const LS_TRADE_HISTORY = 'airing_trade_history';
 let connectedWallet   = null;
+let currentPortfolio  = null;
 let latestMarketData  = null;
 let tradeHistory      = [];
 
@@ -2598,6 +2614,7 @@ function onWalletConnected(pubkey) {
 
 function onWalletDisconnected() {
   connectedWallet = null;
+  currentPortfolio = null;
   if (walletConnectBtn) {
     walletConnectBtn.textContent = '◈ CONNECT PHANTOM';
     walletConnectBtn.classList.remove('connected');
@@ -2699,6 +2716,7 @@ async function fetchPortfolioData(walletAddress) {
     const res = await fetch(`${API_BASE}/api/portfolio/${encodeURIComponent(walletAddress)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    currentPortfolio = data;
     renderPortfolio(data);
   } catch (err) {
     if (portfolioDisplayEl) portfolioDisplayEl.textContent = `Failed to load: ${err.message}`;
