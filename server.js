@@ -881,29 +881,33 @@ async function fetchJupiterPrices(mintList) {
   return null;
 }
 
+async function fetchDexScreenerData(mintList) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${mintList}`,
+      { headers: { Accept: 'application/json' }, signal: controller.signal },
+    );
+    if (res.ok) return res.json().catch(() => ({}));
+  } catch (_e) {
+    // network error or timeout — caller treats missing data gracefully
+  } finally {
+    clearTimeout(timer);
+  }
+  return {};
+}
+
 async function fetchMarketData() {
   const mintList = TRACKED_TOKENS.map((t) => t.mint).join(',');
 
-  // Jupiter Price API v2 — try primary then lite fallback
-  const jupData = await fetchJupiterPrices(mintList);
-
-  // If Jupiter is completely unavailable, serve cached data (stale) rather than 502.
-  if (!jupData) {
-    if (marketDataCache.tokens && Date.now() - marketDataCache.timestamp <= MARKET_CACHE_MAX_AGE_MS) {
-      console.warn('[market-data] Jupiter unavailable — serving cached prices');
-      return { tokens: marketDataCache.tokens, stale: true };
-    }
-    throw new Error('Jupiter Price API unavailable and no cached data');
-  }
-
-  // DexScreener for 24-h change / volume (free, no auth required)
-  const dexController = new AbortController();
-  const dexTimer = setTimeout(() => dexController.abort(), 8000);
-  const dexRes = await fetch(
-    `https://api.dexscreener.com/latest/dex/tokens/${mintList}`,
-    { headers: { Accept: 'application/json' }, signal: dexController.signal },
-  ).catch(() => null).finally(() => clearTimeout(dexTimer));
-  const dexData = dexRes && dexRes.ok ? await dexRes.json().catch(() => ({})) : {};
+  // Fetch Jupiter and DexScreener in parallel to reduce latency.
+  // DexScreener carries priceUsd and is used as a price fallback when Jupiter
+  // is unavailable, so both requests are always sent regardless of outcome.
+  const [jupData, dexData] = await Promise.all([
+    fetchJupiterPrices(mintList),
+    fetchDexScreenerData(mintList),
+  ]);
 
   // Map each mint to the highest-liquidity DexScreener pair
   const dexByMint = {};
@@ -917,8 +921,22 @@ async function fetchMarketData() {
     }
   }
 
+  // If both price sources are unavailable, serve stale cache or throw 502.
+  if (!jupData && Object.keys(dexByMint).length === 0) {
+    if (marketDataCache.tokens && Date.now() - marketDataCache.timestamp <= MARKET_CACHE_MAX_AGE_MS) {
+      console.warn('[market-data] All price sources unavailable — serving cached prices');
+      return { tokens: marketDataCache.tokens, stale: true };
+    }
+    throw new Error('All price APIs unavailable and no cached data');
+  }
+
+  // Warn when falling back to DexScreener-only prices
+  if (!jupData) {
+    console.warn('[market-data] Jupiter unavailable — using DexScreener prices only');
+  }
+
   const tokens = TRACKED_TOKENS.map((token) => {
-    const priceInfo = jupData.data?.[token.mint];
+    const priceInfo = jupData?.data?.[token.mint];
     const dexPair   = dexByMint[token.mint] || null;
     return {
       symbol:    token.symbol,
@@ -1380,4 +1398,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, scoreResponse, generateDemoResponse, buildRoomAnalysisPrompt, buildTradingPrompt, AI_MODELS, DEMO_TEMPLATES, TRACKED_TOKENS, isValidSolanaAddress };
+module.exports = { app, scoreResponse, generateDemoResponse, buildRoomAnalysisPrompt, buildTradingPrompt, AI_MODELS, DEMO_TEMPLATES, TRACKED_TOKENS, isValidSolanaAddress, marketDataCache };
