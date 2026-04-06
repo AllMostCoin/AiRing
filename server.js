@@ -13,6 +13,16 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Social-signal API keys (all optional — omit to disable that source)
+// ─────────────────────────────────────────────────────────────────────────────
+const CRYPTOPANIC_API_KEY  = process.env.CRYPTOPANIC_API_KEY  || '';
+const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN || '';
+const TELEGRAM_BOT_TOKEN   = process.env.TELEGRAM_BOT_TOKEN   || '';
+// Comma-separated list of Telegram channel IDs the bot has been added to, e.g. "-1001234567890,-1009876543210"
+const TELEGRAM_CHANNEL_IDS = (process.env.TELEGRAM_CHANNEL_IDS || '')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'docs')));
@@ -609,7 +619,7 @@ app.post('/api/copilot-proxy', copilotProxyLimiter, async (req, res) => {
 // Route: POST /api/compete — run the competition
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/compete', competeLimiter, async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, wallet } = req.body;
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
   }
@@ -617,6 +627,28 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
   if (trimmed.length > 2000) {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
+  if (wallet && !isValidSolanaAddress(wallet)) {
+    return res.status(400).json({ error: 'Invalid Solana wallet address' });
+  }
+
+  // If a wallet is connected, fetch portfolio to inject as room context (best-effort)
+  const portfolio = wallet
+    ? await fetchWalletPortfolio(wallet).catch(() => null)
+    : null;
+
+  // Build contextual preamble so every model shares the same wallet view
+  let contextBlock = '';
+  if (portfolio) {
+    contextBlock =
+      `[ROOM CONTEXT — WALLET HOLDINGS]\n` +
+      `SOL: ${portfolio.sol.toFixed(4)}\n` +
+      (portfolio.tokens.length
+        ? portfolio.tokens.map((t) => `${t.symbol}: ${t.amount}`).join('\n')
+        : '(no tracked SPL tokens)') +
+      '\n\n';
+  }
+
+  const promptWithCtx = contextBlock + trimmed;
 
   const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, ollama: callOllama };
 
@@ -625,7 +657,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
     AI_MODELS.map(async (model) => {
       const start = Date.now();
       try {
-        let text = await callers[model.id](trimmed);
+        let text = await callers[model.id](promptWithCtx);
         const isDemo = text === null;
         if (isDemo) text = generateDemoResponse(model.id, trimmed);
         const latencyMs = Date.now() - start;
@@ -672,14 +704,37 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
 /**
  * Build a prompt that asks a model to analyze what the other models said
  * and then deliver its best possible answer.
+ *
+ * @param {string}  originalPrompt
+ * @param {string}  modelName
+ * @param {Array}   otherResponses
+ * @param {object}  [ctx]               Optional room context injected as shared state
+ * @param {object}  [ctx.portfolio]     Wallet holdings from fetchWalletPortfolio()
+ * @param {string}  [ctx.socialSignals] Formatted social-signal lines from fetchSocialSignals()
  */
-function buildRoomAnalysisPrompt(originalPrompt, modelName, otherResponses) {
+function buildRoomAnalysisPrompt(originalPrompt, modelName, otherResponses, ctx = {}) {
   const others = otherResponses
     .map((r) => `[${r.name}]: ${r.response}`)
     .join('\n\n');
+
+  let roomCtx = '';
+  if (ctx.portfolio) {
+    roomCtx +=
+      `\nROOM CONTEXT — CONNECTED WALLET HOLDINGS:\n` +
+      `SOL: ${ctx.portfolio.sol.toFixed(4)}\n` +
+      (ctx.portfolio.tokens.length
+        ? ctx.portfolio.tokens.map((t) => `${t.symbol}: ${t.amount}`).join('\n')
+        : '(no tracked SPL tokens)') +
+      '\n';
+  }
+  if (ctx.socialSignals) {
+    roomCtx += `\nROOM CONTEXT — RECENT SOCIAL SIGNALS:\n${ctx.socialSignals}\n`;
+  }
+
   return (
-    `You are competing in the AI Ring arena. The original question was:\n"${originalPrompt}"\n\n` +
-    `Here is what the other AI models in the room answered:\n\n${others}\n\n` +
+    `You are competing in the AI Ring arena. The original question was:\n"${originalPrompt}"\n` +
+    roomCtx +
+    `\nHere is what the other AI models in the room answered:\n\n${others}\n\n` +
     `You are ${modelName}. Having reviewed the other models' responses, ` +
     `identify what is missing or could be improved, then provide your definitive best answer ` +
     `to the original question.`
@@ -699,7 +754,7 @@ const roomAnalyzeLimiter = rateLimit({
 // Route: POST /api/room-analyze — each model analyzes the other models' answers
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/room-analyze', roomAnalyzeLimiter, async (req, res) => {
-  const { prompt, results: initialResults } = req.body;
+  const { prompt, results: initialResults, wallet } = req.body;
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
   }
@@ -710,6 +765,16 @@ app.post('/api/room-analyze', roomAnalyzeLimiter, async (req, res) => {
   if (trimmed.length > 2000) {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
+  if (wallet && !isValidSolanaAddress(wallet)) {
+    return res.status(400).json({ error: 'Invalid Solana wallet address' });
+  }
+
+  // Fetch wallet portfolio and social signals in parallel (best-effort — never block the room)
+  const [portfolio, socialSignals] = await Promise.all([
+    wallet ? fetchWalletPortfolio(wallet).catch(() => null) : Promise.resolve(null),
+    fetchSocialSignals(TRACKED_TOKENS.map((t) => t.symbol)).catch(() => null),
+  ]);
+  const roomCtx = { portfolio, socialSignals };
 
   const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, ollama: callOllama };
 
@@ -718,7 +783,7 @@ app.post('/api/room-analyze', roomAnalyzeLimiter, async (req, res) => {
       const start = Date.now();
       // Build context from the other models' responses (exclude this model)
       const others = initialResults.filter((r) => r.modelId !== model.id);
-      const analysisPrompt = buildRoomAnalysisPrompt(trimmed, model.name, others);
+      const analysisPrompt = buildRoomAnalysisPrompt(trimmed, model.name, others, roomCtx);
       try {
         let text = await callers[model.id](analysisPrompt);
         const isDemo = text === null;
@@ -866,7 +931,7 @@ async function fetchWalletPortfolio(walletAddress) {
   return { sol: solBalance, tokens };
 }
 
-function buildTradingPrompt(marketData, portfolio) {
+function buildTradingPrompt(marketData, portfolio, socialSignals) {
   const priceLines = marketData
     .map((t) => {
       const price  = t.price     !== null ? `$${Number(t.price).toPrecision(6)}`                                                              : 'N/A';
@@ -883,11 +948,16 @@ function buildTradingPrompt(marketData, portfolio) {
         : '(no tracked SPL tokens in wallet)')
     : 'WALLET: not connected';
 
+  const socialSection = socialSignals
+    ? `RECENT SOCIAL SIGNALS (X.com / Telegram / News):\n${socialSignals}`
+    : '';
+
   return (
     `You are an expert Solana DeFi trader and on-chain analyst. ` +
     `Analyze the following LIVE market data and provide a specific, actionable trading recommendation.\n\n` +
     `LIVE SOLANA MARKET DATA (UTC ${new Date().toISOString()}):\n${priceLines}\n\n` +
     `${portfolioSection}\n\n` +
+    (socialSection ? `${socialSection}\n\n` : '') +
     `Based on price action, momentum, volume, and risk management principles, ` +
     `provide your BEST trading recommendation in this EXACT format:\n` +
     `ACTION: [BUY/SELL/HOLD] [TOKEN]\n` +
@@ -898,6 +968,107 @@ function buildTradingPrompt(marketData, portfolio) {
     `SIZE: [X]% of portfolio\n` +
     `RATIONALE: [concise technical + sentiment analysis, 2–3 sentences]`
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Social signals — fetch recent posts/news from CryptoPanic, Twitter/X, Telegram
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch recent social signals for the given token symbols.
+ * Pulls from any combination of CryptoPanic, Twitter/X API v2, and Telegram Bot API
+ * depending on which API keys are configured. Returns a formatted multi-line string,
+ * or null when no keys are configured.
+ *
+ * @param {string[]} symbols  e.g. ['SOL','BONK','WIF']
+ * @returns {Promise<string|null>}
+ */
+async function fetchSocialSignals(symbols = []) {
+  const items = [];
+  const timeout = 6000;
+
+  // ── CryptoPanic ───────────────────────────────────────────────────────────
+  if (CRYPTOPANIC_API_KEY) {
+    try {
+      const currencies = symbols.join(',');
+      const url =
+        `https://cryptopanic.com/api/v1/posts/?auth_token=${encodeURIComponent(CRYPTOPANIC_API_KEY)}` +
+        `&currencies=${encodeURIComponent(currencies)}&kind=news&public=true`;
+      const res = await fetch(url, { timeout });
+      if (res.ok) {
+        const data = await res.json();
+        const posts = (data.results || []).slice(0, 5);
+        for (const p of posts) {
+          const tickers = (p.currencies || []).map((c) => c.code).join(',');
+          items.push(`[News/${tickers}] ${p.title}`);
+        }
+      } else {
+        console.error(`[social] CryptoPanic HTTP ${res.status}`);
+      }
+    } catch (e) {
+      console.error('[social] CryptoPanic error:', e.message);
+    }
+  }
+
+  // ── Twitter / X API v2 ────────────────────────────────────────────────────
+  if (TWITTER_BEARER_TOKEN) {
+    try {
+      const cashtags = symbols.map((s) => `$${s}`).join(' OR ');
+      const query = encodeURIComponent(`(${cashtags}) -is:retweet lang:en`);
+      const url =
+        `https://api.twitter.com/2/tweets/search/recent?query=${query}` +
+        `&tweet.fields=created_at,public_metrics&max_results=10`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${TWITTER_BEARER_TOKEN}` },
+        timeout,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const tweets = (data.data || []).slice(0, 5);
+        for (const t of tweets) {
+          const likes = t.public_metrics?.like_count ?? 0;
+          const text  = t.text.replace(/\n/g, ' ').slice(0, 200);
+          items.push(`[X.com ♥${likes}] ${text}`);
+        }
+      } else {
+        console.error(`[social] Twitter HTTP ${res.status}`);
+      }
+    } catch (e) {
+      console.error('[social] Twitter error:', e.message);
+    }
+  }
+
+  // ── Telegram Bot API ──────────────────────────────────────────────────────
+  // The bot must be an admin/member of each configured channel so that
+  // channel_post updates are delivered via getUpdates.
+  if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHANNEL_IDS.length) {
+    try {
+      const url =
+        `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates` +
+        `?limit=50&allowed_updates=["channel_post"]`;
+      const res = await fetch(url, { timeout });
+      if (res.ok) {
+        const data = await res.json();
+        const seen = new Set();
+        for (const update of (data.result || [])) {
+          const post = update.channel_post;
+          if (!post?.text) continue;
+          const chatId = String(post.chat.id);
+          if (!TELEGRAM_CHANNEL_IDS.includes(chatId)) continue;
+          if (seen.has(chatId) && [...seen].filter((x) => x === chatId).length >= 2) continue;
+          seen.add(chatId);
+          const text = post.text.replace(/\n/g, ' ').slice(0, 200);
+          items.push(`[Telegram] ${text}`);
+        }
+      } else {
+        console.error(`[social] Telegram HTTP ${res.status}`);
+      }
+    } catch (e) {
+      console.error('[social] Telegram error:', e.message);
+    }
+  }
+
+  return items.length ? items.join('\n') : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -914,6 +1085,15 @@ const marketDataLimiter = rateLimit({
 });
 
 const portfolioLimiter = rateLimit({
+  windowMs: 30 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again in a moment.' },
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+const socialSignalsLimiter = rateLimit({
   windowMs: 30 * 1000,
   max: 10,
   standardHeaders: true,
@@ -971,6 +1151,24 @@ app.get('/api/portfolio/:wallet', portfolioLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Route: GET /api/social-signals — recent posts from X.com, Telegram, CryptoPanic
+// ─────────────────────────────────────────────────────────────────────────────
+app.get('/api/social-signals', socialSignalsLimiter, async (_req, res) => {
+  try {
+    const signals = await fetchSocialSignals(TRACKED_TOKENS.map((t) => t.symbol));
+    const sources = {
+      cryptopanic: Boolean(CRYPTOPANIC_API_KEY),
+      twitter:     Boolean(TWITTER_BEARER_TOKEN),
+      telegram:    Boolean(TELEGRAM_BOT_TOKEN && TELEGRAM_CHANNEL_IDS.length),
+    };
+    res.json({ signals, sources, timestamp: new Date().toISOString() });
+  } catch (err) {
+    console.error('[social-signals]', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Route: POST /api/trading-analysis — all 7 AI models analyze live market data
 // and compete to give the best Solana trading recommendation
 // ─────────────────────────────────────────────────────────────────────────────
@@ -980,18 +1178,19 @@ app.post('/api/trading-analysis', tradingAnalysisLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Invalid Solana wallet address' });
   }
 
-  let marketData, portfolio;
+  let marketData, portfolio, socialSignals;
   try {
-    [marketData, portfolio] = await Promise.all([
+    [marketData, portfolio, socialSignals] = await Promise.all([
       fetchMarketData(),
       wallet ? fetchWalletPortfolio(wallet).catch(() => null) : Promise.resolve(null),
+      fetchSocialSignals(TRACKED_TOKENS.map((t) => t.symbol)).catch(() => null),
     ]);
   } catch (err) {
     console.error('[trading-analysis] market fetch failed:', err.message);
     return res.status(502).json({ error: `Failed to fetch market data: ${err.message}` });
   }
 
-  const prompt = buildTradingPrompt(marketData, portfolio);
+  const prompt = buildTradingPrompt(marketData, portfolio, socialSignals);
   const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, ollama: callOllama };
 
   const results = await Promise.all(
@@ -1020,6 +1219,7 @@ app.post('/api/trading-analysis', tradingAnalysisLimiter, async (req, res) => {
   res.json({
     prompt,
     marketData,
+    socialSignals,
     results: results.map((r) => ({
       modelId:   r.model.id,
       name:      r.model.name,

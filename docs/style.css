@@ -1667,3 +1667,12 @@ html, body {
 
 .trade-history-status.ok   { color: #00ff88; }
 .trade-history-status.fail { color: #ff4040; }
+
+.signal-item {
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+  word-break: break-word;
+  font-size: 10px;
+}
+.signal-item:last-child { border-bottom: none; }

@@ -112,8 +112,9 @@
       <div class="settings-inner">
         <div class="settings-title">◆ SOLANA WALLET &amp; TRADING ◆</div>
         <p class="settings-note">
-          Connect your <strong>Phantom</strong> wallet to let the AI Room analyze live Solana market data and generate trading recommendations.
+          Connect your <strong>Phantom</strong> wallet to let all AI models in the room see your live token positions when answering questions and generating trading recommendations.
           The winning AI's recommendation can be executed directly from here — all signing happens in Phantom; your private key never leaves your browser.<br />
+          Social signals from X.com, Telegram, and CryptoPanic are automatically included when API keys are configured (see <code>.env.example</code>).<br />
           <strong>⚠ Trading involves financial risk. Only trade what you can afford to lose.</strong>
         </p>
 
@@ -137,6 +138,16 @@
         <div class="portfolio-panel hidden" id="portfolio-panel">
           <div class="ticker-label">◆ YOUR PORTFOLIO</div>
           <div id="portfolio-display" class="portfolio-display">Loading…</div>
+        </div>
+
+        <!-- Social Signals — X.com, Telegram, CryptoPanic -->
+        <div id="social-signals-panel" class="portfolio-panel">
+          <div class="ticker-label" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>◆ SOCIAL SIGNALS</span>
+            <button id="refresh-signals-btn" class="settings-save-btn" style="font-size:8px;padding:2px 6px;">↻</button>
+          </div>
+          <div class="social-sources-label" style="font-size:8px;color:var(--text-muted);margin-bottom:4px;"></div>
+          <div id="social-signals-list" class="portfolio-display" style="max-height:120px;overflow-y:auto;">Loading…</div>
         </div>
 
         <!-- AI Market Analysis -->
