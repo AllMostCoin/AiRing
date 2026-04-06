@@ -2597,11 +2597,22 @@ function getPhantomProvider() {
 function openPhantomOrRedirect() {
   const encodedUrl = encodeURIComponent(window.location.href);
   const encodedRef = encodeURIComponent(window.location.origin);
-  window.open(
-    `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodedRef}`,
-    '_blank',
-    'noopener,noreferrer'
-  );
+  const phantomUrl = `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodedRef}`;
+  // On mobile, navigate the current tab so that Phantom opens the dApp inside
+  // its in-app browser (where window.phantom.solana is injected).  Opening a
+  // new tab causes the connection to happen in a separate sessionStorage context
+  // so the original browser tab never gets authenticated and Phantom has no way
+  // to return the user back to it.
+  // On desktop (no extension installed) keep the new-tab behaviour so the user
+  // stays on the login page while they install the extension.
+  // Feature-detect a touch device rather than sniffing the user-agent string,
+  // as UA strings can be spoofed and hybrid devices are increasingly common.
+  const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  if (isMobile) {
+    window.location.href = phantomUrl;
+  } else {
+    window.open(phantomUrl, '_blank', 'noopener,noreferrer');
+  }
 }
 
 // Returns the Phantom provider, waiting up to `timeout` ms for the
