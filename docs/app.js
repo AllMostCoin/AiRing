@@ -2207,31 +2207,32 @@ async function fetchOneRound(prompt) {
       }
     }
 
-    // If the backend doesn't have GITHUB_TOKEN but the user saved a personal GitHub token,
-    // overlay the Copilot result via the proxy endpoint (server-side, CORS-free).
+    // If the backend doesn't have GITHUB_TOKEN, or its configured token returned an error,
+    // and the user saved a personal GitHub token, overlay the Copilot result via the proxy
+    // endpoint (server-side, CORS-free).  This mirrors the GPT-4 fallback pattern so that
+    // a valid personal token always takes precedence over a failing backend-configured token.
     const copilotKey = getLocalCopilotKey();
-    if (copilotKey && !backendCopilotConfigured) {
-      const copilotResult = data.results.find((r) => r.modelId === 'copilot');
-      if (copilotResult && copilotResult.isDemo) {
-        try {
-          const copilotStart = Date.now();
-          const text = await callCopilotProxy(promptWithCtx, copilotKey);
-          copilotResult.response = text;
-          copilotResult.isDemo = false;
-          copilotResult.latencyMs = Date.now() - copilotStart;
-          const copilotModel = AI_MODELS_DATA.find((m) => m.id === 'copilot');
-          copilotResult.score = scoreResponse(prompt, text, copilotModel);
-          data.results.sort((a, b) => b.score - a.score);
-          const newWinner = data.results[0];
-          data.winnerId = newWinner.modelId;
-          data.winnerName = newWinner.name;
-          data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
-        } catch (err) {
-          settingsStatus.textContent = `✗ Copilot live call failed: ${err.message}${liveCallHint(err.message)}`;
-          settingsStatus.className = 'settings-status err';
-          settingsPanel.classList.remove('hidden');
-          if (isInvalidKeyError(err.message)) { clearModelKey('copilot'); checkServerMode(); }
-        }
+    const copilotResult = data.results.find((r) => r.modelId === 'copilot');
+    if (copilotKey && copilotResult && copilotResult.isDemo && (!backendCopilotConfigured || copilotResult.error)) {
+      try {
+        const copilotStart = Date.now();
+        const text = await callCopilotProxy(promptWithCtx, copilotKey);
+        copilotResult.response = text;
+        copilotResult.isDemo = false;
+        copilotResult.error = null;
+        copilotResult.latencyMs = Date.now() - copilotStart;
+        const copilotModel = AI_MODELS_DATA.find((m) => m.id === 'copilot');
+        copilotResult.score = scoreResponse(prompt, text, copilotModel);
+        data.results.sort((a, b) => b.score - a.score);
+        const newWinner = data.results[0];
+        data.winnerId = newWinner.modelId;
+        data.winnerName = newWinner.name;
+        data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
+      } catch (err) {
+        settingsStatus.textContent = `✗ Copilot live call failed: ${err.message}${liveCallHint(err.message)}`;
+        settingsStatus.className = 'settings-status err';
+        settingsPanel.classList.remove('hidden');
+        if (isInvalidKeyError(err.message)) { clearModelKey('copilot'); checkServerMode(); }
       }
     }
 
