@@ -292,7 +292,14 @@
     if (providerEarly) {
       // Attempt silent reconnect — if this dApp was previously trusted,
       // auto-authenticate and hide the gate without any user interaction.
-      providerEarly.connect({ onlyIfTrusted: true })
+      // Race against a 1500 ms timeout: some Phantom versions never resolve
+      // or reject onlyIfTrusted for untrusted sites, which would leave the
+      // button disabled forever and prevent the user from ever seeing the
+      // Phantom approval prompt.
+      Promise.race([
+        providerEarly.connect({ onlyIfTrusted: true }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('silent connect timeout')), 1500)),
+      ])
         .then((resp) => {
           // Some Phantom versions set provider.publicKey rather than returning it
           if (resp?.publicKey ?? providerEarly.publicKey) {
@@ -304,7 +311,7 @@
           enableLoginButton();
         })
         .catch(() => {
-          // Not previously trusted — show the button for manual connect
+          // Not previously trusted (or timed out) — show the button for manual connect
           enableLoginButton();
         });
     } else {
@@ -361,7 +368,12 @@
         if (installEl) installEl.classList.add('hidden');
 
         try {
-          const resp = await provider.connect();
+          // Race against a 30 s timeout so the button never gets permanently
+          // stuck in "CONNECTING…" if Phantom hangs without showing a prompt.
+          const resp = await Promise.race([
+            provider.connect(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 30000)),
+          ]);
           // Some Phantom versions set provider.publicKey rather than returning it
           const pubkey = resp?.publicKey ?? provider.publicKey;
           if (pubkey) {
