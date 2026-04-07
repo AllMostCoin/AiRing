@@ -51,6 +51,9 @@ function b58Decode(str) {
   function isAuthenticated() {
     try {
       if (localStorage.getItem(SS_KEY) === loginHash) return true;
+      // sessionStorage fallback: persists across page refreshes within the same
+      // tab session even when localStorage is blocked (e.g. strict ITP settings).
+      if (sessionStorage.getItem(SS_KEY) === loginHash) return true;
       // One-time auth token carried in the URL hash fragment (#auth=<loginHash>).
       // Used when the user opens the page in their real browser after connecting
       // inside Phantom's in-app browser.  The fragment is never sent to the server
@@ -69,6 +72,9 @@ function b58Decode(str) {
 
   function setAuthenticated() {
     try { localStorage.setItem(SS_KEY, loginHash); } catch { /* ignore */ }
+    // sessionStorage fallback so that auth survives page refreshes even when
+    // localStorage is blocked by browser privacy settings.
+    try { sessionStorage.setItem(SS_KEY, loginHash); } catch { /* ignore */ }
   }
 
   function getPhantomProviderForLogin() {
@@ -78,12 +84,32 @@ function b58Decode(str) {
     return null;
   }
 
+  // Cleanup callback for the cross-tab storage listener; set by showGate(),
+  // cleared by hideGate() so the listener is never left dangling.
+  let _storageAuthCleanup = null;
+
   function showGate() {
     const gate = document.getElementById('login-gate');
     if (gate) gate.classList.remove('hidden');
+    // Listen for authentication that completes in another tab/window on the
+    // same origin.  This handles the case where openPhantomOrRedirect() opens
+    // the site in a new context (e.g. Phantom's in-app browser) and auth is
+    // stored in localStorage there — the storage event fires in this original
+    // tab so the gate can be hidden automatically without a manual refresh.
+    if (!_storageAuthCleanup) {
+      function onStorageAuth(e) {
+        if (e.key === SS_KEY && e.newValue === loginHash) {
+          setAuthenticated(); // also write to sessionStorage in this tab
+          hideGate();         // hideGate() calls _storageAuthCleanup which removes the listener
+        }
+      }
+      window.addEventListener('storage', onStorageAuth);
+      _storageAuthCleanup = () => window.removeEventListener('storage', onStorageAuth);
+    }
   }
 
   function hideGate() {
+    if (_storageAuthCleanup) { _storageAuthCleanup(); _storageAuthCleanup = null; }
     const gate = document.getElementById('login-gate');
     if (gate) gate.classList.add('hidden');
   }
