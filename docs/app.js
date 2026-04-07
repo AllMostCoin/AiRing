@@ -175,7 +175,7 @@
             window.history.replaceState({}, '',
               window.location.pathname + window.location.search
               + '#auth=' + encodeURIComponent(loginHash));
-          } catch(e) {}
+          } catch(e) { console.warn('[login] replaceState #auth failed:', e); }
         }
       }
     } catch (err) {
@@ -269,7 +269,7 @@
           // manually tap Phantom's own "Open in Safari/Chrome" button.
           try {
             window.location.href = 'x-safari-' + authUrl;
-          } catch(e) {}
+          } catch(e) { console.warn('[login] x-safari open failed:', e); }
           // Hash-only navigation: keeps the #auth= fragment visible in
           // Phantom's address bar so the user can tap "Open in Browser"
           // from Phantom's own browser chrome to carry the auth URL to
