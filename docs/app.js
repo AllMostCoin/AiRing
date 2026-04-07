@@ -1435,78 +1435,334 @@ const DAMAGE_POOL = [42, 64, 87, 99, 128, 175, 210, 256, 333, 512];
 const MATERIA_CAST_CHANCE = 0.28;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Floor canvas — Mode 7 perspective checkerboard (SUPER 256 style)
+// 3D Arena — Three.js WebGL battle scene
 // ─────────────────────────────────────────────────────────────────────────────
-function drawFloor() {
-  const roomEl = roomFloor.parentElement;
-  const w = roomEl.clientWidth;
-  const h = roomEl.clientHeight;
-  roomFloor.width  = w;
-  roomFloor.height = h;
-  const ctx = roomFloor.getContext('2d');
-  ctx.clearRect(0, 0, w, h);
 
-  // Floor starts just below the horizon (52% down)
-  const HORIZON_Y = h * 0.52;
-  const VP_X = w * 0.5;
+const ARENA_R = 5.2;   // arena floor radius (Three.js units)
 
-  // Mako-tinted checkerboard colors
-  const DARK  = '#001c38';
-  const LIGHT = '#003060';
-  const LINE  = '#001428';
+let threeScene, threeCamera, threeRenderer;
+let agentMeshes = {};    // id -> { group, sphere, ring, light, mat, ringMat, colorObj }
+let arenaParticles;
+let cameraOrbitAngle = 0;
+let threeReady = false;
 
-  const ROWS = 22;
-  const BASE_COLS = 6;
+// Per-agent Three.js animation state
+const agentThreeState = {};
 
-  for (let row = 0; row < ROWS; row++) {
-    const t0 = row / ROWS;
-    const t1 = (row + 1) / ROWS;
-    // Perspective compression — rows bunch up near horizon
-    const y0 = HORIZON_Y + (h - HORIZON_Y) * Math.pow(t0, 1.9);
-    const y1 = HORIZON_Y + (h - HORIZON_Y) * Math.pow(t1, 1.9);
-
-    const spread0 = (y0 - HORIZON_Y) / (h - HORIZON_Y);
-    const spread1 = (y1 - HORIZON_Y) / (h - HORIZON_Y);
-
-    // Left/right edge of each row — converge at vanishing point
-    const lx0 = VP_X * (1 - spread0);
-    const rx0 = w - VP_X * (1 - spread0);
-    const lx1 = VP_X * (1 - spread1);
-    const rx1 = w - VP_X * (1 - spread1);
-
-    // More columns at the bottom, fewer near the horizon
-    const cols = Math.max(2, BASE_COLS + Math.round(spread1 * 10));
-
-    for (let col = 0; col < cols; col++) {
-      const fx0 = col / cols;
-      const fx1 = (col + 1) / cols;
-      const x00 = lx0 + (rx0 - lx0) * fx0;
-      const x10 = lx0 + (rx0 - lx0) * fx1;
-      const x01 = lx1 + (rx1 - lx1) * fx0;
-      const x11 = lx1 + (rx1 - lx1) * fx1;
-
-      ctx.beginPath();
-      ctx.moveTo(x00, y0);
-      ctx.lineTo(x10, y0);
-      ctx.lineTo(x11, y1);
-      ctx.lineTo(x01, y1);
-      ctx.closePath();
-
-      ctx.fillStyle = (row + col) % 2 === 0 ? DARK : LIGHT;
-      ctx.fill();
-
-      ctx.strokeStyle = LINE;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-  }
+function getAgentColor(id) {
+  return AI_MODELS_DATA.find((m) => m.id === id)?.color || '#6366f1';
 }
 
-window.addEventListener('resize', drawFloor);
+// Evenly spaced positions in a circle on the arena floor
+function buildAgent3DPositions() {
+  const positions = {};
+  MODEL_IDS.forEach((id, i) => {
+    const angle = (i / MODEL_IDS.length) * Math.PI * 2 - Math.PI / 2;
+    const r = ARENA_R * 0.66;
+    positions[id] = { x: Math.cos(angle) * r, y: 0.55, z: Math.sin(angle) * r };
+  });
+  return positions;
+}
+
+let AGENT_3D_POS = {};   // populated when Three.js is ready
+
+function initThreeArena() {
+  if (typeof THREE === 'undefined') return;   // Three.js not loaded — skip silently
+
+  AGENT_3D_POS = buildAgent3DPositions();
+
+  threeScene = new THREE.Scene();
+  threeScene.background = new THREE.Color(0x07070e);
+  threeScene.fog = new THREE.FogExp2(0x07070e, 0.035);
+
+  const w = room.clientWidth  || 640;
+  const h = room.clientHeight || 480;
+
+  threeCamera = new THREE.PerspectiveCamera(52, w / h, 0.1, 100);
+  threeCamera.position.set(0, 6.5, 10);
+  threeCamera.lookAt(0, 0.5, 0);
+
+  threeRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  threeRenderer.setSize(w, h);
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  threeRenderer.shadowMap.enabled = true;
+  threeRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const canvas = threeRenderer.domElement;
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block;border-radius:inherit;';
+  room.insertBefore(canvas, room.firstChild);
+
+  // ── Lighting ──────────────────────────────────────────────────────────────
+  threeScene.add(new THREE.AmbientLight(0x1a1a3a, 2.5));
+  const hemi = new THREE.HemisphereLight(0x2030a0, 0x080820, 1.4);
+  threeScene.add(hemi);
+  const spotLight = new THREE.SpotLight(0x6080ff, 5, 30, Math.PI / 5, 0.55, 1.2);
+  spotLight.position.set(0, 12, 0);
+  spotLight.castShadow = true;
+  threeScene.add(spotLight);
+
+  // ── Arena floor disc ──────────────────────────────────────────────────────
+  const floorGeo = new THREE.CylinderGeometry(ARENA_R, ARENA_R * 1.04, 0.12, 72);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x0a0a1e,
+    metalness: 0.85,
+    roughness: 0.25,
+    emissive: 0x05051a,
+  });
+  const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+  floorMesh.position.y = -0.06;
+  floorMesh.receiveShadow = true;
+  threeScene.add(floorMesh);
+
+  // Grid lines on floor
+  const grid = new THREE.GridHelper(ARENA_R * 2, 20, 0x1e2780, 0x0d1240);
+  grid.position.y = 0.02;
+  threeScene.add(grid);
+
+  // Outer boundary ring
+  const outerRingGeo = new THREE.TorusGeometry(ARENA_R, 0.065, 8, 96);
+  const outerRingMat = new THREE.MeshBasicMaterial({ color: 0x4a5ff7 });
+  const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+  outerRing.rotation.x = Math.PI / 2;
+  outerRing.position.y = 0.03;
+  threeScene.add(outerRing);
+
+  // Center glow disc
+  const innerGeo = new THREE.CircleGeometry(1.4, 64);
+  const innerMat = new THREE.MeshBasicMaterial({
+    color: 0x2f40d0,
+    transparent: true,
+    opacity: 0.22,
+    side: THREE.DoubleSide,
+  });
+  const innerDisc = new THREE.Mesh(innerGeo, innerMat);
+  innerDisc.rotation.x = -Math.PI / 2;
+  innerDisc.position.y = 0.025;
+  threeScene.add(innerDisc);
+
+  // ── Glass perimeter walls ─────────────────────────────────────────────────
+  const wallGeo = new THREE.CylinderGeometry(ARENA_R, ARENA_R, 1.8, 64, 1, true);
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x3050ff,
+    transparent: true,
+    opacity: 0.055,
+    side: THREE.BackSide,
+    metalness: 1,
+    roughness: 0,
+  });
+  const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+  wallMesh.position.y = 0.9;
+  threeScene.add(wallMesh);
+
+  // Wall top ring
+  const topRingGeo = new THREE.TorusGeometry(ARENA_R, 0.04, 6, 96);
+  const topRingMat = new THREE.MeshBasicMaterial({ color: 0x4a5ff7, transparent: true, opacity: 0.65 });
+  const topRing = new THREE.Mesh(topRingGeo, topRingMat);
+  topRing.rotation.x = Math.PI / 2;
+  topRing.position.y = 1.8;
+  threeScene.add(topRing);
+
+  // ── Floating atmospheric particles ────────────────────────────────────────
+  const pCount = 260;
+  const pGeo = new THREE.BufferGeometry();
+  const pPos = new Float32Array(pCount * 3);
+  for (let i = 0; i < pCount; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.random() * ARENA_R * 0.88;
+    pPos[i * 3]     = Math.cos(a) * r;
+    pPos[i * 3 + 1] = Math.random() * 2.8;
+    pPos[i * 3 + 2] = Math.sin(a) * r;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  arenaParticles = new THREE.Points(
+    pGeo,
+    new THREE.PointsMaterial({ color: 0x4868d0, size: 0.055, transparent: true, opacity: 0.55 }),
+  );
+  threeScene.add(arenaParticles);
+
+  // ── Agent meshes ──────────────────────────────────────────────────────────
+  MODEL_IDS.forEach((id) => {
+    const colorHex = getAgentColor(id);
+    const c = new THREE.Color(colorHex);
+    const group = new THREE.Group();
+    const pos = AGENT_3D_POS[id];
+    group.position.set(pos.x, pos.y, pos.z);
+
+    // Sphere body
+    const sGeo = new THREE.SphereGeometry(0.42, 36, 28);
+    const sMat = new THREE.MeshStandardMaterial({
+      color: c,
+      emissive: c,
+      emissiveIntensity: 0.35,
+      metalness: 0.55,
+      roughness: 0.30,
+    });
+    const sphere = new THREE.Mesh(sGeo, sMat);
+    sphere.castShadow = true;
+    group.add(sphere);
+
+    // Orbit ring
+    const orGeo = new THREE.TorusGeometry(0.64, 0.038, 8, 40);
+    const orMat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.42 });
+    const orRing = new THREE.Mesh(orGeo, orMat);
+    orRing.rotation.x = Math.PI / 2;
+    group.add(orRing);
+
+    // Point light below sphere
+    const ptLight = new THREE.PointLight(c, 0.75, 3.8);
+    ptLight.position.y = -0.3;
+    group.add(ptLight);
+
+    // Platform disc on floor
+    const platGeo = new THREE.CircleGeometry(0.58, 36);
+    const platMat = new THREE.MeshBasicMaterial({
+      color: c,
+      transparent: true,
+      opacity: 0.16,
+      side: THREE.DoubleSide,
+    });
+    const plat = new THREE.Mesh(platGeo, platMat);
+    plat.rotation.x = -Math.PI / 2;
+    plat.position.y = -0.44;
+    group.add(plat);
+
+    threeScene.add(group);
+    agentMeshes[id] = { group, sphere, ring: orRing, light: ptLight, mat: sMat, ringMat: orMat, platMat, colorObj: c.clone() };
+    agentThreeState[id] = {
+      bobOffset: Math.random() * Math.PI * 2,
+      bobSpeed:  0.7 + Math.random() * 0.5,
+      glow:      0.35,
+      alpha:     1,
+    };
+  });
+
+  threeReady = true;
+  requestAnimationFrame(tickThreeArena);
+}
+
+let lastThreeTick = 0;
+let cameraShakeX = 0, cameraShakeY = 0;
+let cameraShakeDecay = 0;
+
+function tickThreeArena(ts) {
+  requestAnimationFrame(tickThreeArena);
+  const dt = Math.min((ts - lastThreeTick) / 1000, 0.05);
+  lastThreeTick = ts;
+  const now = ts / 1000;
+
+  // Slowly orbit camera
+  cameraOrbitAngle += dt * 0.10;
+  const camR = 10.5;
+  threeCamera.position.x = Math.cos(cameraOrbitAngle) * camR + cameraShakeX;
+  threeCamera.position.z = Math.sin(cameraOrbitAngle) * camR + cameraShakeY;
+  threeCamera.lookAt(0, 1, 0);
+
+  // Decay camera shake
+  if (cameraShakeDecay > 0) {
+    cameraShakeDecay -= dt;
+    const intensity = Math.max(0, cameraShakeDecay) * 0.35;
+    cameraShakeX = (Math.random() - 0.5) * intensity;
+    cameraShakeY = (Math.random() - 0.5) * intensity;
+  } else {
+    cameraShakeX = 0; cameraShakeY = 0;
+  }
+
+  // Drift particles upward
+  if (arenaParticles) {
+    const pos = arenaParticles.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i) + dt * 0.17;
+      pos.setY(i, y > 2.8 ? Math.random() * 0.2 : y);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // Animate each agent based on its DOM CSS classes
+  MODEL_IDS.forEach((id) => {
+    const mesh = agentMeshes[id];
+    const st = agentThreeState[id];
+    if (!mesh) return;
+
+    const wrapper = document.getElementById(`agent-${id}`);
+    const isThinking = wrapper?.classList.contains('thinking');
+    const isWinner   = wrapper?.classList.contains('winner');
+    const isLoser    = wrapper?.classList.contains('loser');
+    const isCharging = wrapper?.classList.contains('charging');
+
+    // Smoothly interpolate glow
+    const targetGlow = isCharging ? 1.5 : isWinner ? 1.8 : isThinking ? 0.95 : isLoser ? 0.04 : 0.35;
+    st.glow += (targetGlow - st.glow) * Math.min(dt * 4.5, 1);
+    mesh.mat.emissiveIntensity = st.glow;
+    mesh.light.intensity = st.glow * 1.6;
+
+    // Fade losers out
+    const targetAlpha = isLoser ? 0.22 : 1;
+    st.alpha += (targetAlpha - st.alpha) * Math.min(dt * 3, 1);
+    mesh.mat.transparent = st.alpha < 0.99;
+    mesh.mat.opacity = st.alpha;
+
+    // Vertical bob
+    const bobAmp = isWinner ? 0.30 : isThinking ? 0.10 : 0.05;
+    const baseY = AGENT_3D_POS[id].y + (isWinner ? 0.40 : isLoser ? -0.22 : 0);
+    mesh.group.position.y = baseY + Math.sin(now * st.bobSpeed + st.bobOffset) * bobAmp;
+
+    // Scale pulse for charging
+    const targetScale = isCharging ? 1.12 + Math.sin(now * 12) * 0.05 : isWinner ? 1.20 : isLoser ? 0.76 : 1.0;
+    mesh.sphere.scale.setScalar(targetScale);
+
+    // Ring spin
+    mesh.ring.rotation.z = now * (isCharging ? 4.5 : isThinking ? 2.2 : 0.8);
+    mesh.ringMat.opacity = isLoser ? 0.08 : (isWinner || isCharging || isThinking) ? 0.90 : 0.40;
+    if (isWinner) {
+      mesh.ringMat.color.setHex(0xf59e0b);
+    } else {
+      mesh.ringMat.color.copy(mesh.colorObj);
+    }
+  });
+
+  // Project 3D agent positions to 2D screen coords and update DOM wrappers
+  if (threeReady) {
+    const roomW = room.clientWidth  || 1;
+    const roomH = room.clientHeight || 1;
+    const v = new THREE.Vector3();
+    MODEL_IDS.forEach((id) => {
+      const mesh = agentMeshes[id];
+      const wrapper = document.getElementById(`agent-${id}`);
+      if (!mesh || !wrapper) return;
+      // Project the mesh group world position to NDC
+      v.setFromMatrixPosition(mesh.group.matrixWorld);
+      v.project(threeCamera);
+      const sx = ((v.x + 1) / 2) * roomW;
+      const sy = ((-v.y + 1) / 2) * roomH;
+      // Only update if the agent is in front of the camera
+      if (v.z < 1) {
+        wrapper.style.left   = `${sx}px`;
+        wrapper.style.top    = `${sy}px`;
+        wrapper.style.right  = '';
+        wrapper.style.bottom = '';
+        wrapper.style.transform = 'translate(-50%, -80%)';
+      }
+    });
+  }
+
+  threeRenderer.render(threeScene, threeCamera);
+}
+
+function onThreeResize() {
+  if (!threeRenderer || !room) return;
+  const w = room.clientWidth;
+  const h = room.clientHeight;
+  if (!w || !h) return;
+  threeCamera.aspect = w / h;
+  threeCamera.updateProjectionMatrix();
+  threeRenderer.setSize(w, h);
+}
+
+window.addEventListener('resize', onThreeResize);
 // Wait for full page load so the room element is laid out with its final dimensions
 window.addEventListener('load', () => {
   initTeams();
-  drawFloor();
+  initThreeArena();
   playIntroAnimation();
 });
 
@@ -1696,12 +1952,12 @@ function hideBubble(id) {
 let staggerInterval = null;
 
 const THINKING_MSGS = [
-  'Limit Break charging…',
-  'Materia attuned…',
-  'Mako energy rising…',
-  'Summon loading…',
-  'ATB gauge filling…',
-  'Omnislash queuing…',
+  'Processing prompt…',
+  'Generating response…',
+  'Analyzing context…',
+  'Computing answer…',
+  'Crafting reply…',
+  'Evaluating options…',
 ];
 
 function startThinkingBubbles() {
@@ -1784,6 +2040,8 @@ function arenaShake() {
   void room.offsetWidth; // force reflow to restart animation
   room.classList.add('shaking');
   room.addEventListener('animationend', () => room.classList.remove('shaking'), { once: true });
+  // Camera shake in Three.js
+  if (threeReady) cameraShakeDecay = 0.22;
 }
 
 
@@ -1900,13 +2158,13 @@ function disperseAgents() {
 // Intro animation — characters walk from corners and meet in the center
 // ─────────────────────────────────────────────────────────────────────────────
 const INTRO_GREETINGS = {
-  gpt4:     'Not interested.',
-  claude:   'Yo! AVALANCHE!',
-  gemini:   'Nanaki, ready.',
-  mistral:  '#$%@! Let\'s go!',
-  copilot:  'For the Planet!',
-  grok:     "Hmph. Let's get this over with.",
-  ollama:   'Gimme all your Materia!',
+  gpt4:     'Ready.',
+  claude:   'Let\'s go!',
+  gemini:   'Standing by.',
+  mistral:  'Primed.',
+  copilot:  'Online.',
+  grok:     'Acknowledged.',
+  ollama:   'Loaded.',
 };
 
 async function playIntroAnimation() {
@@ -1952,8 +2210,8 @@ function generateWinNarrative(data) {
   const lines = [];
 
   // ── Opening: who won? ───────────────────────────────────────────────────────
-  const character = AI_MODELS_DATA.find((m) => m.id === winner.modelId)?.character || winner.name;
-  lines.push(`${winner.emoji} ${character} (${winner.name}) claimed victory in the arena.`);
+  const character = winner.name;
+  lines.push(`${winner.emoji} ${character} scored highest in this round.`);
 
   // ── Score margin ────────────────────────────────────────────────────────────
   if (runnerUp) {
@@ -2019,12 +2277,12 @@ function generateWinNarrative(data) {
     }
   }
 
-  // ── Closing flavour ─────────────────────────────────────────────────────
+  // ── Closing ─────────────────────────────────────────────────────────────
   const closings = [
-    `The Limit Break has been activated — ${character} stands supreme.`,
-    `Midgar bows to the champion.`,
-    `${character}'s Materia burns brightest today.`,
-    `Another battle etched into the Quest Log.`,
+    `${character} takes the top spot.`,
+    `A clear win for ${character}.`,
+    `${character} delivers the best answer.`,
+    `Another round recorded in the history log.`,
   ];
   lines.push(closings[Math.floor(Math.random() * closings.length)]);
 

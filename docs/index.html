@@ -3,10 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Ring — Midgar Arena</title>
+    <title>AI Ring — Battle Arena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=10" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css?v=11" />
   </head>
   <body>
 
@@ -31,24 +32,24 @@
     <header class="site-header">
       <div class="header-inner">
         <div class="logo">
-          <span class="logo-icon">⚔</span>
-          <span class="logo-text">AI RING</span>
-          <span class="logo-sub">MIDGAR</span>
+          <span class="logo-icon">⚡</span>
+          <span class="logo-text">AI Ring</span>
+          <span class="logo-sub">Battle Arena</span>
         </div>
-        <div id="demo-badge" class="demo-badge hidden">TRAINING MODE</div>
-        <button id="settings-btn" class="settings-btn" title="API Key Settings">⚙ KEYS</button>
-        <button id="wallet-btn" class="settings-btn wallet-hdr-btn" title="Solana Wallet &amp; Trading">◈ WALLET</button>
+        <div id="demo-badge" class="demo-badge hidden">Demo Mode</div>
+        <button id="settings-btn" class="settings-btn" title="API Key Settings">⚙ API Keys</button>
+        <button id="wallet-btn" class="settings-btn wallet-hdr-btn" title="Solana Wallet &amp; Trading">◈ Wallet</button>
       </div>
     </header>
 
     <!-- ─── Settings Panel ───────────────────────────────────────── -->
     <div id="settings-panel" class="settings-panel hidden">
       <div class="settings-inner">
-        <div class="settings-title">◆ API KEY CONFIG ◆</div>
+        <div class="settings-title">API Key Configuration</div>
         <p class="settings-note">
-          <strong>GitHub Pages / static hosting:</strong> paste your API key(s) below and hit SAVE — that model goes LIVE instantly (stored in browser local storage only, never sent anywhere except the model's own API).<br />
+          <strong>GitHub Pages / static hosting:</strong> paste your API key(s) below and click Save — that model goes live instantly (stored in browser local storage only, never sent anywhere except the model's own API).<br />
           <strong>Node.js server:</strong> add keys to your <code>.env</code> file instead — no key entry here needed.<br />
-          Gemini key: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> &nbsp;|&nbsp;
+          Gemini: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> &nbsp;|&nbsp;
           Grok key: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a> &nbsp;|&nbsp;
           Claude key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> &nbsp;|&nbsp;
           Ollama model: <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a> &nbsp;|&nbsp;
@@ -57,52 +58,52 @@
           GitHub token: <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a> (needs Models permission)
         </p>
         <div class="settings-row">
-          <label class="settings-label" for="gemini-key-input">🔥 GEMINI API KEY</label>
+          <label class="settings-label" for="gemini-key-input">Gemini API Key</label>
           <input id="gemini-key-input" class="settings-input" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false" />
-          <button id="gemini-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="gemini-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="gemini-save-btn" class="settings-save-btn">Save</button>
+          <button id="gemini-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="grok-key-input">🦇 GROK API KEY</label>
+          <label class="settings-label" for="grok-key-input">Grok API Key</label>
           <input id="grok-key-input" class="settings-input" type="password" placeholder="xai-…" autocomplete="off" spellcheck="false" />
-          <button id="grok-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="grok-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="grok-save-btn" class="settings-save-btn">Save</button>
+          <button id="grok-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="claude-key-input">🔫 CLAUDE API KEY</label>
+          <label class="settings-label" for="claude-key-input">Claude API Key</label>
           <input id="claude-key-input" class="settings-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
-          <button id="claude-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="claude-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="claude-save-btn" class="settings-save-btn">Save</button>
+          <button id="claude-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="ollama-model-input">🌊 OLLAMA MODEL</label>
+          <label class="settings-label" for="ollama-model-input">Ollama Model</label>
           <input id="ollama-model-input" class="settings-input" type="text" placeholder="llama3.2" autocomplete="off" spellcheck="false" />
-          <button id="ollama-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="ollama-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="ollama-save-btn" class="settings-save-btn">Save</button>
+          <button id="ollama-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="ollama-url-input">🌊 OLLAMA BASE URL (optional)</label>
+          <label class="settings-label" for="ollama-url-input">Ollama Base URL (optional)</label>
           <input id="ollama-url-input" class="settings-input" type="url" placeholder="https://my-ollama-server.com" autocomplete="off" spellcheck="false" />
-          <button id="ollama-url-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="ollama-url-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="ollama-url-save-btn" class="settings-save-btn">Save</button>
+          <button id="ollama-url-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="openai-key-input">⚔️ GPT-4 (OPENAI) API KEY</label>
+          <label class="settings-label" for="openai-key-input">GPT-4 (OpenAI) API Key</label>
           <input id="openai-key-input" class="settings-input" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
-          <button id="openai-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="openai-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="openai-save-btn" class="settings-save-btn">Save</button>
+          <button id="openai-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="mistral-key-input">✈️ MISTRAL API KEY</label>
+          <label class="settings-label" for="mistral-key-input">Mistral API Key</label>
           <input id="mistral-key-input" class="settings-input" type="password" placeholder="…" autocomplete="off" spellcheck="false" />
-          <button id="mistral-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="mistral-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="mistral-save-btn" class="settings-save-btn">Save</button>
+          <button id="mistral-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="copilot-key-input">👊 GITHUB TOKEN (COPILOT)</label>
+          <label class="settings-label" for="copilot-key-input">GitHub Token (Copilot)</label>
           <input id="copilot-key-input" class="settings-input" type="password" placeholder="github_pat_… or ghp_…" autocomplete="off" spellcheck="false" />
-          <button id="copilot-save-btn" class="settings-save-btn">SAVE</button>
-          <button id="copilot-clear-btn" class="settings-clear-btn">CLEAR</button>
+          <button id="copilot-save-btn" class="settings-save-btn">Save</button>
+          <button id="copilot-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div id="settings-status" class="settings-status"></div>
       </div>
@@ -111,7 +112,7 @@
     <!-- ─── Solana Wallet & Trading Panel ─────────────────── -->
     <div id="wallet-panel" class="settings-panel wallet-panel hidden">
       <div class="settings-inner">
-        <div class="settings-title">◆ SOLANA WALLET &amp; TRADING ◆</div>
+        <div class="settings-title">Solana Wallet &amp; Trading</div>
         <p class="settings-note">
           Connect your <strong>Phantom</strong> wallet to let all AI models in the room see your live token positions when answering questions and generating trading recommendations.
           The winning AI's recommendation can be executed directly from here — all signing happens in Phantom; your private key never leaves your browser.<br />
@@ -170,7 +171,7 @@
           <!-- Execute trade form -->
           <div class="execute-trade-form">
             <div class="settings-row">
-              <label class="settings-label" for="trade-from-select">FROM TOKEN</label>
+              <label class="settings-label" for="trade-from-select">From Token</label>
               <select id="trade-from-select" class="settings-input trade-select">
                 <option value="So11111111111111111111111111111111111111112">SOL</option>
                 <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
@@ -182,7 +183,7 @@
               </select>
             </div>
             <div class="settings-row">
-              <label class="settings-label" for="trade-to-select">TO TOKEN</label>
+              <label class="settings-label" for="trade-to-select">To Token</label>
               <select id="trade-to-select" class="settings-input trade-select">
                 <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
                 <option value="So11111111111111111111111111111111111111112">SOL</option>
@@ -194,11 +195,11 @@
               </select>
             </div>
             <div class="settings-row">
-              <label class="settings-label" for="trade-amount-input">AMOUNT (UI units)</label>
+              <label class="settings-label" for="trade-amount-input">Amount (UI units)</label>
               <input id="trade-amount-input" class="settings-input" type="number" min="0.000001" step="any" placeholder="e.g. 0.1" style="max-width:160px;" />
             </div>
             <div class="settings-row">
-              <label class="settings-label" for="trade-slippage-input">SLIPPAGE bps</label>
+              <label class="settings-label" for="trade-slippage-input">Slippage (bps)</label>
               <input id="trade-slippage-input" class="settings-input" type="number" min="1" max="5000" value="50" style="max-width:100px;" />
             </div>
             <button id="execute-trade-btn" class="execute-trade-btn" disabled>◈ EXECUTE TRADE (PHANTOM)</button>
@@ -222,7 +223,7 @@
       <!-- 2D Battle Room ─────────────────────────────────────────── -->
       <section class="room-section">
         <div class="room-container">
-          <div class="room-label">◆ MIDGAR · SECTOR 7 ◆</div>
+          <div class="room-label">AI ARENA</div>
           <button class="zoom-btn" id="zoom-btn" title="Toggle fullscreen arena">⛶</button>
 
           <div class="room" id="room">
@@ -277,7 +278,7 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">CLOUD · GPT-4</div>
+              <div class="agent-label">GPT-4</div>
               <div class="agent-score" id="score-gpt4">—</div>
               <div class="agent-bubble" id="bubble-gpt4"></div>
             </div>
@@ -322,7 +323,7 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">BARRET · CLAUDE</div>
+              <div class="agent-label">Claude</div>
               <div class="agent-score" id="score-claude">—</div>
               <div class="agent-bubble" id="bubble-claude"></div>
             </div>
@@ -369,7 +370,7 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">RED XIII · GEMINI</div>
+              <div class="agent-label">Gemini</div>
               <div class="agent-score" id="score-gemini">—</div>
               <div class="agent-bubble" id="bubble-gemini"></div>
             </div>
@@ -416,7 +417,7 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">CID · MISTRAL</div>
+              <div class="agent-label">Mistral</div>
               <div class="agent-score" id="score-mistral">—</div>
               <div class="agent-bubble" id="bubble-mistral"></div>
             </div>
@@ -462,7 +463,7 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">TIFA · COPILOT</div>
+              <div class="agent-label">Copilot</div>
               <div class="agent-score" id="score-copilot">—</div>
               <div class="agent-bubble" id="bubble-copilot"></div>
             </div>
@@ -506,7 +507,7 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">VINCENT · GROK</div>
+              <div class="agent-label">Grok</div>
               <div class="agent-score" id="score-grok">—</div>
               <div class="agent-bubble" id="bubble-grok"></div>
             </div>
@@ -556,17 +557,17 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">YUFFIE · OLLAMA</div>
+              <div class="agent-label">Ollama</div>
               <div class="agent-score" id="score-ollama">—</div>
               <div class="agent-bubble" id="bubble-ollama"></div>
             </div>
 
-            <!-- Thinking overlay (ATB-style) -->
+            <!-- Thinking overlay -->
             <div class="thinking-overlay" id="thinking-overlay">
               <div class="thinking-dots">
                 <span></span><span></span><span></span>
               </div>
-              <p>▶ LIMIT BREAK…</p>
+              <p>Querying AI models…</p>
             </div>
 
             <!-- Round indicator -->
@@ -576,16 +577,16 @@
           </div>
         </div>
 
-        <!-- ATB Score Board -->
+        <!-- Score Board -->
         <div class="scoreboard" id="scoreboard">
           <div class="round-pips" id="round-pips">
             <span class="round-pip" id="pip-1"></span>
             <span class="round-pip" id="pip-2"></span>
             <span class="round-pip" id="pip-3"></span>
           </div>
-          <h3 class="scoreboard-title">◆ BATTLE RESULTS</h3>
+          <h3 class="scoreboard-title">Results</h3>
           <div class="score-rows" id="score-rows">
-            <p class="score-placeholder">Cast a spell to begin the battle</p>
+            <p class="score-placeholder">Run a challenge to see results</p>
           </div>
         </div>
       </section>
@@ -594,20 +595,20 @@
       <section class="chat-section">
         <!-- Input -->
         <div class="input-panel">
-          <h2 class="input-title">▶ MAGIC COMMAND</h2>
-          <p class="input-hint">Enter your command — all party members will weave their best magic.</p>
+          <h2 class="input-title">Ask the AI Models</h2>
+          <p class="input-hint">Enter your question or challenge — all AI models will respond, and the best answer wins.</p>
           <div class="input-row">
             <textarea
               id="prompt-input"
               class="prompt-textarea"
-              placeholder="e.g. Tell me about the Planet's Lifestream in layman's terms…"
+              placeholder="e.g. Explain the concept of recursion in simple terms…"
               rows="3"
               maxlength="2000"
             ></textarea>
           </div>
           <!-- Rounds selector -->
           <div class="rounds-selector">
-            <span class="rounds-label">⚔ ROUNDS</span>
+            <span class="rounds-label">Rounds</span>
             <div class="rounds-btns">
               <button class="rounds-btn active" data-rounds="1">1</button>
               <button class="rounds-btn" data-rounds="2">2</button>
@@ -617,16 +618,16 @@
           <div class="input-actions">
             <span class="char-count" id="char-count">0 / 2000</span>
             <button id="submit-btn" class="submit-btn" disabled>
-              <span class="btn-icon">⚔</span> ATTACK
+              <span class="btn-icon">⚡</span> Run Challenge
             </button>
           </div>
         </div>
 
-        <!-- Limit Break / winner response -->
+        <!-- Winner response -->
         <div class="winner-panel hidden" id="winner-panel">
           <div class="winner-header">
-            <span class="winner-crown">★</span>
-            <span class="winner-label">ULTIMATE! Winner:</span>
+            <span class="winner-crown">🏆</span>
+            <span class="winner-label">Winner:</span>
             <span class="winner-name" id="winner-name"></span>
           </div>
           <div class="winner-response" id="winner-response"></div>
@@ -638,24 +639,24 @@
         <!-- Battle Log accordion -->
         <div class="all-responses hidden" id="all-responses">
           <button class="accordion-toggle" id="accordion-toggle">
-            Battle Log ▼
+            All Responses ▼
           </button>
           <div class="accordion-content hidden" id="accordion-content">
             <!-- Populated by JS -->
           </div>
         </div>
 
-        <!-- Quest Log / history -->
+        <!-- History -->
         <div class="history-panel" id="history-panel">
-          <h3 class="history-title">◆ QUEST LOG</h3>
+          <h3 class="history-title">History</h3>
           <div id="history-list" class="history-list">
-            <p class="history-empty">No battles fought yet.</p>
+            <p class="history-empty">No challenges run yet.</p>
           </div>
         </div>
 
         <!-- Archive — best answers stored across sessions -->
         <div class="history-panel archive-panel" id="archive-panel">
-          <h3 class="history-title">◆ BEST ANSWER ARCHIVE</h3>
+          <h3 class="history-title">Best Answer Archive</h3>
           <div id="archive-list" class="history-list">
             <p class="history-empty">No archived answers yet.</p>
           </div>
@@ -664,7 +665,7 @@
     </main>
 
     <footer class="site-footer">
-      <p>AI Ring &mdash; Midgar Arena. Set API keys in <code>.env</code> for live battles (see <a href="https://github.com/AllMostCoin/AiRing" style="color:var(--mako)">README</a>). No keys = training mode.</p>
+      <p>AI Ring — Battle Arena. Set API keys in <code>.env</code> for live mode (see <a href="https://github.com/AllMostCoin/AiRing">README</a>). No keys = demo mode.</p>
     </footer>
 
     <!-- config.js is generated at deploy time (GitHub Actions) and injects    -->
@@ -684,7 +685,9 @@
     <script src="https://unpkg.com/@solana/web3.js@1.98.0/lib/index.iife.min.js" crossorigin="anonymous"></script>
     <!-- tweetnacl — required for Phantom /v1/connect deep-link decryption (X25519 + NaCl box) -->
     <script src="https://unpkg.com/tweetnacl@1.0.3/nacl.min.js" crossorigin="anonymous"></script>
+    <!-- Three.js — required for the 3D battle arena -->
+    <script src="https://unpkg.com/three@0.158.0/build/three.min.js" crossorigin="anonymous"></script>
     <script src="utils.js?v=1"></script>
-    <script src="app.js?v=23"></script>
+    <script src="app.js?v=24"></script>
   </body>
 </html>
