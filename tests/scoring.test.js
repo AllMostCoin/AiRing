@@ -227,7 +227,7 @@ describe('buildRoomAnalysisPrompt', () => {
   });
 
   it('includes the other models\' names and responses', () => {
-    const result = buildRoomAnalysisPrompt('test prompt', 'Mistral', otherResponses);
+    const result = buildRoomAnalysisPrompt('test prompt', 'OpenClaw', otherResponses);
     expect(result).toContain('Claude');
     expect(result).toContain('Claude says hello.');
     expect(result).toContain('Gemini');

@@ -435,7 +435,8 @@ const LS_CLAUDE_KEY    = 'airing_claude_key';
 const LS_OLLAMA_MODEL  = 'airing_ollama_model';
 const LS_OLLAMA_URL    = 'airing_ollama_url';
 const LS_OPENAI_KEY    = 'airing_openai_key';
-const LS_MISTRAL_KEY   = 'airing_mistral_key';
+const LS_OPENCLAW_TOKEN = 'airing_openclaw_token';
+const LS_OPENCLAW_URL   = 'airing_openclaw_url';
 const LS_COPILOT_KEY   = 'airing_copilot_key';
 
 function getLocalGeminiKey() {
@@ -540,21 +541,37 @@ function clearLocalOpenAIKey() {
   window.AIRING_OPENAI_KEY = '';
 }
 
-function getLocalMistralKey() {
+function getLocalOpenClawToken() {
   try {
-    return localStorage.getItem(LS_MISTRAL_KEY) || window.AIRING_MISTRAL_KEY || '';
+    return localStorage.getItem(LS_OPENCLAW_TOKEN) || window.AIRING_OPENCLAW_TOKEN || '';
   } catch {
-    return window.AIRING_MISTRAL_KEY || '';
+    return window.AIRING_OPENCLAW_TOKEN || '';
   }
 }
 
-function setLocalMistralKey(key) {
-  try { localStorage.setItem(LS_MISTRAL_KEY, key); } catch { /* ignore */ }
+function setLocalOpenClawToken(token) {
+  try { localStorage.setItem(LS_OPENCLAW_TOKEN, token); } catch { /* ignore */ }
 }
 
-function clearLocalMistralKey() {
-  try { localStorage.removeItem(LS_MISTRAL_KEY); } catch { /* ignore */ }
-  window.AIRING_MISTRAL_KEY = '';
+function clearLocalOpenClawToken() {
+  try { localStorage.removeItem(LS_OPENCLAW_TOKEN); } catch { /* ignore */ }
+  window.AIRING_OPENCLAW_TOKEN = '';
+}
+
+function getLocalOpenClawUrl() {
+  try {
+    return localStorage.getItem(LS_OPENCLAW_URL) || '';
+  } catch {
+    return '';
+  }
+}
+
+function setLocalOpenClawUrl(url) {
+  try { localStorage.setItem(LS_OPENCLAW_URL, url); } catch { /* ignore */ }
+}
+
+function clearLocalOpenClawUrl() {
+  try { localStorage.removeItem(LS_OPENCLAW_URL); } catch { /* ignore */ }
 }
 
 function getLocalCopilotKey() {
@@ -582,7 +599,7 @@ function clearModelKey(modelId) {
     claude:   () => { clearLocalClaudeKey();   if (claudeKeyInput)   claudeKeyInput.value   = ''; },
     ollama: () => { clearLocalOllamaModel(); clearLocalOllamaUrl(); if (ollamaModelInput) ollamaModelInput.value = ''; if (ollamaUrlInput) ollamaUrlInput.value = ''; },
     gpt4:     () => { clearLocalOpenAIKey();   if (openaiKeyInput)   openaiKeyInput.value   = ''; },
-    mistral:  () => { clearLocalMistralKey();  if (mistralKeyInput)  mistralKeyInput.value  = ''; },
+    openclaw: () => { clearLocalOpenClawToken(); clearLocalOpenClawUrl(); if (openclawTokenInput) openclawTokenInput.value = ''; if (openclawUrlInput) openclawUrlInput.value = ''; },
     copilot:  () => { clearLocalCopilotKey();  if (copilotKeyInput)  copilotKeyInput.value  = ''; },
   };
   if (actions[modelId]) actions[modelId]();
@@ -721,17 +738,21 @@ async function callOpenAIProxy(prompt, key) {
   return data.text;
 }
 
-async function callMistralProxy(prompt, key) {
-  // Route the Mistral call through the backend to avoid browser CORS restrictions on api.mistral.ai.
-  const res = await fetch(`${API_BASE}/api/mistral-proxy`, {
+async function callOpenClawProxy(prompt, token) {
+  // Route the OpenClaw call through the backend to avoid browser CORS restrictions.
+  // The backend /api/openclaw-proxy endpoint accepts the token and optional base URL.
+  const url = getLocalOpenClawUrl();
+  const body = { prompt, token };
+  if (url) body.url = url;
+  const res = await fetch(`${API_BASE}/api/openclaw-proxy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, key }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     const msg = data.error || res.statusText;
-    throw new Error(`Mistral proxy error: ${msg}`);
+    throw new Error(`OpenClaw proxy error: ${msg}`);
   }
   const data = await res.json();
   return data.text;
@@ -760,7 +781,7 @@ const AI_MODELS_DATA = [
   { id: 'gpt4',     name: 'GPT-4',    character: 'Cloud',    color: '#4888d8', emoji: '⚔️',  strengths: ['reasoning', 'coding', 'analysis', 'general'] },
   { id: 'claude',   name: 'Claude',   character: 'Barret',   color: '#d84020', emoji: '🔫',  strengths: ['writing', 'analysis', 'safety', 'nuance'] },
   { id: 'gemini',   name: 'Gemini',   character: 'Red XIII', color: '#e04010', emoji: '🔥',  strengths: ['multimodal', 'search', 'factual', 'math'] },
-  { id: 'mistral',  name: 'Mistral',  character: 'Cid',      color: '#20a8c0', emoji: '✈️',  strengths: ['coding', 'efficiency', 'multilingual', 'speed'] },
+  { id: 'openclaw',  name: 'OpenClaw',  character: 'Cid',      color: '#20a8c0', emoji: '🦞',  strengths: ['coding', 'efficiency', 'self-hosted', 'speed'] },
   { id: 'copilot',  name: 'Copilot',  character: 'Tifa',     color: '#e03860', emoji: '👊',  strengths: ['coding', 'autocomplete', 'refactoring', 'debugging'] },
   { id: 'grok',     name: 'Grok',     character: 'Vincent',  color: '#7030c8', emoji: '🦇',  strengths: ['reasoning', 'speed', 'creative', 'search'] },
   { id: 'ollama',   name: 'Ollama',   character: 'Yuffie',   color: '#0a84c8', emoji: '🌊',  strengths: ['reasoning', 'coding', 'math', 'efficiency'] },
@@ -782,10 +803,10 @@ const DEMO_TEMPLATES = {
     "On the subject of {topic}, current knowledge base entries confirm several interesting findings. The mathematical relationships here are particularly noteworthy, and cross-referencing multiple sources gives us a clearer picture.",
     "Analyzing {topic} from a comprehensive perspective: the factual foundation is solid, the mathematical models support the conclusion, and real-world data corroborates the theoretical framework. Here's the evidence-based answer.",
   ],
-  mistral: [
-    "For {topic}, I can provide an efficient and precise response. The key algorithmic insight is that we can optimize this by focusing on: speed of execution, accuracy of output, and minimal computational overhead. Here's the optimized approach.",
-    "Tackling {topic} with technical precision: the most efficient solution leverages modern techniques. From a code perspective, this translates to clean, readable, and performant implementation that handles edge cases gracefully.",
-    "Addressing {topic} directly and efficiently: multilingual knowledge base activated. The cross-domain synthesis here is particularly effective for delivering a concise yet comprehensive answer.",
+  openclaw: [
+    "Processing {topic} through the OpenClaw gateway: routing to the optimal local agent. The self-hosted inference stack delivers a precise, low-latency response. Here is the distilled answer, generated entirely within your own infrastructure.",
+    "On {topic}: OpenClaw agent engaged. My gateway-native reasoning identifies the core insight and cuts straight to a clean, efficient answer. Self-hosted means full control — and full speed.",
+    "Analyzing {topic} via open gateway: the request has been routed, processed, and returned with minimal overhead. Open infrastructure, open reasoning — here is the transparent, verifiable result.",
   ],
   copilot: [
     "// Autocomplete engaged for {topic}\nBased on patterns across millions of repos, here's the optimal implementation. I've inlined comments, handled edge cases, and added error boundaries. Would you like me to also generate unit tests?",
@@ -873,7 +894,7 @@ async function runHybridCompetition(prompt) {
   const claudeKey   = getLocalClaudeKey();
   const ollamaModel = getLocalOllamaModel();
   const openaiKey   = getLocalOpenAIKey();
-  const mistralKey  = getLocalMistralKey();
+  const openclawToken = getLocalOpenClawToken();
   const copilotKey  = getLocalCopilotKey();
   const results = await Promise.all(
     AI_MODELS_DATA.map(async (model) => {
@@ -914,12 +935,12 @@ async function runHybridCompetition(prompt) {
           // OpenAI supports browser CORS — call directly like Gemini and Claude.
           text = await callOpenAIDirect(prompt, openaiKey);
           isDemo = false;
-        } else if (model.id === 'mistral' && mistralKey && backendAvailable) {
-          text = await callMistralProxy(prompt, mistralKey);
+        } else if (model.id === 'openclaw' && openclawToken && backendAvailable) {
+          text = await callOpenClawProxy(prompt, openclawToken);
           isDemo = false;
-        } else if (model.id === 'mistral' && mistralKey && !backendAvailable) {
+        } else if (model.id === 'openclaw' && openclawToken && !backendAvailable) {
           if (settingsStatus) {
-            settingsStatus.textContent = '⚠ Mistral key saved but no backend available — Mistral requires the Node.js server to proxy requests. Run the server locally or deploy it to go LIVE.';
+            settingsStatus.textContent = '⚠ OpenClaw token saved but no backend available — OpenClaw requires the Node.js server to proxy requests. Run the server locally or deploy it to go LIVE.';
             settingsStatus.className = 'settings-status err';
             settingsPanel.classList.remove('hidden');
           }
@@ -1009,7 +1030,7 @@ async function runRoomAnalysis(prompt, initialData) {
   const claudeKey   = getLocalClaudeKey();
   const ollamaModel = getLocalOllamaModel();
   const openaiKey   = getLocalOpenAIKey();
-  const mistralKey  = getLocalMistralKey();
+  const openclawToken = getLocalOpenClawToken();
   const copilotKey  = getLocalCopilotKey();
 
   function buildAnalysisPrompt(model) {
@@ -1046,8 +1067,8 @@ async function runRoomAnalysis(prompt, initialData) {
         } else if (model.id === 'gpt4' && openaiKey) {
           text = await callOpenAIDirect(analysisPrompt, openaiKey);
           isDemo = false;
-        } else if (model.id === 'mistral' && mistralKey && backendAvailable) {
-          text = await callMistralProxy(analysisPrompt, mistralKey);
+        } else if (model.id === 'openclaw' && openclawToken && backendAvailable) {
+          text = await callOpenClawProxy(analysisPrompt, openclawToken);
           isDemo = false;
         } else if (model.id === 'copilot' && copilotKey && backendAvailable) {
           text = await callCopilotProxy(analysisPrompt, copilotKey);
@@ -1193,9 +1214,12 @@ const ollamaUrlClearBtn = document.getElementById('ollama-url-clear-btn');
 const openaiKeyInput  = document.getElementById('openai-key-input');
 const openaiSaveBtn   = document.getElementById('openai-save-btn');
 const openaiClearBtn  = document.getElementById('openai-clear-btn');
-const mistralKeyInput = document.getElementById('mistral-key-input');
-const mistralSaveBtn  = document.getElementById('mistral-save-btn');
-const mistralClearBtn = document.getElementById('mistral-clear-btn');
+const openclawTokenInput = document.getElementById('openclaw-token-input');
+const openclawSaveBtn    = document.getElementById('openclaw-save-btn');
+const openclawClearBtn   = document.getElementById('openclaw-clear-btn');
+const openclawUrlInput   = document.getElementById('openclaw-url-input');
+const openclawUrlSaveBtn = document.getElementById('openclaw-url-save-btn');
+const openclawUrlClearBtn = document.getElementById('openclaw-url-clear-btn');
 const copilotKeyInput = document.getElementById('copilot-key-input');
 const copilotSaveBtn  = document.getElementById('copilot-save-btn');
 const copilotClearBtn = document.getElementById('copilot-clear-btn');
@@ -1232,7 +1256,7 @@ settingsBtn.addEventListener('click', () => {
     if (backendClaudeConfigured)   { claudeKeyInput.value   = ''; serverMsgs.push('Claude');   }
     if (backendOllamaConfigured)   { ollamaModelInput.value = ''; serverMsgs.push('Ollama');    }
     if (backendGpt4Configured)     { openaiKeyInput.value   = ''; serverMsgs.push('GPT-4');    }
-    if (backendMistralConfigured)  { mistralKeyInput.value  = ''; serverMsgs.push('Mistral');  }
+    if (backendOpenClawConfigured)  { openclawTokenInput.value = ''; serverMsgs.push('OpenClaw'); }
     if (backendCopilotConfigured)  { copilotKeyInput.value  = ''; serverMsgs.push('Copilot');  }
 
     if (serverMsgs.length > 0) {
@@ -1251,11 +1275,13 @@ settingsBtn.addEventListener('click', () => {
       ollamaUrlInput.value = ollamaUrlStored;
       const openaiStored = getLocalOpenAIKey();
       openaiKeyInput.value = openaiStored;
-      const mistralStored = getLocalMistralKey();
-      mistralKeyInput.value = mistralStored;
+      const openclawStored = getLocalOpenClawToken();
+      openclawTokenInput.value = openclawStored;
+      const openclawUrlStored = getLocalOpenClawUrl();
+      openclawUrlInput.value = openclawUrlStored;
       const copilotStored = getLocalCopilotKey();
       copilotKeyInput.value = copilotStored;
-      if (stored || grokStored || claudeStored || ollamaStored || openaiStored || mistralStored || copilotStored) {
+      if (stored || grokStored || claudeStored || ollamaStored || openaiStored || openclawStored || copilotStored) {
         settingsStatus.textContent = '● Key(s) loaded from local storage';
         settingsStatus.className = 'settings-status ok';
       } else {
@@ -1397,25 +1423,55 @@ openaiClearBtn.addEventListener('click', () => {
   checkServerMode();
 });
 
-mistralSaveBtn.addEventListener('click', () => {
-  const key = mistralKeyInput.value.trim();
-  if (!key) {
-    settingsStatus.textContent = '✗ Please enter a Mistral key first.';
+openclawSaveBtn.addEventListener('click', () => {
+  const token = openclawTokenInput.value.trim();
+  if (!token) {
+    settingsStatus.textContent = '✗ Please enter an OpenClaw token first.';
     settingsStatus.className = 'settings-status err';
     return;
   }
-  setLocalMistralKey(key);
-  settingsStatus.textContent = '✔ Mistral key saved! Mistral will run LIVE.';
+  setLocalOpenClawToken(token);
+  settingsStatus.textContent = '✔ OpenClaw token saved! OpenClaw will run LIVE.';
   settingsStatus.className = 'settings-status ok';
   checkServerMode();
 });
 
-mistralClearBtn.addEventListener('click', () => {
-  clearLocalMistralKey();
-  mistralKeyInput.value = '';
-  settingsStatus.textContent = '✔ Mistral key cleared. Mistral will run in DEMO mode.';
+openclawClearBtn.addEventListener('click', () => {
+  clearLocalOpenClawToken();
+  openclawTokenInput.value = '';
+  settingsStatus.textContent = '✔ OpenClaw token cleared. OpenClaw will run in DEMO mode.';
   settingsStatus.className = 'settings-status ok';
   checkServerMode();
+});
+
+openclawUrlSaveBtn.addEventListener('click', () => {
+  const url = openclawUrlInput.value.trim();
+  if (!url) {
+    settingsStatus.textContent = '✗ Please enter an OpenClaw base URL first.';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  let parsed;
+  try { parsed = new URL(url); } catch {
+    settingsStatus.textContent = '✗ Invalid URL format.';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  if (parsed.protocol !== 'https:') {
+    settingsStatus.textContent = '✗ Invalid URL — must start with https:// (for http, set OPENCLAW_BASE_URL on the server)';
+    settingsStatus.className = 'settings-status err';
+    return;
+  }
+  setLocalOpenClawUrl(url);
+  settingsStatus.textContent = '✔ OpenClaw base URL saved!';
+  settingsStatus.className = 'settings-status ok';
+});
+
+openclawUrlClearBtn.addEventListener('click', () => {
+  clearLocalOpenClawUrl();
+  openclawUrlInput.value = '';
+  settingsStatus.textContent = '✔ OpenClaw base URL cleared.';
+  settingsStatus.className = 'settings-status ok';
 });
 
 copilotSaveBtn.addEventListener('click', () => {
@@ -1446,7 +1502,7 @@ copilotClearBtn.addEventListener('click', () => {
   checkServerMode();
 });
 
-const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'mistral', 'copilot', 'grok', 'ollama'];
+const MODEL_IDS = ['gpt4', 'claude', 'gemini', 'openclaw', 'copilot', 'grok', 'ollama'];
 
 // Home positions — populated at runtime by initTeams() for a random split
 const AGENT_POSITIONS = {};
@@ -1537,7 +1593,7 @@ const CENTER_POSITIONS = {
   gpt4:     { left: '22%',  right: '',     top: '54%',    bottom: '' },
   claude:   { left: '',     right: '22%',  top: '54%',    bottom: '' },
   gemini:   { left: '22%',  right: '',     top: '',       bottom: '22%' },
-  mistral:  { left: '',     right: '22%',  top: '',       bottom: '22%' },
+  openclaw:  { left: '',     right: '22%',  top: '',       bottom: '22%' },
   copilot:  { left: '37%',  right: '',     top: '',       bottom: '22%' },
   grok:     { left: '37%',  right: '',     top: '54%',    bottom: '' },
   ollama:   { left: '',     right: '37%',  top: '',       bottom: '22%' },
@@ -1549,7 +1605,7 @@ const BATTLE_POS = {
   gpt4:     { x: 28, y: 56 },
   claude:   { x: 72, y: 56 },
   gemini:   { x: 28, y: 66 },
-  mistral:  { x: 72, y: 66 },
+  openclaw:  { x: 72, y: 66 },
   copilot:  { x: 43, y: 70 },
   grok:     { x: 43, y: 56 },
   ollama:   { x: 57, y: 70 },
@@ -1909,7 +1965,7 @@ let backendGrokConfigured     = false;  // true when XAI_API_KEY is set in serve
 let backendClaudeConfigured   = false;  // true when ANTHROPIC_API_KEY is set in server .env
 let backendOllamaConfigured   = false;  // true when OLLAMA_MODEL or OLLAMA_BASE_URL is set in server .env
 let backendGpt4Configured     = false;  // true when OPENAI_API_KEY is set in server .env
-let backendMistralConfigured  = false;  // true when MISTRAL_API_KEY is set in server .env
+let backendOpenClawConfigured = false;  // true when OPENCLAW_TOKEN is set in server .env
 let backendCopilotConfigured  = false;  // true when GITHUB_TOKEN is set in server .env
 
 // Append a small LIVE/DEMO status indicator below each character label
@@ -1948,7 +2004,7 @@ async function checkServerMode() {
     backendClaudeConfigured   = false;
     backendOllamaConfigured   = false;
     backendGpt4Configured     = false;
-    backendMistralConfigured  = false;
+    backendOpenClawConfigured = false;
     backendCopilotConfigured  = false;
     const geminiKey   = getLocalGeminiKey();
     const claudeKey   = getLocalClaudeKey();
@@ -1958,7 +2014,7 @@ async function checkServerMode() {
       claude: !!claudeKey, gemini: !!geminiKey, gpt4: !!openaiKey,
       // All other models require the backend proxy; without a backend they cannot
       // run live even if a key is present, so keep them as DEMO.
-      mistral: false, copilot: false, grok: false, ollama: false,
+      openclaw: false, copilot: false, grok: false, ollama: false,
     };
     const anyLive = Object.values(localConfigured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
@@ -1969,14 +2025,14 @@ async function checkServerMode() {
       sessionStorage.setItem('airing_settings_shown', '1');
       settingsPanel.classList.remove('hidden');
       // If backend-only keys were injected at deploy time (COPILOT_API_KEY, GROK_API_KEY, or
-      // MISTRAL_API_KEY set in GitHub Secrets) but BACKEND_URL was not set, surface a targeted
+      // OPENCLAW_TOKEN set in GitHub Secrets) but BACKEND_URL was not set, surface a targeted
       // hint so the deployer understands why those models stay in DEMO mode.
-      const backendKeyInjected = !!(window.AIRING_COPILOT_KEY || window.AIRING_GROK_KEY || window.AIRING_MISTRAL_KEY);
+      const backendKeyInjected = !!(window.AIRING_COPILOT_KEY || window.AIRING_GROK_KEY || window.AIRING_OPENCLAW_TOKEN);
       if (backendKeyInjected) {
-        settingsStatus.textContent = '⚠ API key configured but no backend available — Copilot, Grok, and Mistral require the Node.js backend. Set the BACKEND_URL secret and redeploy to go LIVE.';
+        settingsStatus.textContent = '⚠ API key configured but no backend available — Copilot, Grok, and OpenClaw require the Node.js backend. Set the BACKEND_URL secret and redeploy to go LIVE.';
         settingsStatus.className = 'settings-status err';
       } else {
-        settingsStatus.textContent = '⚡ Paste your Gemini, Claude, or OpenAI key and hit SAVE to go LIVE! (Grok, Mistral, Copilot, and Ollama require the Node.js backend.)';
+        settingsStatus.textContent = '⚡ Paste your Gemini, Claude, or OpenAI key and hit SAVE to go LIVE! (Grok, OpenClaw, Copilot, and Ollama require the Node.js backend.)';
         settingsStatus.className = 'settings-status info';
       }
     }
@@ -1996,7 +2052,7 @@ async function checkServerMode() {
     backendClaudeConfigured   = !!(data.configured && data.configured.claude);
     backendOllamaConfigured   = !!(data.configured && data.configured.ollama);
     backendGpt4Configured     = !!(data.configured && data.configured.gpt4);
-    backendMistralConfigured  = !!(data.configured && data.configured.mistral);
+    backendOpenClawConfigured = !!(data.configured && data.configured.openclaw);
     backendCopilotConfigured  = !!(data.configured && data.configured.copilot);
     // Merge server-configured status with any locally-stored keys
     const configured = data.configured || {};
@@ -2005,7 +2061,7 @@ async function checkServerMode() {
     if (!configured.claude   && getLocalClaudeKey())   configured.claude   = true;
     if (!configured.ollama   && getLocalOllamaModel()) configured.ollama   = true;
     if (!configured.gpt4     && getLocalOpenAIKey())   configured.gpt4     = true;
-    if (!configured.mistral  && getLocalMistralKey())  configured.mistral  = true;
+    if (!configured.openclaw  && getLocalOpenClawToken()) configured.openclaw  = true;
     if (!configured.copilot  && getLocalCopilotKey())  configured.copilot  = true;
     const anyLive = Object.values(configured).some(Boolean);
     demoBadge.classList.toggle('hidden', anyLive);
@@ -2295,7 +2351,7 @@ const INTRO_GREETINGS = {
   gpt4:     'Ready.',
   claude:   'Let\'s go!',
   gemini:   'Standing by.',
-  mistral:  'Primed.',
+  openclaw:  'Gateway open.',
   copilot:  'Online.',
   grok:     'Acknowledged.',
   ollama:   'Loaded.',
@@ -2749,30 +2805,30 @@ async function fetchOneRound(prompt) {
       }
     }
 
-    // If the backend doesn't have MISTRAL_API_KEY but the user saved a personal Mistral
-    // key, overlay the Mistral result via the proxy endpoint (server-side, CORS-free).
-    const mistralKey = getLocalMistralKey();
-    if (mistralKey && !backendMistralConfigured) {
-      const mistralResult = data.results.find((r) => r.modelId === 'mistral');
-      if (mistralResult && mistralResult.isDemo) {
+    // If the backend doesn't have OPENCLAW_TOKEN but the user saved a personal OpenClaw
+    // token, overlay the OpenClaw result via the proxy endpoint (server-side, CORS-free).
+    const openclawToken = getLocalOpenClawToken();
+    if (openclawToken && !backendOpenClawConfigured) {
+      const openclawResult = data.results.find((r) => r.modelId === 'openclaw');
+      if (openclawResult && openclawResult.isDemo) {
         try {
-          const mistralStart = Date.now();
-          const text = await callMistralProxy(promptWithCtx, mistralKey);
-          mistralResult.response = text;
-          mistralResult.isDemo = false;
-          mistralResult.latencyMs = Date.now() - mistralStart;
-          const mistralModel = AI_MODELS_DATA.find((m) => m.id === 'mistral');
-          mistralResult.score = scoreResponse(prompt, text, mistralModel);
+          const openclawStart = Date.now();
+          const text = await callOpenClawProxy(promptWithCtx, openclawToken);
+          openclawResult.response = text;
+          openclawResult.isDemo = false;
+          openclawResult.latencyMs = Date.now() - openclawStart;
+          const openclawModel = AI_MODELS_DATA.find((m) => m.id === 'openclaw');
+          openclawResult.score = scoreResponse(prompt, text, openclawModel);
           data.results.sort((a, b) => b.score - a.score);
           const newWinner = data.results[0];
           data.winnerId = newWinner.modelId;
           data.winnerName = newWinner.name;
           data.results.forEach((r) => { r.isWinner = r.modelId === data.winnerId; });
         } catch (err) {
-          settingsStatus.textContent = `✗ Mistral live call failed: ${err.message}${liveCallHint(err.message)}`;
+          settingsStatus.textContent = `✗ OpenClaw live call failed: ${err.message}${liveCallHint(err.message)}`;
           settingsStatus.className = 'settings-status err';
           settingsPanel.classList.remove('hidden');
-          if (isInvalidKeyError(err.message)) { clearModelKey('mistral'); checkServerMode(); }
+          if (isInvalidKeyError(err.message)) { clearModelKey('openclaw'); checkServerMode(); }
         }
       }
     }
@@ -2809,7 +2865,7 @@ async function fetchOneRound(prompt) {
     return data;
   }
   // Static / GitHub Pages mode
-  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey() || getLocalOllamaModel() || getLocalOpenAIKey() || getLocalMistralKey() || getLocalCopilotKey());
+  const hasKey = !!(getLocalGeminiKey() || getLocalGrokKey() || getLocalClaudeKey() || getLocalOllamaModel() || getLocalOpenAIKey() || getLocalOpenClawToken() || getLocalCopilotKey());
   await delay(hasKey ? 800 : 2200 + Math.floor(Math.random() * 800));
   return runHybridCompetition(prompt);
 }

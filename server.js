@@ -62,13 +62,13 @@ const AI_MODELS = [
     strengths: ['multimodal', 'search', 'factual', 'math'],
   },
   {
-    id: 'mistral',
-    name: 'Mistral',
+    id: 'openclaw',
+    name: 'OpenClaw',
     character: 'Cid',
-    provider: 'mistral',
+    provider: 'openclaw',
     color: '#20a8c0',
-    emoji: '✈️',
-    strengths: ['coding', 'efficiency', 'multilingual', 'speed'],
+    emoji: '🦞',
+    strengths: ['coding', 'efficiency', 'self-hosted', 'speed'],
   },
   {
     id: 'copilot',
@@ -161,21 +161,28 @@ async function callGoogle(prompt) {
   return textPart.text.trim();
 }
 
-async function callMistral(prompt) {
-  const key = process.env.MISTRAL_API_KEY;
-  if (!key) return null;
-  const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+async function callOpenClaw(prompt, token, baseUrlOverride) {
+  // OpenClaw — self-hosted AI gateway, OpenAI-compatible API.
+  // token may be supplied by the caller (proxy route) or read from the environment.
+  // baseUrlOverride may be supplied by the proxy route (user-configured OpenClaw URL).
+  // When a user provides a URL it is validated as https:// only and reconstructed
+  // from parsed URL components before reaching this function (see /api/openclaw-proxy).
+  const resolvedToken = token || process.env.OPENCLAW_TOKEN;
+  if (!resolvedToken) return null;  // no token configured → demo mode
+  const baseUrl = (baseUrlOverride || process.env.OPENCLAW_BASE_URL || 'http://localhost:18789').replace(/\/$/, '');
+  // lgtm[js/request-forgery] - baseUrl is either from trusted server env or a user-supplied https:// URL validated and reconstructed in /api/openclaw-proxy
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resolvedToken}` },
     body: JSON.stringify({
-      model: 'mistral-large-latest',
+      model: 'openclaw',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 512,
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(`Mistral HTTP ${res.status}: ${data.error?.message || res.statusText}`);
-  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('Mistral returned no content');
+  if (!res.ok) throw new Error(`OpenClaw HTTP ${res.status}: ${data.error?.message || res.statusText}`);
+  if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('OpenClaw returned no content');
   return data.choices[0].message.content.trim();
 }
 
@@ -266,10 +273,10 @@ const DEMO_TEMPLATES = {
     "On the subject of {topic}, current knowledge base entries confirm several interesting findings. The mathematical relationships here are particularly noteworthy, and cross-referencing multiple sources gives us a clearer picture.",
     "Analyzing {topic} from a comprehensive perspective: the factual foundation is solid, the mathematical models support the conclusion, and real-world data corroborates the theoretical framework. Here's the evidence-based answer.",
   ],
-  mistral: [
-    "For {topic}, I can provide an efficient and precise response. The key algorithmic insight is that we can optimize this by focusing on: speed of execution, accuracy of output, and minimal computational overhead. Here's the optimized approach.",
-    "Tackling {topic} with technical precision: the most efficient solution leverages modern techniques. From a code perspective, this translates to clean, readable, and performant implementation that handles edge cases gracefully.",
-    "Addressing {topic} directly and efficiently: multilingual knowledge base activated. The cross-domain synthesis here is particularly effective for delivering a concise yet comprehensive answer.",
+  openclaw: [
+    "Processing {topic} through the OpenClaw gateway: routing to the optimal local agent. The self-hosted inference stack delivers a precise, low-latency response. Here is the distilled answer, generated entirely within your own infrastructure.",
+    "On {topic}: OpenClaw agent engaged. My gateway-native reasoning identifies the core insight and cuts straight to a clean, efficient answer. Self-hosted means full control — and full speed.",
+    "Analyzing {topic} via open gateway: the request has been routed, processed, and returned with minimal overhead. Open infrastructure, open reasoning — here is the transparent, verifiable result.",
   ],
   copilot: [
     "// Autocomplete engaged for {topic}\nBased on patterns across millions of repos, here's the optimal implementation. I've inlined comments, handled edge cases, and added error boundaries. Would you like me to also generate unit tests?",
@@ -378,7 +385,7 @@ const openaiProxyLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === 'test',
 });
 
-const mistralProxyLimiter = rateLimit({
+const openclawProxyLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
   standardHeaders: true,
@@ -413,7 +420,7 @@ app.get('/api/models', (_req, res) => {
     gpt4:     !!process.env.OPENAI_API_KEY,
     claude:   !!process.env.ANTHROPIC_API_KEY,
     gemini:   !!process.env.GOOGLE_API_KEY,
-    mistral:  !!process.env.MISTRAL_API_KEY,
+    openclaw: !!(process.env.OPENCLAW_TOKEN || process.env.OPENCLAW_BASE_URL),
     copilot:  !!process.env.GITHUB_TOKEN,
     grok:     !!process.env.XAI_API_KEY,
     ollama:   !!(process.env.OLLAMA_MODEL || process.env.OLLAMA_BASE_URL),
@@ -546,13 +553,13 @@ app.post('/api/openai-proxy', openaiProxyLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Route: POST /api/mistral-proxy — proxy a user-supplied Mistral key through the backend
-// Browsers cannot call api.mistral.ai directly (CORS). This endpoint accepts the
-// user's personal key in the request body, forwards the call server-side, and
-// returns the text response.
+// Route: POST /api/openclaw-proxy — proxy a user-supplied OpenClaw token through the backend
+// Browsers cannot call a local OpenClaw gateway directly (CORS). This endpoint accepts the
+// user's personal token (and optional base URL) in the request body, forwards the call
+// server-side (CORS-free), and returns the text response.
 // ─────────────────────────────────────────────────────────────────────────────
-app.post('/api/mistral-proxy', mistralProxyLimiter, async (req, res) => {
-  const { prompt, key } = req.body;
+app.post('/api/openclaw-proxy', openclawProxyLimiter, async (req, res) => {
+  const { prompt, token, url } = req.body;
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt is required' });
   }
@@ -560,20 +567,34 @@ app.post('/api/mistral-proxy', mistralProxyLimiter, async (req, res) => {
   if (trimmedPrompt.length > 2000) {
     return res.status(400).json({ error: 'prompt must be 2000 characters or fewer' });
   }
-  if (!key || typeof key !== 'string' || key.trim().length === 0) {
-    return res.status(400).json({ error: 'Mistral API key is required' });
+  if (!token || typeof token !== 'string' || token.trim().length === 0) {
+    return res.status(400).json({ error: 'OpenClaw token is required' });
   }
-  const trimmedKey = key.trim();
+  const trimmedToken = token.trim();
+
+  // If the server has OPENCLAW_BASE_URL configured, always use it (trusted server config).
+  // If the client supplies a url, validate it is https:// to prevent SSRF against internal
+  // http:// hosts. http:// is intentionally disallowed for client-supplied URLs.
+  let resolvedBaseUrl;
+  if (process.env.OPENCLAW_BASE_URL) {
+    resolvedBaseUrl = undefined; // callOpenClaw will read from env
+  } else if (url && typeof url === 'string' && url.trim().length > 0) {
+    let parsed;
+    try { parsed = new URL(url.trim()); } catch {
+      return res.status(400).json({ error: 'invalid base url' });
+    }
+    if (parsed.protocol !== 'https:') {
+      return res.status(400).json({ error: 'user-supplied base url must use https. For http (e.g. local dev), set OPENCLAW_BASE_URL on the server instead.' });
+    }
+    resolvedBaseUrl = `${parsed.protocol}//${parsed.host}`;
+  }
+
   try {
-    const res2 = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${trimmedKey}` },
-      body: JSON.stringify({ model: 'mistral-large-latest', messages: [{ role: 'user', content: trimmedPrompt }], max_tokens: 512 }),
-    });
-    const data = await res2.json();
-    if (!res2.ok) throw new Error(`Mistral HTTP ${res2.status}: ${data.error?.message || res2.statusText}`);
-    if (!data.choices?.length || !data.choices[0]?.message?.content) throw new Error('Mistral returned no content');
-    res.json({ text: data.choices[0].message.content.trim() });
+    const text = await callOpenClaw(trimmedPrompt, trimmedToken, resolvedBaseUrl);
+    if (!text) {
+      return res.status(502).json({ error: 'OpenClaw did not return a response' });
+    }
+    res.json({ text });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
@@ -656,7 +677,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
 
   const promptWithCtx = contextBlock + trimmed;
 
-  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, ollama: callOllama };
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, openclaw: callOpenClaw, copilot: callCopilot, grok: callXAI, ollama: callOllama };
 
   // Call all models in parallel
   const results = await Promise.all(
@@ -782,7 +803,7 @@ app.post('/api/room-analyze', roomAnalyzeLimiter, async (req, res) => {
   ]);
   const roomCtx = { portfolio, socialSignals };
 
-  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, ollama: callOllama };
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, openclaw: callOpenClaw, copilot: callCopilot, grok: callXAI, ollama: callOllama };
 
   const results = await Promise.all(
     AI_MODELS.map(async (model) => {
@@ -1258,7 +1279,7 @@ app.post('/api/trading-analysis', tradingAnalysisLimiter, async (req, res) => {
   }
 
   const prompt = buildTradingPrompt(marketData, portfolio, socialSignals);
-  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, mistral: callMistral, copilot: callCopilot, grok: callXAI, ollama: callOllama };
+  const callers = { gpt4: callOpenAI, claude: callAnthropic, gemini: callGoogle, openclaw: callOpenClaw, copilot: callCopilot, grok: callXAI, ollama: callOllama };
 
   const results = await Promise.all(
     AI_MODELS.map(async (model) => {
