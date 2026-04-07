@@ -97,14 +97,14 @@
       ['phantom_encryption_public_key', 'nonce', 'data', 'errorCode', 'errorMessage'].forEach(function(k) { u.searchParams.delete(k); });
       window.history.replaceState({}, '', u.toString());
     }
-    if (p.get('errorCode')) { cleanUrl(); return; }
+    if (p.get('errorCode')) { cleanUrl(); localStorage.removeItem('_phantom_dl_sk'); return; }
     const phantomPubB58 = p.get('phantom_encryption_public_key');
     const nonceB58      = p.get('nonce');
     const dataB58       = p.get('data');
     if (!phantomPubB58 || !nonceB58 || !dataB58) return;
     cleanUrl();
     try {
-      const stored = sessionStorage.getItem('_phantom_dl_sk');
+      const stored = localStorage.getItem('_phantom_dl_sk');
       if (!stored) return;
       const dappSecretKey = new Uint8Array(JSON.parse(stored));
       const phantomPubKey = b58Decode(phantomPubB58);
@@ -117,7 +117,7 @@
       if (payload.public_key) {
         // Remove the ephemeral secret key only after successful decryption so that
         // a transient parse error doesn't force the user to restart the flow.
-        sessionStorage.removeItem('_phantom_dl_sk');
+        localStorage.removeItem('_phantom_dl_sk');
         setAuthenticated();
       }
     } catch (err) {
@@ -142,12 +142,12 @@
   function initiatePhantomDeepLink() {
     try {
       const kp            = nacl.box.keyPair();
-      // The ephemeral secret key must survive the page navigation to Phantom
-      // and back, so sessionStorage is the only viable storage.  This key is
-      // a one-time X25519 scalar used solely for this DH exchange — it is not
-      // the user's wallet private key — and it is deleted immediately after the
-      // successful decryption in handlePhantomDeepLinkCallback.
-      sessionStorage.setItem('_phantom_dl_sk', JSON.stringify(Array.from(kp.secretKey)));
+      // localStorage (not sessionStorage) is used so that if Phantom opens the
+      // redirect URL in a new browser tab the callback can still find the key.
+      // This key is a one-time X25519 scalar used solely for this DH exchange —
+      // it is not the user's wallet private key — and it is deleted immediately
+      // after successful decryption in handlePhantomDeepLinkCallback.
+      localStorage.setItem('_phantom_dl_sk', JSON.stringify(Array.from(kp.secretKey)));
       const dappPubKeyB58 = b58Encode(kp.publicKey);
       const redirectUrl   = window.location.origin + window.location.pathname;
       const deepLink      = 'https://phantom.app/ul/v1/connect'
