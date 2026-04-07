@@ -3029,17 +3029,33 @@ function openPhantomOrRedirect() {
   }
 }
 
-// Returns the Phantom provider, waiting up to `timeout` ms for the
-// phantom#initialized event in case the extension is still injecting.
+// Returns the Phantom provider, waiting up to `timeout` ms for the extension
+// to inject.  Polls every 100 ms as a fallback in case the phantom#initialized
+// event is not fired by the version of Phantom the user has installed.
 function waitForPhantomProvider(getProviderFn, timeout) {
   return new Promise((resolve) => {
     const provider = getProviderFn();
     if (provider) { resolve(provider); return; }
-    const t = setTimeout(() => resolve(null), timeout || 800);
-    window.addEventListener('phantom#initialized', () => {
-      clearTimeout(t);
-      resolve(getProviderFn());
-    }, { once: true });
+    const ms = timeout !== undefined ? timeout : 3000;
+    const deadline = Date.now() + ms;
+    let settled = false;
+    // Declared before settle() to avoid a TDZ reference; assigned below.
+    let poll;
+    function settle(p) {
+      if (settled) return;
+      settled = true;
+      clearInterval(poll);
+      window.removeEventListener('phantom#initialized', onInit);
+      resolve(p);
+    }
+    function onInit() { settle(getProviderFn()); }
+    window.addEventListener('phantom#initialized', onInit, { once: true });
+    // Poll every 100 ms so we detect injection even when the event is absent.
+    poll = setInterval(() => {
+      const p = getProviderFn();
+      if (p) { settle(p); return; }
+      if (Date.now() >= deadline) { settle(null); }
+    }, 100);
   });
 }
 
@@ -3078,11 +3094,18 @@ function onWalletDisconnected() {
 
 if (walletConnectBtn) {
   walletConnectBtn.addEventListener('click', async () => {
-    // Check synchronously — by the time the wallet panel is visible Phantom
-    // has had plenty of time to inject.  Calling window.open() after an
-    // `await` loses the browser's user-activation state and causes popup
-    // blockers to suppress the Phantom redirect.
-    const provider = getPhantomProvider();
+    // Check synchronously first — if Phantom is already injected this avoids
+    // any async delay.  If it is not yet available, wait briefly (up to 2 s)
+    // before giving up and opening the redirect.  The browser's user-activation
+    // window is ~5 s so a 2 s wait still keeps window.open() unblocked.
+    let provider = getPhantomProvider();
+    if (!provider) {
+      walletConnectBtn.disabled = true;
+      walletConnectBtn.textContent = '◈ LOADING…';
+      provider = await waitForPhantomProvider(getPhantomProvider, 2000);
+      walletConnectBtn.disabled = false;
+      walletConnectBtn.textContent = '◈ CONNECT PHANTOM';
+    }
     if (!provider) {
       openPhantomOrRedirect();
       return;
