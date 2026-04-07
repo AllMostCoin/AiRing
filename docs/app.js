@@ -1438,10 +1438,14 @@ const MATERIA_CAST_CHANCE = 0.28;
 // 3D Arena — Three.js WebGL battle scene
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ARENA_R = 5.2;   // arena floor radius (Three.js units)
+const ARENA_R              = 5.2;    // arena floor radius (Three.js units)
+const CAMERA_ORBIT_SPEED   = 0.10;   // radians per second
+const PARTICLE_DRIFT_SPEED = 0.17;   // units per second
+const PARTICLE_MAX_HEIGHT  = 2.8;    // reset threshold
+const PARTICLE_RESET_HEIGHT = 0.2;   // max random reset y
 
 let threeScene, threeCamera, threeRenderer;
-let agentMeshes = {};    // id -> { group, sphere, ring, light, mat, ringMat, colorObj }
+let agentMeshes = {};    // id -> { group, sphere, ring, light, mat, ringMat, colorObj, wrapper }
 let arenaParticles;
 let cameraOrbitAngle = 0;
 let threeReady = false;
@@ -1627,7 +1631,7 @@ function initThreeArena() {
     group.add(plat);
 
     threeScene.add(group);
-    agentMeshes[id] = { group, sphere, ring: orRing, light: ptLight, mat: sMat, ringMat: orMat, platMat, colorObj: c.clone() };
+    agentMeshes[id] = { group, sphere, ring: orRing, light: ptLight, mat: sMat, ringMat: orMat, platMat, colorObj: c.clone(), wrapper: null };
     agentThreeState[id] = {
       bobOffset: Math.random() * Math.PI * 2,
       bobSpeed:  0.7 + Math.random() * 0.5,
@@ -1637,6 +1641,10 @@ function initThreeArena() {
   });
 
   threeReady = true;
+  // Cache DOM wrapper references so we don't query them on every frame
+  MODEL_IDS.forEach((id) => {
+    if (agentMeshes[id]) agentMeshes[id].wrapper = document.getElementById(`agent-${id}`);
+  });
   requestAnimationFrame(tickThreeArena);
 }
 
@@ -1651,7 +1659,7 @@ function tickThreeArena(ts) {
   const now = ts / 1000;
 
   // Slowly orbit camera
-  cameraOrbitAngle += dt * 0.10;
+  cameraOrbitAngle += dt * CAMERA_ORBIT_SPEED;
   const camR = 10.5;
   threeCamera.position.x = Math.cos(cameraOrbitAngle) * camR + cameraShakeX;
   threeCamera.position.z = Math.sin(cameraOrbitAngle) * camR + cameraShakeY;
@@ -1671,8 +1679,8 @@ function tickThreeArena(ts) {
   if (arenaParticles) {
     const pos = arenaParticles.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i) + dt * 0.17;
-      pos.setY(i, y > 2.8 ? Math.random() * 0.2 : y);
+      const y = pos.getY(i) + dt * PARTICLE_DRIFT_SPEED;
+      pos.setY(i, y > PARTICLE_MAX_HEIGHT ? Math.random() * PARTICLE_RESET_HEIGHT : y);
     }
     pos.needsUpdate = true;
   }
@@ -1683,7 +1691,7 @@ function tickThreeArena(ts) {
     const st = agentThreeState[id];
     if (!mesh) return;
 
-    const wrapper = document.getElementById(`agent-${id}`);
+    const wrapper = mesh.wrapper;
     const isThinking = wrapper?.classList.contains('thinking');
     const isWinner   = wrapper?.classList.contains('winner');
     const isLoser    = wrapper?.classList.contains('loser');
@@ -1727,8 +1735,7 @@ function tickThreeArena(ts) {
     const v = new THREE.Vector3();
     MODEL_IDS.forEach((id) => {
       const mesh = agentMeshes[id];
-      const wrapper = document.getElementById(`agent-${id}`);
-      if (!mesh || !wrapper) return;
+      if (!mesh || !mesh.wrapper) return;
       // Project the mesh group world position to NDC
       v.setFromMatrixPosition(mesh.group.matrixWorld);
       v.project(threeCamera);
@@ -1736,11 +1743,11 @@ function tickThreeArena(ts) {
       const sy = ((-v.y + 1) / 2) * roomH;
       // Only update if the agent is in front of the camera
       if (v.z < 1) {
-        wrapper.style.left   = `${sx}px`;
-        wrapper.style.top    = `${sy}px`;
-        wrapper.style.right  = '';
-        wrapper.style.bottom = '';
-        wrapper.style.transform = 'translate(-50%, -80%)';
+        mesh.wrapper.style.left      = `${sx}px`;
+        mesh.wrapper.style.top       = `${sy}px`;
+        mesh.wrapper.style.right     = '';
+        mesh.wrapper.style.bottom    = '';
+        mesh.wrapper.style.transform = 'translate(-50%, -80%)';
       }
     });
   }
