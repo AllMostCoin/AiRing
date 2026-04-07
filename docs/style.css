@@ -119,6 +119,7 @@ a:hover { color: var(--accent-hover); }
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.3px;
+  color: var(--accent);
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -794,7 +795,8 @@ a:hover { color: var(--accent-hover); }
   background: radial-gradient(circle, #ffffff 0%, var(--accent2) 50%, transparent 100%);
   box-shadow: 0 0 10px var(--accent2), 0 0 20px rgba(6, 182, 212, 0.5);
   transform: translate(-50%, -50%);
-  transition: left 0.3s linear, top 0.3s linear;
+  /* JS moves the element via CSS custom properties --x/--y; use transform for compositing */
+  transition: transform 0.3s linear;
 }
 
 /* Room flash overlay */
@@ -1248,13 +1250,31 @@ a:hover { color: var(--accent-hover); }
   height: 100%;
   border-radius: 3px;
   background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 0%;
+  /* Use scaleX transform for GPU-composited animation; transform-origin anchors to left */
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes score-bar-grow {
-  from { width: 0%; }
-  to   { width: var(--target-width, 100%); }
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* JS-generated score bar element (uses inline style.width) */
+.score-row-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.score-row-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 2px;
 }
 
 .score-value {
