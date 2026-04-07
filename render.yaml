@@ -28,7 +28,9 @@ services:
         sync: false
       - key: GOOGLE_API_KEY
         sync: false
-      - key: MISTRAL_API_KEY
+      - key: OPENCLAW_TOKEN
+        sync: false
+      - key: OPENCLAW_BASE_URL
         sync: false
       - key: GITHUB_TOKEN
         sync: false
