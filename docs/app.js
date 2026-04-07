@@ -166,6 +166,16 @@
         // localStorage) — auth is complete and no extra prompt is needed.
         if (urlSk && !storedSk) {
           _inAppBrowserAuth = true;
+          // Pre-populate the URL bar with the #auth= fragment RIGHT NOW so
+          // that Phantom's native "Open in Safari / Open in Chrome" button
+          // (shown in Phantom's own browser toolbar) carries the auth token
+          // to the real browser automatically — the user just taps that one
+          // button and auth is complete, no extra interaction required.
+          try {
+            window.history.replaceState({}, '',
+              window.location.pathname + window.location.search
+              + '#auth=' + encodeURIComponent(loginHash));
+          } catch(e) {}
         }
       }
     } catch (err) {
@@ -245,17 +255,26 @@
       const titleEl   = gate && gate.querySelector('#login-title');
       const labelEl   = gate && gate.querySelector('.login-label');
       if (titleEl)   titleEl.textContent  = '◆ WALLET CONNECTED ◆';
-      if (labelEl)   labelEl.textContent  = 'OPEN IN YOUR BROWSER TO CONTINUE';
+      if (labelEl)   labelEl.textContent  = 'TAP ↗ "OPEN IN BROWSER" IN PHANTOM TO CONTINUE';
       if (errEl)     errEl.classList.add('hidden');
       if (installEl) installEl.classList.add('hidden');
       if (btn) {
         btn.disabled  = false;
         btn.textContent = '◈ OPEN IN BROWSER ↗';
         btn.addEventListener('click', function () {
-          // Navigate to the #auth= URL.  Inside Phantom's in-app browser this
-          // stays within Phantom; the user can then tap "Open in Browser" from
-          // Phantom's own UI to carry the URL (with the auth fragment) to their
-          // real browser where isAuthenticated() will pick it up automatically.
+          // On iOS, the x-safari-https:// scheme opens the URL directly in
+          // Safari from inside a WKWebView.  Try it first; if Phantom's
+          // WebView doesn't handle it the fallback hash-navigation below
+          // ensures the URL bar already shows #auth= for the user to
+          // manually tap Phantom's own "Open in Safari/Chrome" button.
+          try {
+            window.location.href = 'x-safari-' + authUrl;
+          } catch(e) {}
+          // Hash-only navigation: keeps the #auth= fragment visible in
+          // Phantom's address bar so the user can tap "Open in Browser"
+          // from Phantom's own browser chrome to carry the auth URL to
+          // their real browser (this is already set via replaceState above
+          // but re-setting here handles any edge-case re-navigation).
           window.location.href = authUrl;
         });
       }
