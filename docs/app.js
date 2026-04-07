@@ -153,10 +153,14 @@
         // a transient parse error doesn't force the user to restart the flow.
         localStorage.removeItem('_phantom_dl_sk');
         setAuthenticated();
-        if (urlSk) {
-          // Auth succeeded inside Phantom's in-app browser.  Signal the onReady
-          // callback to show the "Open in Browser" prompt instead of hiding the
-          // gate, so the user can seamlessly continue in their real browser.
+        // On iOS, Phantom opens the redirect_link inside its own WKWebView whose
+        // localStorage is isolated from Safari/Chrome, so we must show the
+        // "Open in Browser" prompt to transfer auth to the real browser.
+        // On Android, Phantom's redirect opens directly in Chrome (or a Chrome
+        // Custom Tab) — the user is already in their real browser, so we just
+        // authenticate and hide the gate without any extra prompt.
+        const isIOS = /iP(hone|ad|od)/i.test(navigator.userAgent);
+        if (urlSk && isIOS) {
           _inAppBrowserAuth = true;
         }
       }
@@ -190,11 +194,14 @@
       // after successful decryption in handlePhantomDeepLinkCallback.
       localStorage.setItem('_phantom_dl_sk', JSON.stringify(Array.from(kp.secretKey)));
       const dappPubKeyB58 = b58Encode(kp.publicKey);
-      // Also embed the secret key in the redirect_link URL.  On iOS Phantom
+      // Also embed the secret key in the redirect_link URL.  On iOS, Phantom
       // opens the redirect in a WKWebView whose localStorage is isolated from
-      // the real browser, so the key stored above would not be found.  Carrying
-      // it in the URL ensures handlePhantomDeepLinkCallback() can always decrypt
-      // the payload regardless of which browser context the redirect opens in.
+      // Safari/Chrome, so the key stored above would not be found there.
+      // On Android, Phantom opens the redirect in Chrome (or a Custom Tab)
+      // which shares localStorage with the initiating browser, but embedding
+      // the key in the URL provides a reliable fallback for both platforms.
+      // Carrying it in the URL ensures handlePhantomDeepLinkCallback() can
+      // always decrypt regardless of which browser context the redirect opens in.
       // Security note: this is a one-time ephemeral X25519 scalar, NOT the
       // user's wallet key.  It is deleted immediately after successful decryption
       // and the URL is cleaned via history.replaceState on the redirect page.
