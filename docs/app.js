@@ -887,6 +887,11 @@ async function runHybridCompetition(prompt) {
           text = await callGeminiDirect(prompt, geminiKey);
           isDemo = false;
         } else if (model.id === 'grok' && grokKey && backendAvailable) {
+          // Grok requires the backend proxy (x.ai blocks browser CORS).
+          // Skip on static/GitHub Pages hosting where backendAvailable is false.
+          text = await callGrokProxy(prompt, grokKey);
+          isDemo = false;
+        } else if (model.id === 'grok' && grokKey && !backendAvailable) {
           // User has a Grok key but there is no backend to proxy through — show a
           // one-time hint so the user understands why Grok stays in demo mode.
           if (settingsStatus) {
