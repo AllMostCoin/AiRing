@@ -19,7 +19,22 @@
   const SS_KEY = 'airing_authenticated';
 
   function isAuthenticated() {
-    try { return localStorage.getItem(SS_KEY) === loginHash; } catch { return false; }
+    try {
+      if (localStorage.getItem(SS_KEY) === loginHash) return true;
+      // One-time auth token carried in the URL hash fragment (#auth=<loginHash>).
+      // Used when the user opens the page in their real browser after connecting
+      // inside Phantom's in-app browser.  The fragment is never sent to the server
+      // and is cleaned from the URL immediately after use.  The comparison against
+      // loginHash is the complete validation — only the exact configured hash value
+      // is accepted, so there is no authentication bypass risk.
+      const h = window.location.hash;
+      if (h.startsWith('#auth=') && decodeURIComponent(h.slice(6)) === loginHash) {
+        setAuthenticated();
+        window.history.replaceState({}, '', window.location.pathname + window.location.search);
+        return true;
+      }
+      return false;
+    } catch { return false; }
   }
 
   function setAuthenticated() {
@@ -83,6 +98,11 @@
     return new Uint8Array([...Array(leading).fill(0), ...bytes]);
   }
 
+  // Signals that authentication completed inside Phantom's in-app browser rather
+  // than in the user's real mobile browser.  When true the early-return guard is
+  // skipped so the onReady callback can show the "Open in Browser" redirect prompt.
+  let _inAppBrowserAuth = false;
+
   // Handle a redirect back from Phantom's /v1/connect deep link.
   // If phantom_encryption_public_key + nonce + data are present, decrypt the
   // NaCl box payload, verify the wallet public key, and call setAuthenticated()
@@ -94,7 +114,7 @@
     const p = new URLSearchParams(window.location.search);
     function cleanUrl() {
       const u = new URL(window.location.href);
-      ['phantom_encryption_public_key', 'nonce', 'data', 'errorCode', 'errorMessage'].forEach(function(k) { u.searchParams.delete(k); });
+      ['phantom_encryption_public_key', 'nonce', 'data', 'errorCode', 'errorMessage', '_phantom_dl_sk'].forEach(function(k) { u.searchParams.delete(k); });
       window.history.replaceState({}, '', u.toString());
     }
     if (p.get('errorCode')) { cleanUrl(); localStorage.removeItem('_phantom_dl_sk'); return; }
@@ -102,11 +122,25 @@
     const nonceB58      = p.get('nonce');
     const dataB58       = p.get('data');
     if (!phantomPubB58 || !nonceB58 || !dataB58) return;
+    // Read the dapp secret key from the URL param first.  On mobile, Phantom
+    // redirects back inside its own in-app browser (WKWebView on iOS) whose
+    // localStorage is isolated from the real browser's, so the key stored in
+    // localStorage by initiatePhantomDeepLink() is not accessible here.
+    // Embedding the key in the redirect_link URL ensures decryption succeeds
+    // regardless of which browser context the redirect opens in.
+    const urlSk = p.get('_phantom_dl_sk');
     cleanUrl();
     try {
-      const stored = localStorage.getItem('_phantom_dl_sk');
-      if (!stored) return;
-      const dappSecretKey = new Uint8Array(JSON.parse(stored));
+      let dappSecretKey;
+      if (urlSk) {
+        // Key came from the redirect URL — Phantom opened the redirect in its
+        // in-app browser (different localStorage than the real mobile browser).
+        dappSecretKey = b58Decode(urlSk);
+      } else {
+        const stored = localStorage.getItem('_phantom_dl_sk');
+        if (!stored) return;
+        dappSecretKey = new Uint8Array(JSON.parse(stored));
+      }
       const phantomPubKey = b58Decode(phantomPubB58);
       const nonce         = b58Decode(nonceB58);
       const ciphertext    = b58Decode(dataB58);
@@ -119,13 +153,19 @@
         // a transient parse error doesn't force the user to restart the flow.
         localStorage.removeItem('_phantom_dl_sk');
         setAuthenticated();
+        if (urlSk) {
+          // Auth succeeded inside Phantom's in-app browser.  Signal the onReady
+          // callback to show the "Open in Browser" prompt instead of hiding the
+          // gate, so the user can seamlessly continue in their real browser.
+          _inAppBrowserAuth = true;
+        }
       }
     } catch (err) {
       console.error('[login] Phantom deep-link callback error:', err);
     }
   }());
 
-  if (isAuthenticated()) return;  // already authenticated this session
+  if (isAuthenticated() && !_inAppBrowserAuth) return;  // already authenticated this session
 
   // Wait for DOM to be ready before showing the gate
   function onReady(fn) {
@@ -143,13 +183,24 @@
     try {
       const kp            = nacl.box.keyPair();
       // localStorage (not sessionStorage) is used so that if Phantom opens the
-      // redirect URL in a new browser tab the callback can still find the key.
+      // redirect URL in the real browser (e.g. Android Chrome Custom Tab) the
+      // callback can still find the key.
       // This key is a one-time X25519 scalar used solely for this DH exchange —
       // it is not the user's wallet private key — and it is deleted immediately
       // after successful decryption in handlePhantomDeepLinkCallback.
       localStorage.setItem('_phantom_dl_sk', JSON.stringify(Array.from(kp.secretKey)));
       const dappPubKeyB58 = b58Encode(kp.publicKey);
-      const redirectUrl   = window.location.origin + window.location.pathname;
+      // Also embed the secret key in the redirect_link URL.  On iOS Phantom
+      // opens the redirect in a WKWebView whose localStorage is isolated from
+      // the real browser, so the key stored above would not be found.  Carrying
+      // it in the URL ensures handlePhantomDeepLinkCallback() can always decrypt
+      // the payload regardless of which browser context the redirect opens in.
+      // Security note: this is a one-time ephemeral X25519 scalar, NOT the
+      // user's wallet key.  It is deleted immediately after successful decryption
+      // and the URL is cleaned via history.replaceState on the redirect page.
+      const dappSecKeyB58 = b58Encode(kp.secretKey);
+      const redirectUrl   = window.location.origin + window.location.pathname
+        + '?_phantom_dl_sk=' + encodeURIComponent(dappSecKeyB58);
       const deepLink      = 'https://phantom.app/ul/v1/connect'
         + '?dapp_encryption_public_key=' + dappPubKeyB58
         + '&redirect_link='              + encodeURIComponent(redirectUrl)
@@ -166,6 +217,39 @@
   }
 
   onReady(async () => {
+    // Auth just completed inside Phantom's in-app browser.  The user's real
+    // mobile browser (Safari / Chrome) has a different localStorage context so
+    // it is not yet authenticated.  Show a prompt with a one-tap link that
+    // carries a #auth= fragment so the real browser auto-authenticates when the
+    // user opens it there.
+    if (_inAppBrowserAuth) {
+      showGate();
+      const authUrl  = window.location.origin + window.location.pathname
+        + '#auth=' + encodeURIComponent(loginHash);
+      const gate  = document.getElementById('login-gate');
+      const btn   = document.getElementById('login-phantom-btn');
+      const errEl = document.getElementById('login-error');
+      const installEl = document.getElementById('login-phantom-install');
+      const titleEl   = gate && gate.querySelector('#login-title');
+      const labelEl   = gate && gate.querySelector('.login-label');
+      if (titleEl)   titleEl.textContent  = '◆ WALLET CONNECTED ◆';
+      if (labelEl)   labelEl.textContent  = 'OPEN IN YOUR BROWSER TO CONTINUE';
+      if (errEl)     errEl.classList.add('hidden');
+      if (installEl) installEl.classList.add('hidden');
+      if (btn) {
+        btn.disabled  = false;
+        btn.textContent = '◈ OPEN IN BROWSER ↗';
+        btn.addEventListener('click', function () {
+          // Navigate to the #auth= URL.  Inside Phantom's in-app browser this
+          // stays within Phantom; the user can then tap "Open in Browser" from
+          // Phantom's own UI to carry the URL (with the auth fragment) to their
+          // real browser where isAuthenticated() will pick it up automatically.
+          window.location.href = authUrl;
+        });
+      }
+      return;
+    }
+
     // Show the gate immediately to prevent flash of unprotected content while
     // waiting for the Phantom extension to inject.
     showGate();
