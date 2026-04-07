@@ -64,7 +64,8 @@ describe('GET /api/models', () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.GOOGLE_API_KEY;
-    delete process.env.MISTRAL_API_KEY;
+    delete process.env.OPENCLAW_TOKEN;
+    delete process.env.OPENCLAW_BASE_URL;
     delete process.env.GITHUB_TOKEN;
     delete process.env.XAI_API_KEY;
     delete process.env.OLLAMA_MODEL;
@@ -95,13 +96,14 @@ describe('GET /api/models', () => {
 
   it('reports configured flags accurately for each provider', async () => {
     process.env.GOOGLE_API_KEY = 'google-key';
-    process.env.MISTRAL_API_KEY = 'mistral-key';
+    process.env.OPENCLAW_TOKEN = 'openclaw-token';
     const res = await request(app).get('/api/models');
     expect(res.body.configured.gemini).toBe(true);
-    expect(res.body.configured.mistral).toBe(true);
+    expect(res.body.configured.openclaw).toBe(true);
     expect(res.body.configured.gpt4).toBe(false);
     delete process.env.GOOGLE_API_KEY;
-    delete process.env.MISTRAL_API_KEY;
+    delete process.env.OPENCLAW_TOKEN;
+    delete process.env.OPENCLAW_BASE_URL;
   });
 
   it('treats OLLAMA_BASE_URL alone as ollama configured', async () => {
@@ -109,6 +111,13 @@ describe('GET /api/models', () => {
     const res = await request(app).get('/api/models');
     expect(res.body.configured.ollama).toBe(true);
     delete process.env.OLLAMA_BASE_URL;
+  });
+
+  it('treats OPENCLAW_BASE_URL alone as openclaw configured', async () => {
+    process.env.OPENCLAW_BASE_URL = 'https://my-openclaw-server.com';
+    const res = await request(app).get('/api/models');
+    expect(res.body.configured.openclaw).toBe(true);
+    delete process.env.OPENCLAW_BASE_URL;
   });
 });
 
@@ -316,42 +325,49 @@ describe('POST /api/openai-proxy', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/mistral-proxy
+// POST /api/openclaw-proxy
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('POST /api/mistral-proxy', () => {
+describe('POST /api/openclaw-proxy', () => {
   it('returns 400 when prompt is missing', async () => {
-    const res = await request(app).post('/api/mistral-proxy').send({ key: 'mistral-key' });
+    const res = await request(app).post('/api/openclaw-proxy').send({ token: 'openclaw-token' });
     expect(res.status).toBe(400);
   });
 
-  it('returns 400 when key is missing or blank', async () => {
-    const res = await request(app).post('/api/mistral-proxy').send({ prompt: 'hello', key: '  ' });
+  it('returns 400 when token is missing or blank', async () => {
+    const res = await request(app).post('/api/openclaw-proxy').send({ prompt: 'hello', token: '  ' });
     expect(res.status).toBe(400);
   });
 
   it('returns 400 when prompt exceeds 2000 characters', async () => {
     const res = await request(app)
-      .post('/api/mistral-proxy')
-      .send({ prompt: 'a'.repeat(2001), key: 'mistral-key' });
+      .post('/api/openclaw-proxy')
+      .send({ prompt: 'a'.repeat(2001), token: 'openclaw-token' });
     expect(res.status).toBe(400);
   });
 
   it('returns 200 with text on success', async () => {
-    fetch.mockResolvedValueOnce(mockChoicesResponse('Mistral output'));
+    fetch.mockResolvedValueOnce(mockChoicesResponse('OpenClaw output'));
     const res = await request(app)
-      .post('/api/mistral-proxy')
-      .send({ prompt: 'hello', key: 'mistral-key' });
+      .post('/api/openclaw-proxy')
+      .send({ prompt: 'hello', token: 'openclaw-token' });
     expect(res.status).toBe(200);
-    expect(res.body.text).toBe('Mistral output');
+    expect(res.body.text).toBe('OpenClaw output');
   });
 
   it('returns 502 on upstream error', async () => {
     fetch.mockResolvedValueOnce(mockErrorResponse(403, 'Forbidden'));
     const res = await request(app)
-      .post('/api/mistral-proxy')
-      .send({ prompt: 'hello', key: 'mistral-key' });
+      .post('/api/openclaw-proxy')
+      .send({ prompt: 'hello', token: 'openclaw-token' });
     expect(res.status).toBe(502);
+  });
+
+  it('returns 400 when user-supplied url uses http://', async () => {
+    const res = await request(app)
+      .post('/api/openclaw-proxy')
+      .send({ prompt: 'hello', token: 'openclaw-token', url: 'http://localhost:18789' });
+    expect(res.status).toBe(400);
   });
 });
 
@@ -405,7 +421,8 @@ describe('POST /api/compete', () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.GOOGLE_API_KEY;
-    delete process.env.MISTRAL_API_KEY;
+    delete process.env.OPENCLAW_TOKEN;
+    delete process.env.OPENCLAW_BASE_URL;
     delete process.env.GITHUB_TOKEN;
     delete process.env.XAI_API_KEY;
     delete process.env.OLLAMA_MODEL;
@@ -518,7 +535,7 @@ const SAMPLE_INITIAL_RESULTS = [
   { modelId: 'gpt4',    name: 'GPT-4',   response: 'GPT-4 initial answer about AI.' },
   { modelId: 'claude',  name: 'Claude',  response: 'Claude initial answer about AI.' },
   { modelId: 'gemini',  name: 'Gemini',  response: 'Gemini initial answer about AI.' },
-  { modelId: 'mistral', name: 'Mistral', response: 'Mistral initial answer about AI.' },
+  { modelId: 'openclaw', name: 'OpenClaw', response: 'OpenClaw initial answer about AI.' },
   { modelId: 'copilot', name: 'Copilot', response: 'Copilot initial answer about AI.' },
   { modelId: 'grok',    name: 'Grok',    response: 'Grok initial answer about AI.' },
   { modelId: 'ollama',  name: 'Ollama',  response: 'Ollama initial answer about AI.' },
@@ -529,7 +546,8 @@ describe('POST /api/room-analyze', () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.GOOGLE_API_KEY;
-    delete process.env.MISTRAL_API_KEY;
+    delete process.env.OPENCLAW_TOKEN;
+    delete process.env.OPENCLAW_BASE_URL;
     delete process.env.GITHUB_TOKEN;
     delete process.env.XAI_API_KEY;
     delete process.env.OLLAMA_MODEL;

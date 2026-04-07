@@ -54,7 +54,7 @@
           Claude key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> &nbsp;|&nbsp;
           Ollama model: <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a> &nbsp;|&nbsp;
           OpenAI key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> &nbsp;|&nbsp;
-          Mistral key: <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener">console.mistral.ai</a> &nbsp;|&nbsp;
+          OpenClaw token: <a href="https://docs.openclaw.ai/gateway/openai-http-api" target="_blank" rel="noopener">docs.openclaw.ai</a> &nbsp;|&nbsp;
           GitHub token: <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a> (needs Models permission)
         </p>
         <div class="settings-row">
@@ -94,10 +94,16 @@
           <button id="openai-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
-          <label class="settings-label" for="mistral-key-input">Mistral API Key</label>
-          <input id="mistral-key-input" class="settings-input" type="password" placeholder="…" autocomplete="off" spellcheck="false" />
-          <button id="mistral-save-btn" class="settings-save-btn">Save</button>
-          <button id="mistral-clear-btn" class="settings-clear-btn">Clear</button>
+          <label class="settings-label" for="openclaw-token-input">OpenClaw Token</label>
+          <input id="openclaw-token-input" class="settings-input" type="password" placeholder="…" autocomplete="off" spellcheck="false" />
+          <button id="openclaw-save-btn" class="settings-save-btn">Save</button>
+          <button id="openclaw-clear-btn" class="settings-clear-btn">Clear</button>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="openclaw-url-input">OpenClaw Base URL (optional)</label>
+          <input id="openclaw-url-input" class="settings-input" type="url" placeholder="https://my-openclaw-server.com" autocomplete="off" spellcheck="false" />
+          <button id="openclaw-url-save-btn" class="settings-save-btn">Save</button>
+          <button id="openclaw-url-clear-btn" class="settings-clear-btn">Clear</button>
         </div>
         <div class="settings-row">
           <label class="settings-label" for="copilot-key-input">GitHub Token (Copilot)</label>
@@ -375,8 +381,8 @@
               <div class="agent-bubble" id="bubble-gemini"></div>
             </div>
 
-            <!-- ── Cid · Mistral ─── front-right (near) ── -->
-            <div class="agent-wrapper" id="agent-mistral" data-model="mistral" data-depth="near"
+            <!-- ── Cid · OpenClaw ─── front-right (near) ── -->
+            <div class="agent-wrapper" id="agent-openclaw" data-model="openclaw" data-depth="near"
                  style="right:8%;bottom:12%;--color:#20a8c0;--glow:#20a8c055;">
               <div class="agent">
                 <div class="agent-sprite">
@@ -417,9 +423,9 @@
                 <div class="agent-ring"></div>
                 <div class="agent-pulse"></div>
               </div>
-              <div class="agent-label">Mistral</div>
-              <div class="agent-score" id="score-mistral">—</div>
-              <div class="agent-bubble" id="bubble-mistral"></div>
+              <div class="agent-label">OpenClaw</div>
+              <div class="agent-score" id="score-openclaw">—</div>
+              <div class="agent-bubble" id="bubble-openclaw"></div>
             </div>
 
             <!-- ── Tifa · Copilot ─── front-center ── -->
@@ -675,7 +681,7 @@
     <script>window.AIRING_GROK_KEY = window.AIRING_GROK_KEY || '';</script>
     <script>window.AIRING_CLAUDE_KEY = window.AIRING_CLAUDE_KEY || '';</script>
     <script>window.AIRING_OPENAI_KEY = window.AIRING_OPENAI_KEY || '';</script>
-    <script>window.AIRING_MISTRAL_KEY = window.AIRING_MISTRAL_KEY || '';</script>
+    <script>window.AIRING_OPENCLAW_TOKEN = window.AIRING_OPENCLAW_TOKEN || '';</script>
     <script>window.AIRING_COPILOT_KEY = window.AIRING_COPILOT_KEY || '';</script>
     <script>window.AIRING_OLLAMA_MODEL = window.AIRING_OLLAMA_MODEL || '';</script>
     <script>window.AIRING_API_BASE = window.AIRING_API_BASE || '';</script>
@@ -688,6 +694,6 @@
     <!-- Three.js — required for the 3D battle arena -->
     <script src="https://unpkg.com/three@0.158.0/build/three.min.js" crossorigin="anonymous"></script>
     <script src="utils.js?v=1"></script>
-    <script src="app.js?v=29"></script>
+    <script src="app.js?v=30"></script>
   </body>
 </html>

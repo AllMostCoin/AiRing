@@ -46,7 +46,7 @@ jobs:
         #                   Render.com service).  Without it only Gemini, Claude,
         #                   and GPT-4 (if a key is provided) will run live on
         #                   GitHub Pages.  With it the backend handles Grok,
-        #                   Mistral, Copilot, and Ollama as well.
+        #                   OpenClaw, Copilot, and Ollama as well.
         #
         # OPENAI_API_KEY  — injected directly as window.AIRING_OPENAI_KEY;
         #                   OpenAI's API supports browser CORS, so GPT-4 can be
@@ -63,10 +63,10 @@ jobs:
         #                  in demo mode on GitHub Pages (users can still supply
         #                  their own key via the in-app settings panel).
         #
-        # MISTRAL_API_KEY — stored as window.AIRING_MISTRAL_KEY and sent to
-        #                   the backend proxy (/api/mistral-proxy) at request
-        #                   time; the backend forwards it to api.mistral.ai.
-        #                   Mistral's API does not support browser CORS, so a
+        # OPENCLAW_TOKEN  — stored as window.AIRING_OPENCLAW_TOKEN and sent to
+        #                   the backend proxy (/api/openclaw-proxy) at request
+        #                   time; the backend forwards it to the OpenClaw gateway.
+        #                   OpenClaw's gateway does not support browser CORS, so a
         #                   working BACKEND_URL is also required to go LIVE.
         #
         # COPILOT_API_KEY — a GitHub PAT with models:read permission; stored
@@ -89,7 +89,7 @@ jobs:
               `window.AIRING_GROK_KEY    = ${JSON.stringify(process.env.GROK_API_KEY || "")};`,
               `window.AIRING_CLAUDE_KEY  = ${JSON.stringify(process.env.CLAUDE_API_KEY || "")};`,
               `window.AIRING_OPENAI_KEY  = ${JSON.stringify(process.env.OPENAI_API_KEY || "")};`,
-              `window.AIRING_MISTRAL_KEY = ${JSON.stringify(process.env.MISTRAL_API_KEY || "")};`,
+              `window.AIRING_OPENCLAW_TOKEN = ${JSON.stringify(process.env.OPENCLAW_TOKEN || "")};`,
               `window.AIRING_COPILOT_KEY = ${JSON.stringify(process.env.COPILOT_API_KEY || "")};`,
               `window.AIRING_API_BASE    = ${JSON.stringify(process.env.BACKEND_URL || "")};`,
               `window.AIRING_LOGIN_HASH  = ${JSON.stringify(loginHash)};`,
@@ -101,24 +101,24 @@ jobs:
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENCLAW_TOKEN: ${{ secrets.OPENCLAW_TOKEN }}
           COPILOT_API_KEY: ${{ secrets.COPILOT_API_KEY }}
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
 
       - name: Warn if backend required but BACKEND_URL not set
-        # Copilot, Grok, and Mistral all need the Node.js backend to handle CORS.
+        # Copilot, Grok, and OpenClaw all need the Node.js backend to handle CORS.
         # If any of their keys are configured but BACKEND_URL is absent, the models
         # will silently stay in DEMO mode on GitHub Pages.  Surface a clear warning
         # in the workflow log so the deployer knows what to do next.
         env:
           COPILOT_API_KEY: ${{ secrets.COPILOT_API_KEY }}
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENCLAW_TOKEN: ${{ secrets.OPENCLAW_TOKEN }}
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
         run: |
-          if ([ -n "$COPILOT_API_KEY" ] || [ -n "$GROK_API_KEY" ] || [ -n "$MISTRAL_API_KEY" ]) && [ -z "$BACKEND_URL" ]; then
-            echo "::warning::BACKEND_URL is not set. Copilot, Grok, and Mistral will run in DEMO mode on GitHub Pages because their APIs block browser CORS. Deploy the Node.js backend (see render.yaml or Dockerfile) and add BACKEND_URL to your repository secrets to enable live mode for these models."
+          if ([ -n "$COPILOT_API_KEY" ] || [ -n "$GROK_API_KEY" ] || [ -n "$OPENCLAW_TOKEN" ]) && [ -z "$BACKEND_URL" ]; then
+            echo "::warning::BACKEND_URL is not set. Copilot, Grok, and OpenClaw will run in DEMO mode on GitHub Pages because their APIs block browser CORS. Deploy the Node.js backend (see render.yaml or Dockerfile) and add BACKEND_URL to your repository secrets to enable live mode for these models."
           fi
           if echo "$BACKEND_URL" | grep -q '^http://'; then
             echo "::warning::BACKEND_URL starts with http:// instead of https://. GitHub Pages is served over HTTPS; browser mixed-content rules will block all API calls to an http:// backend (including Phantom-dependent portfolio and trading features). Update BACKEND_URL to use https://."
