@@ -53,11 +53,116 @@
     errEl.style.animation = '';
   }
 
+  // ── Phantom Deep Link API helpers ──────────────────────────────────────────
+  // Minimal Base-58 encode / decode (Bitcoin / Solana alphabet).
+  // Used to encode the ephemeral X25519 public key sent to Phantom and to
+  // decode the encrypted payload it returns via the /v1/connect deep link.
+  function b58Encode(bytes) {
+    const alpha = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    let leading = 0;
+    while (leading < bytes.length && bytes[leading] === 0) leading++;
+    let n = 0n;
+    for (const b of bytes) n = n * 256n + BigInt(b);
+    const chars = [];
+    while (n > 0n) { chars.unshift(alpha[Number(n % 58n)]); n /= 58n; }
+    return '1'.repeat(leading) + chars.join('');
+  }
+
+  function b58Decode(str) {
+    const alpha = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    let leading = 0;
+    while (leading < str.length && str[leading] === '1') leading++;
+    let n = 0n;
+    for (const c of str) {
+      const d = alpha.indexOf(c);
+      if (d < 0) throw new Error('Invalid base58 char: ' + c);
+      n = n * 58n + BigInt(d);
+    }
+    const bytes = [];
+    while (n > 0n) { bytes.unshift(Number(n & 0xffn)); n >>= 8n; }
+    return new Uint8Array([...Array(leading).fill(0), ...bytes]);
+  }
+
+  // Handle a redirect back from Phantom's /v1/connect deep link.
+  // If phantom_encryption_public_key + nonce + data are present, decrypt the
+  // NaCl box payload, verify the wallet public key, and call setAuthenticated()
+  // before the gate check so the login gate is skipped entirely.
+  // If errorCode is present (user rejected), just clean the URL and let the
+  // normal gate flow show the retry button.
+  (function handlePhantomDeepLinkCallback() {
+    if (typeof nacl === 'undefined') return;
+    const p = new URLSearchParams(window.location.search);
+    function cleanUrl() {
+      const u = new URL(window.location.href);
+      ['phantom_encryption_public_key', 'nonce', 'data', 'errorCode', 'errorMessage'].forEach(function(k) { u.searchParams.delete(k); });
+      window.history.replaceState({}, '', u.toString());
+    }
+    if (p.get('errorCode')) { cleanUrl(); return; }
+    const phantomPubB58 = p.get('phantom_encryption_public_key');
+    const nonceB58      = p.get('nonce');
+    const dataB58       = p.get('data');
+    if (!phantomPubB58 || !nonceB58 || !dataB58) return;
+    cleanUrl();
+    try {
+      const stored = sessionStorage.getItem('_phantom_dl_sk');
+      if (!stored) return;
+      const dappSecretKey = new Uint8Array(JSON.parse(stored));
+      const phantomPubKey = b58Decode(phantomPubB58);
+      const nonce         = b58Decode(nonceB58);
+      const ciphertext    = b58Decode(dataB58);
+      const sharedSecret  = nacl.box.before(phantomPubKey, dappSecretKey);
+      const decrypted     = nacl.box.open.after(ciphertext, nonce, sharedSecret);
+      if (!decrypted) return;
+      const payload = JSON.parse(new TextDecoder().decode(decrypted));
+      if (payload.public_key) {
+        // Remove the ephemeral secret key only after successful decryption so that
+        // a transient parse error doesn't force the user to restart the flow.
+        sessionStorage.removeItem('_phantom_dl_sk');
+        setAuthenticated();
+      }
+    } catch (err) {
+      console.error('[login] Phantom deep-link callback error:', err);
+    }
+  }());
+
   if (isAuthenticated()) return;  // already authenticated this session
 
   // Wait for DOM to be ready before showing the gate
   function onReady(fn) {
     if (document.readyState !== 'loading') { fn(); } else { document.addEventListener('DOMContentLoaded', fn); }
+  }
+
+  // Initiates the Phantom /v1/connect deep link flow for mobile browsers that
+  // do not have the Phantom extension injected.  Generates an ephemeral X25519
+  // keypair, persists the secret key in sessionStorage, then redirects the
+  // browser to the Phantom app.  Phantom prompts the user to approve the
+  // connection and redirects back to this page with the encrypted wallet public
+  // key as query params, which handlePhantomDeepLinkCallback() decrypts on the
+  // next page load to complete authentication in the user's real browser.
+  function initiatePhantomDeepLink() {
+    try {
+      const kp            = nacl.box.keyPair();
+      // The ephemeral secret key must survive the page navigation to Phantom
+      // and back, so sessionStorage is the only viable storage.  This key is
+      // a one-time X25519 scalar used solely for this DH exchange — it is not
+      // the user's wallet private key — and it is deleted immediately after the
+      // successful decryption in handlePhantomDeepLinkCallback.
+      sessionStorage.setItem('_phantom_dl_sk', JSON.stringify(Array.from(kp.secretKey)));
+      const dappPubKeyB58 = b58Encode(kp.publicKey);
+      const redirectUrl   = window.location.origin + window.location.pathname;
+      const deepLink      = 'https://phantom.app/ul/v1/connect'
+        + '?dapp_encryption_public_key=' + dappPubKeyB58
+        + '&redirect_link='              + encodeURIComponent(redirectUrl)
+        + '&app_url='                    + encodeURIComponent(window.location.origin)
+        + '&cluster=mainnet-beta';
+      window.location.href = deepLink;
+    } catch (err) {
+      console.error('[login] Phantom deep link initiation error:', err);
+      // Fall back to opening the site in Phantom's in-app browser
+      const encodedUrl = encodeURIComponent(window.location.href);
+      const encodedRef = encodeURIComponent(window.location.origin);
+      window.location.href = 'https://phantom.app/ul/browse/' + encodedUrl + '?ref=' + encodedRef;
+    }
   }
 
   onReady(async () => {
@@ -121,24 +226,29 @@
         const provider = getPhantomProviderForLogin();
         if (!provider) {
           // Phantom not found in this browser context.
-          const encodedUrl = encodeURIComponent(window.location.href);
-          const encodedRef = encodeURIComponent(window.location.origin);
-          const phantomUrl = `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodedRef}`;
           const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
           if (isTouchDevice) {
-            // On mobile, expose the Universal Link as a tappable <a> element so the
-            // OS can intercept it as a Universal Link and open Phantom's in-app browser.
-            // IMPORTANT: target must be "_self" (same-window navigation) — iOS and Android
-            // only treat same-window navigations as Universal / App Links.  A "_blank"
-            // popup/new-tab context is NOT intercepted, so Phantom would never open.
-            if (installEl) {
-              installEl.href = phantomUrl;
-              installEl.target = '_self';
-              installEl.rel = '';
-              installEl.textContent = '◈ OPEN IN PHANTOM ↗';
-              installEl.classList.remove('hidden');
+            if (typeof nacl !== 'undefined') {
+              // Use Phantom's /v1/connect deep link so the user approves the
+              // connection inside the Phantom app and is redirected back to this
+              // page (in their real browser) fully authenticated.
+              if (btn) { btn.disabled = true; btn.textContent = '◈ OPENING PHANTOM…'; }
+              initiatePhantomDeepLink();
+            } else {
+              // tweetnacl unavailable (CDN blocked) — fall back to opening the
+              // site inside Phantom's in-app browser via the browse Universal Link.
+              const encodedUrl = encodeURIComponent(window.location.href);
+              const encodedRef = encodeURIComponent(window.location.origin);
+              const phantomUrl = `https://phantom.app/ul/browse/${encodedUrl}?ref=${encodedRef}`;
+              if (installEl) {
+                installEl.href = phantomUrl;
+                installEl.target = '_self';
+                installEl.rel = '';
+                installEl.textContent = '◈ OPEN IN PHANTOM ↗';
+                installEl.classList.remove('hidden');
+              }
+              showLoginError(errEl, '◈ PHANTOM NOT FOUND — TAP LINK ABOVE');
             }
-            showLoginError(errEl, '◈ PHANTOM NOT FOUND — TAP LINK ABOVE');
           } else {
             // On desktop without the extension, open the Phantom website in a new tab
             // so the user stays on the login page while they install the extension.
