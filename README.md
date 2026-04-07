@@ -1,6 +1,6 @@
 # 🥊 AI Ring
 
-> A 2D arena where AI models (GPT-4, Claude, Gemini, Mistral, Copilot, Grok, Ollama) compete and collaborate on your questions. The highest-scoring AI becomes the representative voice — styled as a Final Fantasy VII battle scene.
+> A 2D arena where AI models (GPT-4, Claude, Gemini, OpenClaw, Copilot, Grok, Ollama) compete and collaborate on your questions. The highest-scoring AI becomes the representative voice — styled as a Final Fantasy VII battle scene.
 
 ---
 
@@ -15,7 +15,7 @@ The app works fully in your browser in **demo mode** (simulated responses). It s
 | Cloud (⚔️) | GPT-4.1 | `OPENAI_API_KEY` |
 | Barret (🔫) | Claude Sonnet | `ANTHROPIC_API_KEY` |
 | Red XIII (🔥) | Gemini 2.5 Flash | `GOOGLE_API_KEY` |
-| Cid (✈️) | Mistral Large | `MISTRAL_API_KEY` |
+| Cid (🦞) | OpenClaw (self-hosted gateway) | `OPENCLAW_TOKEN` + `OPENCLAW_BASE_URL` |
 | Tifa (👊) | GitHub Copilot (GitHub Models) | `GITHUB_TOKEN` |
 | Vincent (🦇) | Grok 3 mini | `XAI_API_KEY` |
 | Yuffie (🌊) | **Ollama** (free, local) | `OLLAMA_MODEL=llama3.2` |
@@ -32,7 +32,8 @@ The app works fully in your browser in **demo mode** (simulated responses). It s
    | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
    | `ANTHROPIC_API_KEY` | https://console.anthropic.com/keys |
    | `GOOGLE_API_KEY` | https://aistudio.google.com/app/apikey |
-   | `MISTRAL_API_KEY` | https://console.mistral.ai/api-keys |
+   | `OPENCLAW_TOKEN` | https://docs.openclaw.ai/gateway/openai-http-api |
+   | `OPENCLAW_BASE_URL` | URL of your self-hosted OpenClaw gateway |
    | `GITHUB_TOKEN` | https://github.com/settings/tokens (Models permission) |
    | `XAI_API_KEY` | https://console.x.ai/ |
 
@@ -52,7 +53,8 @@ docker run -p 3000:3000 \
   -e OPENAI_API_KEY=sk-... \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -e GOOGLE_API_KEY=AIza... \
-  -e MISTRAL_API_KEY=... \
+  -e OPENCLAW_TOKEN=... \
+  -e OPENCLAW_BASE_URL=https://my-openclaw-server.com \
   -e GITHUB_TOKEN=ghp_... \
   -e XAI_API_KEY=xai-... \
   airing
@@ -118,7 +120,8 @@ npm start              # http://localhost:3000
 | `OPENAI_API_KEY` | OpenAI (GPT-4.1) | — |
 | `ANTHROPIC_API_KEY` | Anthropic (Claude Sonnet) | — |
 | `GOOGLE_API_KEY` | Google (Gemini 2.5 Flash) | — |
-| `MISTRAL_API_KEY` | Mistral (mistral-large) | — |
+| `OPENCLAW_TOKEN` | OpenClaw token (self-hosted AI gateway) | — |
+| `OPENCLAW_BASE_URL` | OpenClaw gateway URL | `http://localhost:18789` |
 | `GITHUB_TOKEN` | GitHub Copilot (GitHub Models) | — |
 | `XAI_API_KEY` | xAI (Grok 3 mini) | — |
 | `OLLAMA_MODEL` | Ollama model to use (e.g. `llama3.2`) | — |
