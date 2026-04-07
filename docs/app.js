@@ -2767,7 +2767,7 @@ async function fetchOneRound(prompt) {
         `SOL: ${currentPortfolio.sol.toFixed(4)}\n` +
         (currentPortfolio.tokens.length
           ? currentPortfolio.tokens.map((t) => `${t.symbol}: ${t.amount}`).join('\n')
-          : '(no tracked SPL tokens)') +
+          : '(no SPL tokens)') +
         '\n\n';
       promptWithCtx = walletCtx + prompt;
     }
@@ -3561,7 +3561,7 @@ function renderPortfolio(portfolio) {
       .map((t) => `<br><strong>${escapeHtml(t.symbol)}:</strong> ${t.amount}`)
       .join('');
   } else {
-    html += '<br><span style="color:var(--text-muted)">No tracked SPL tokens</span>';
+    html += '<br><span style="color:var(--text-muted)">No SPL tokens</span>';
   }
   portfolioDisplayEl.innerHTML = html;
 }

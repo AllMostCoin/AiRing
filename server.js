@@ -671,7 +671,7 @@ app.post('/api/compete', competeLimiter, async (req, res) => {
       `SOL: ${portfolio.sol.toFixed(4)}\n` +
       (portfolio.tokens.length
         ? portfolio.tokens.map((t) => `${t.symbol}: ${t.amount}`).join('\n')
-        : '(no tracked SPL tokens)') +
+        : '(no SPL tokens)') +
       '\n\n';
   }
 
@@ -751,7 +751,7 @@ function buildRoomAnalysisPrompt(originalPrompt, modelName, otherResponses, ctx 
       `SOL: ${ctx.portfolio.sol.toFixed(4)}\n` +
       (ctx.portfolio.tokens.length
         ? ctx.portfolio.tokens.map((t) => `${t.symbol}: ${t.amount}`).join('\n')
-        : '(no tracked SPL tokens)') +
+        : '(no SPL tokens)') +
       '\n';
   }
   if (ctx.socialSignals) {
@@ -999,14 +999,14 @@ async function fetchWalletPortfolio(walletAddress) {
   const solBalance = (balRes.result?.value ?? 0) / 1e9;
   const accounts   = tokRes.result?.value ?? [];
 
-  const trackedMints = new Set(TRACKED_TOKENS.map((t) => t.mint));
+  const trackedByMint = new Map(TRACKED_TOKENS.map((t) => [t.mint, t]));
   const tokens = accounts
-    .filter((acc) => trackedMints.has(acc.account?.data?.parsed?.info?.mint))
+    .filter((acc) => acc.account?.data?.parsed?.info?.mint)
     .map((acc) => {
       const info     = acc.account.data.parsed.info;
-      const tokenDef = TRACKED_TOKENS.find((t) => t.mint === info.mint);
+      const tokenDef = trackedByMint.get(info.mint);
       return {
-        symbol:   tokenDef?.symbol || info.mint.slice(0, 4),
+        symbol:   tokenDef?.symbol || info.mint.slice(0, 8),
         mint:     info.mint,
         amount:   info.tokenAmount?.uiAmount ?? 0,
         decimals: info.tokenAmount?.decimals ?? 0,
@@ -1031,7 +1031,7 @@ function buildTradingPrompt(marketData, portfolio, socialSignals) {
     ? `WALLET HOLDINGS:\nSOL: ${portfolio.sol.toFixed(4)}\n` +
       (portfolio.tokens.length
         ? portfolio.tokens.map((t) => `${t.symbol}: ${t.amount}`).join('\n')
-        : '(no tracked SPL tokens in wallet)')
+        : '(no SPL tokens in wallet)')
     : 'WALLET: not connected';
 
   const socialSection = socialSignals
