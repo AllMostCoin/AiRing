@@ -5,6 +5,36 @@
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Base-58 helpers (Bitcoin / Solana alphabet).
+// Used by both the login-gate deep link and the wallet-panel deep link.
+// ─────────────────────────────────────────────────────────────────────────────
+function b58Encode(bytes) {
+  const alpha = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let leading = 0;
+  while (leading < bytes.length && bytes[leading] === 0) leading++;
+  let n = 0n;
+  for (const b of bytes) n = n * 256n + BigInt(b);
+  const chars = [];
+  while (n > 0n) { chars.unshift(alpha[Number(n % 58n)]); n /= 58n; }
+  return '1'.repeat(leading) + chars.join('');
+}
+
+function b58Decode(str) {
+  const alpha = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let leading = 0;
+  while (leading < str.length && str[leading] === '1') leading++;
+  let n = 0n;
+  for (const c of str) {
+    const d = alpha.indexOf(c);
+    if (d < 0) throw new Error('Invalid base58 char: ' + c);
+    n = n * 58n + BigInt(d);
+  }
+  const bytes = [];
+  while (n > 0n) { bytes.unshift(Number(n & 0xffn)); n >>= 8n; }
+  return new Uint8Array([...Array(leading).fill(0), ...bytes]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Login Gate — protect the site with Phantom wallet when AIRING_LOGIN_HASH is set.
 // AIRING_LOGIN_HASH is injected at deploy time via config.js and acts as a
 // session token: any non-empty value enables the gate, and its value is stored
@@ -68,36 +98,6 @@
     errEl.style.animation = '';
   }
 
-  // ── Phantom Deep Link API helpers ──────────────────────────────────────────
-  // Minimal Base-58 encode / decode (Bitcoin / Solana alphabet).
-  // Used to encode the ephemeral X25519 public key sent to Phantom and to
-  // decode the encrypted payload it returns via the /v1/connect deep link.
-  function b58Encode(bytes) {
-    const alpha = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    let leading = 0;
-    while (leading < bytes.length && bytes[leading] === 0) leading++;
-    let n = 0n;
-    for (const b of bytes) n = n * 256n + BigInt(b);
-    const chars = [];
-    while (n > 0n) { chars.unshift(alpha[Number(n % 58n)]); n /= 58n; }
-    return '1'.repeat(leading) + chars.join('');
-  }
-
-  function b58Decode(str) {
-    const alpha = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    let leading = 0;
-    while (leading < str.length && str[leading] === '1') leading++;
-    let n = 0n;
-    for (const c of str) {
-      const d = alpha.indexOf(c);
-      if (d < 0) throw new Error('Invalid base58 char: ' + c);
-      n = n * 58n + BigInt(d);
-    }
-    const bytes = [];
-    while (n > 0n) { bytes.unshift(Number(n & 0xffn)); n >>= 8n; }
-    return new Uint8Array([...Array(leading).fill(0), ...bytes]);
-  }
-
   // Signals that authentication completed inside Phantom's in-app browser rather
   // than in the user's real mobile browser.  When true the early-return guard is
   // skipped so the onReady callback can show the "Open in Browser" redirect prompt.
@@ -112,6 +112,8 @@
   (function handlePhantomDeepLinkCallback() {
     if (typeof nacl === 'undefined') return;
     const p = new URLSearchParams(window.location.search);
+    // Wallet-panel connect callbacks carry _phantom_dl_purpose=wallet — skip them here.
+    if (p.get('_phantom_dl_purpose') === 'wallet') return;
     function cleanUrl() {
       const u = new URL(window.location.href);
       ['phantom_encryption_public_key', 'nonce', 'data', 'errorCode', 'errorMessage', '_phantom_dl_sk'].forEach(function(k) { u.searchParams.delete(k); });
@@ -415,7 +417,64 @@
   });
 }());
 
-// same-origin by default; set window.AIRING_API_BASE to point to a remote backend.
+// ─────────────────────────────────────────────────────────────────────────────
+// Wallet-panel Phantom /v1/connect deep-link callback.
+// Handles the redirect Phantom sends back after the user approves a wallet
+// connection initiated by initiateWalletDeepLink().  Runs unconditionally so
+// that it works even when the login gate is disabled (AIRING_LOGIN_HASH empty).
+// ─────────────────────────────────────────────────────────────────────────────
+(function handleWalletDeepLinkCallback() {
+  if (typeof nacl === 'undefined') return;
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('_phantom_dl_purpose') !== 'wallet') return;
+  function cleanUrl() {
+    const u = new URL(window.location.href);
+    ['phantom_encryption_public_key', 'nonce', 'data', 'errorCode', 'errorMessage', '_phantom_dl_sk', '_phantom_dl_purpose'].forEach(function(k) { u.searchParams.delete(k); });
+    window.history.replaceState({}, '', u.toString());
+  }
+  if (p.get('errorCode')) { cleanUrl(); localStorage.removeItem('_phantom_dl_sk'); return; }
+  const phantomPubB58 = p.get('phantom_encryption_public_key');
+  const nonceB58      = p.get('nonce');
+  const dataB58       = p.get('data');
+  if (!phantomPubB58 || !nonceB58 || !dataB58) { cleanUrl(); return; }
+  const urlSk    = p.get('_phantom_dl_sk');
+  const storedSk = localStorage.getItem('_phantom_dl_sk');
+  cleanUrl();
+  try {
+    let dappSecretKey;
+    if (urlSk) {
+      dappSecretKey = b58Decode(urlSk);
+    } else {
+      if (!storedSk) return;
+      dappSecretKey = new Uint8Array(JSON.parse(storedSk));
+    }
+    const phantomPubKey = b58Decode(phantomPubB58);
+    const nonce         = b58Decode(nonceB58);
+    const ciphertext    = b58Decode(dataB58);
+    const sharedSecret  = nacl.box.before(phantomPubKey, dappSecretKey);
+    const decrypted     = nacl.box.open.after(ciphertext, nonce, sharedSecret);
+    if (!decrypted) return;
+    const payload = JSON.parse(new TextDecoder().decode(decrypted));
+    if (payload.public_key) {
+      localStorage.removeItem('_phantom_dl_sk');
+      // Store pubkey for the wallet panel to pick up after DOM init.
+      try { sessionStorage.setItem('_wallet_dl_pubkey', payload.public_key); } catch { /* ignore */ }
+      // If the redirect opened in Phantom's isolated WebView (urlSk present,
+      // storedSk absent — e.g. iOS WKWebView), pre-populate the hash fragment
+      // so Phantom's native "Open in Safari / Open in Chrome" button carries
+      // the wallet address to the user's real browser automatically.
+      if (urlSk && !storedSk) {
+        try {
+          window.history.replaceState({}, '',
+            window.location.pathname + window.location.search
+            + '#wallet=' + encodeURIComponent(payload.public_key));
+        } catch(e) { console.warn('[wallet] replaceState #wallet failed:', e); }
+      }
+    }
+  } catch (err) {
+    console.error('[wallet] deep-link callback error:', err);
+  }
+}());
 // If the configured URL uses http:// but the page is served over HTTPS, upgrade it
 // to https:// automatically to prevent mixed-content blocking of all API calls.
 const API_BASE = (() => {
@@ -3163,6 +3222,32 @@ const socialSignalsListEl   = document.getElementById('social-signals-list');
 const refreshSignalsBtn     = document.getElementById('refresh-signals-btn');
 
 // ── Toggle wallet panel ────────────────────────────────────────
+// Apply any wallet public key returned by the Phantom /v1/connect deep-link
+// flow (initiated by initiateWalletDeepLink()).  Checks two locations:
+//   1. #wallet= URL fragment — set by handleWalletDeepLinkCallback() when the
+//      redirect opens in Phantom's isolated WebView; the user then taps
+//      Phantom's "Open in Browser" which carries this fragment to their real
+//      browser so the wallet is connected there automatically.
+//   2. sessionStorage _wallet_dl_pubkey — set when the redirect opens in the
+//      same browser context (e.g. Android Chrome Custom Tab).
+(function applyWalletDeepLinkResult() {
+  try {
+    const h = window.location.hash;
+    if (h.startsWith('#wallet=')) {
+      const pubkey = decodeURIComponent(h.slice(8));
+      window.history.replaceState({}, '', window.location.pathname + window.location.search);
+      if (pubkey) { onWalletConnected(pubkey); return; }
+    }
+  } catch { /* ignore */ }
+  try {
+    const pubkey = sessionStorage.getItem('_wallet_dl_pubkey');
+    if (pubkey) {
+      sessionStorage.removeItem('_wallet_dl_pubkey');
+      onWalletConnected(pubkey);
+    }
+  } catch { /* ignore */ }
+}());
+
 if (walletBtn) {
   walletBtn.addEventListener('click', () => {
     walletPanelEl.classList.toggle('hidden');
@@ -3212,7 +3297,47 @@ function openPhantomOrRedirect() {
   }
 }
 
-// Returns the Phantom provider, waiting up to `timeout` ms for the extension
+// Initiates the Phantom /v1/connect deep link flow for the wallet panel on
+// mobile.  Works the same as the login-gate version but uses
+// _phantom_dl_purpose=wallet so handleWalletDeepLinkCallback() picks it up
+// instead of the login-gate handler.  Falls back to openPhantomOrRedirect()
+// if an error occurs.
+function initiateWalletDeepLink() {
+  try {
+    const kp            = nacl.box.keyPair();
+    // localStorage (not sessionStorage) is required so that if Phantom opens
+    // the redirect URL in the real browser via an Android Chrome Custom Tab,
+    // the callback page can still find the key.  Chrome Custom Tabs share
+    // localStorage with Chrome but NOT sessionStorage.
+    // This key is a one-time ephemeral X25519 scalar used solely for this DH
+    // exchange — it is NOT the user's wallet private key — and is deleted
+    // immediately after successful decryption in handleWalletDeepLinkCallback.
+    localStorage.setItem('_phantom_dl_sk', JSON.stringify(Array.from(kp.secretKey)));
+    const dappPubKeyB58 = b58Encode(kp.publicKey);
+    // The secret key is also embedded in the redirect_link URL so that
+    // handleWalletDeepLinkCallback can decrypt the response even when Phantom
+    // opens the redirect in an isolated WebView (WKWebView on iOS or Phantom's
+    // Android WebView) that does not share localStorage with the real browser.
+    // The callback uses the *absence* of the key in localStorage (combined with
+    // its presence in the URL) to detect an isolated WebView and set the
+    // #wallet= hash fragment so the user can carry auth to their real browser.
+    const dappSecKeyB58 = b58Encode(kp.secretKey);
+    const redirectUrl   = window.location.origin + window.location.pathname
+      + '?_phantom_dl_sk='      + encodeURIComponent(dappSecKeyB58)
+      + '&_phantom_dl_purpose=' + 'wallet';
+    const deepLink = 'https://phantom.app/ul/v1/connect'
+      + '?dapp_encryption_public_key=' + dappPubKeyB58
+      + '&redirect_link='              + encodeURIComponent(redirectUrl)
+      + '&app_url='                    + encodeURIComponent(window.location.origin)
+      + '&cluster=mainnet-beta';
+    window.location.href = deepLink;
+  } catch (err) {
+    console.error('[wallet] deep link initiation error:', err);
+    openPhantomOrRedirect();
+  }
+}
+
+
 // to inject.  Polls every 100 ms as a fallback in case the phantom#initialized
 // event is not fired by the version of Phantom the user has installed.
 function waitForPhantomProvider(getProviderFn, timeout) {
@@ -3290,7 +3415,16 @@ if (walletConnectBtn) {
       walletConnectBtn.textContent = '◈ CONNECT PHANTOM';
     }
     if (!provider) {
-      openPhantomOrRedirect();
+      const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      if (isTouchDevice && typeof nacl !== 'undefined') {
+        // Use the /v1/connect deep link so Phantom approves in-app and redirects
+        // back to the real browser with the wallet public key.
+        walletConnectBtn.disabled = true;
+        walletConnectBtn.textContent = '◈ OPENING PHANTOM…';
+        initiateWalletDeepLink();
+      } else {
+        openPhantomOrRedirect();
+      }
       return;
     }
     try {
