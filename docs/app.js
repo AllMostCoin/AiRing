@@ -122,24 +122,28 @@
     const nonceB58      = p.get('nonce');
     const dataB58       = p.get('data');
     if (!phantomPubB58 || !nonceB58 || !dataB58) return;
-    // Read the dapp secret key from the URL param first.  On mobile, Phantom
-    // redirects back inside its own in-app browser (WKWebView on iOS) whose
-    // localStorage is isolated from the real browser's, so the key stored in
-    // localStorage by initiatePhantomDeepLink() is not accessible here.
-    // Embedding the key in the redirect_link URL ensures decryption succeeds
-    // regardless of which browser context the redirect opens in.
+    // Read the dapp secret key from the URL param.  On mobile, Phantom may
+    // open the redirect inside its own in-app WebView (WKWebView on iOS or its
+    // own Android WebView) whose localStorage is isolated from the real
+    // browser's, so the key stored by initiatePhantomDeepLink() may not be
+    // accessible here.  Embedding the key in the redirect_link URL ensures
+    // decryption succeeds regardless of which browser context the redirect
+    // opens in.
     const urlSk = p.get('_phantom_dl_sk');
+    // Check localStorage *before* cleanUrl/removeItem so we can detect whether
+    // this redirect was opened in the same browser context as the initiating page.
+    // If the stored key is absent but urlSk is present it means Phantom opened
+    // the redirect inside an isolated in-app WebView (WKWebView on iOS, or
+    // Phantom's own WebView on Android) rather than in the user's real browser.
+    const storedSk = localStorage.getItem('_phantom_dl_sk');
     cleanUrl();
     try {
       let dappSecretKey;
       if (urlSk) {
-        // Key came from the redirect URL — Phantom opened the redirect in its
-        // in-app browser (different localStorage than the real mobile browser).
         dappSecretKey = b58Decode(urlSk);
       } else {
-        const stored = localStorage.getItem('_phantom_dl_sk');
-        if (!stored) return;
-        dappSecretKey = new Uint8Array(JSON.parse(stored));
+        if (!storedSk) return;
+        dappSecretKey = new Uint8Array(JSON.parse(storedSk));
       }
       const phantomPubKey = b58Decode(phantomPubB58);
       const nonce         = b58Decode(nonceB58);
@@ -153,14 +157,14 @@
         // a transient parse error doesn't force the user to restart the flow.
         localStorage.removeItem('_phantom_dl_sk');
         setAuthenticated();
-        // On iOS, Phantom opens the redirect_link inside its own WKWebView whose
-        // localStorage is isolated from Safari/Chrome, so we must show the
-        // "Open in Browser" prompt to transfer auth to the real browser.
-        // On Android, Phantom's redirect opens directly in Chrome (or a Chrome
-        // Custom Tab) — the user is already in their real browser, so we just
-        // authenticate and hide the gate without any extra prompt.
-        const isIOS = /iP(hone|ad|od)/i.test(navigator.userAgent);
-        if (urlSk && isIOS) {
+        // If the key arrived via the URL and localStorage was empty, this redirect
+        // was opened in an isolated in-app browser (Phantom's WKWebView on iOS or
+        // Phantom's WebView on Android).  Show the "Open in Browser" prompt so the
+        // user can transfer auth to their real browser.
+        // If localStorage already held the key, we're in the same browser context
+        // as the initiating page (e.g. Android Chrome Custom Tab that shares
+        // localStorage) — auth is complete and no extra prompt is needed.
+        if (urlSk && !storedSk) {
           _inAppBrowserAuth = true;
         }
       }
@@ -194,14 +198,15 @@
       // after successful decryption in handlePhantomDeepLinkCallback.
       localStorage.setItem('_phantom_dl_sk', JSON.stringify(Array.from(kp.secretKey)));
       const dappPubKeyB58 = b58Encode(kp.publicKey);
-      // Also embed the secret key in the redirect_link URL.  On iOS, Phantom
-      // opens the redirect in a WKWebView whose localStorage is isolated from
-      // Safari/Chrome, so the key stored above would not be found there.
-      // On Android, Phantom opens the redirect in Chrome (or a Custom Tab)
-      // which shares localStorage with the initiating browser, but embedding
-      // the key in the URL provides a reliable fallback for both platforms.
+      // Also embed the secret key in the redirect_link URL.  Phantom may open
+      // the redirect inside its own in-app WebView (WKWebView on iOS, or its
+      // own Android WebView) whose localStorage is isolated from the real
+      // browser's, so the key stored above would not be found there.
       // Carrying it in the URL ensures handlePhantomDeepLinkCallback() can
       // always decrypt regardless of which browser context the redirect opens in.
+      // The callback uses the *absence* of the key in localStorage (combined
+      // with its presence in the URL) to detect an isolated WebView and show
+      // the "Open in Browser" prompt on both iOS and Android.
       // Security note: this is a one-time ephemeral X25519 scalar, NOT the
       // user's wallet key.  It is deleted immediately after successful decryption
       // and the URL is cleaned via history.replaceState on the redirect page.
